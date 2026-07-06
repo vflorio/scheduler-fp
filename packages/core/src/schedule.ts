@@ -126,3 +126,7 @@ export const weekend = (from: Time, to: Time): Schedule =>
 // Blackout: rimuove una finestra temporale da uno schedule esistente
 export const withBlackout = (schedule: Schedule, from: Time, to: Time): Schedule =>
   ScheduleIntersection.concat(schedule, invert(timeRange(from, to)));
+
+// Sottrae: visibile dove "base" è attivo ma "exclude" non lo è
+export const subtract = (base: Schedule, exclude: Schedule): Schedule =>
+  ScheduleIntersection.concat(base, invert(exclude));
