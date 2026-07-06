@@ -1,4 +1,4 @@
-# base-project
+# scheduler-fp
 
 ## Prerequisites
 
@@ -67,5 +67,5 @@ pnpm syncpack:fix
 Run the standalone demo:
 
 ```bash
-pnpm --filter @base-project/demo demo:dev
+pnpm --filter @scheduler-fp/demo demo:dev
 ```

@@ -2,7 +2,7 @@
   "versionGroups": [
     {
       "label": "Use workspace protocol when developing local packages",
-      "dependencies": ["@base-project/**"],
+      "dependencies": ["@scheduler-fp/**"],
       "dependencyTypes": ["dev", "peer", "prod"],
       "pinVersion": "workspace:*"
     },
@@ -46,7 +46,7 @@
   "semverGroups": [
     {
       "label": "Keep all package versions in sync",
-      "packages": ["@base-project/**"],
+      "packages": ["@scheduler-fp/**"],
       "range": ""
     }
   ]

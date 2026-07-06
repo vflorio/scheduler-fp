@@ -1,8 +1,8 @@
 {
-  "name": "@base-project/demo",
+  "name": "@scheduler-fp/demo",
   "version": "0.1.0",
   "dependencies": {
-    "@base-project/core": "workspace:*",
+    "@scheduler-fp/core": "workspace:*",
     "@mui/material": "7.3.5",
     "fp-ts": "2.16.11",
     "io-ts": "2.2.22",

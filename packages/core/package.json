@@ -1,5 +1,5 @@
 {
-  "name": "@base-project/core",
+  "name": "@scheduler-fp/core",
   "version": "1.0.0",
   "devDependencies": {
     "fp-ts": "2.16.11",

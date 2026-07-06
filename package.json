@@ -1,5 +1,5 @@
 {
-  "name": "base-project",
+  "name": "scheduler-fp",
   "version": "0.1.0",
   "dependencies": {
     "logging-ts": "^0.3.4"
