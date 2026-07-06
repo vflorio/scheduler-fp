@@ -1,0 +1,38 @@
+{
+  "name": "@base-project/core",
+  "version": "1.0.0",
+  "devDependencies": {
+    "fp-ts": "2.16.11",
+    "io-ts": "2.2.22",
+    "ts-pattern": "5.9.0",
+    "typescript": "5.9.3"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "dom": [
+        "./dist/dom/index.d.ts"
+      ],
+      "storage": [
+        "./dist/storage/index.d.ts"
+      ]
+    }
+  }
+}

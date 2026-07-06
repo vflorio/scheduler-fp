@@ -1,0 +1,39 @@
+{
+  "name": "base-project",
+  "version": "0.1.0",
+  "dependencies": {
+    "logging-ts": "^0.3.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.0",
+    "@playwright/test": "^1.61.1",
+    "@tsconfig/node20": "^20.1.8",
+    "@tsconfig/vite-react": "^7.0.2",
+    "@types/node": "^25.0.3",
+    "@vitest/ui": "^4.0.16",
+    "jsdom": "^27.3.0",
+    "syncpack": "^13.0.4",
+    "turbo": "^2.7.2",
+    "vitest": "^4.0.16"
+  },
+  "author": {
+    "name": "vflorio & ai"
+  },
+  "packageManager": "pnpm@11.10.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "build-no-cache": "turbo run build --force",
+    "clean": "turbo run clean",
+    "dev": "turbo run dev",
+    "format": "turbo run format && npx @biomejs/biome format --write",
+    "lint": "turbo run lint && npx @biomejs/biome check --write",
+    "syncpack:check": "syncpack list-mismatches",
+    "syncpack:fix": "syncpack fix-mismatches",
+    "syncpack:format": "syncpack format",
+    "syncpack:list": "syncpack list",
+    "test:e2e": "playwright test apps/tests --headed --ui",
+    "test:unit": "turbo run test"
+  },
+  "type": "module"
+}
