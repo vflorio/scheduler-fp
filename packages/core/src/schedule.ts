@@ -54,11 +54,11 @@ export const timeRange = (from: Time, to: Time): Schedule => {
 
 // Visibile per una durata a partire da un orario
 // es: duration([14, 30], 20) -> visibile 14:30-14:50
-export const duration = (start: Time, minutes: number): Schedule => {
+export const duration = (start: Time, amountMinutes: number): Schedule => {
   const startMin = toMinutes(start[0], start[1]);
   return timeRange(
     [Math.floor(startMin / 60), startMin % 60],
-    [Math.floor((startMin + minutes) / 60), (startMin + minutes) % 60],
+    [Math.floor((startMin + amountMinutes) / 60), (startMin + amountMinutes) % 60],
   );
 };
 
@@ -88,6 +88,17 @@ export const invert =
 // -------------------------------------------------------------------------------------
 // Instances
 // -------------------------------------------------------------------------------------
+
+// Nella teoria dei Gruppi, un monoide è una struttura algebrica che rispetta gli assiomi:
+// - Chiusura: a * b ∈ M
+//     (Magma) il risultato rientra nell'insieme M
+// - Associatività: (a * b) * c = a * (b * c)
+//     (Semigruppo) Il risultato non dipende da come si raggruppano gli operandi
+// - Elemento neutro: a * e = e * a = a
+//     (Monoide) esiste un elemento neutro e tale che la composizione con esso non cambia l'elemento
+// M rappresenta l'insieme degli elementi
+// ∗ rappresenta un'operazione binaria
+// ∈ rappresenta l'appartenenza all'insieme
 
 // Unione di due schedule:
 // visibile se ALMENO UNO dei due è attivo

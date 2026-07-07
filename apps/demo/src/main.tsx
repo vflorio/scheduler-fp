@@ -22,27 +22,13 @@ import {
   Typography,
 } from "@mui/material";
 import type { ComposedStep } from "@scheduler-fp/core";
-import {
-  always,
-  block,
-  composeSteps,
-  day,
-  duration,
-  never,
-  recurring,
-  type Schedule,
-  type ScheduleStep,
-  type StepOp,
-  timeRange,
-  weekdays,
-  weekend,
-} from "@scheduler-fp/core";
+import { composeSteps, never, type Schedule, type ScheduleStep, type StepOp } from "@scheduler-fp/core";
 import { useCallback, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { PRESETS } from "./presets";
+import { DAY_NAMES, VERBS } from "./verbs";
 
 export { config } from "./env";
-
-const DAY_NAMES = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"] as const;
 
 const OP_LABELS: Record<StepOp, { label: string; color: "success" | "primary" | "error" }> = {
   union: { label: "∪ Unione", color: "success" },
@@ -51,199 +37,6 @@ const OP_LABELS: Record<StepOp, { label: string; color: "success" | "primary" | 
 };
 
 const ALL_OPS: StepOp[] = ["union", "intersection", "subtract"];
-
-// -------------------------------------------------------------------------------------
-// Schedule "verbs" — templates the user can pick from
-// -------------------------------------------------------------------------------------
-
-type Time = [number, number];
-
-interface ScheduleVerb {
-  readonly id: string;
-  readonly name: string;
-  readonly fields: readonly FieldDef[];
-  readonly build: (values: Record<string, string>) => { schedule: Schedule; label: string };
-}
-
-interface FieldDef {
-  readonly name: string;
-  readonly label: string;
-  readonly type: "time" | "number" | "day";
-  readonly defaultValue: string;
-}
-
-const parseTime = (v: string): Time => {
-  const [h, m] = v.split(":").map(Number);
-  return [h ?? 0, m ?? 0];
-};
-
-const VERBS: ScheduleVerb[] = [
-  {
-    id: "always",
-    name: "Sempre visibile",
-    fields: [],
-    build: () => ({ schedule: always, label: "Sempre visibile" }),
-  },
-  {
-    id: "never",
-    name: "Mai visibile",
-    fields: [],
-    build: () => ({ schedule: never, label: "Mai visibile" }),
-  },
-  {
-    id: "day",
-    name: "Giorno specifico",
-    fields: [{ name: "day", label: "Giorno (0=Lun … 6=Dom)", type: "day", defaultValue: "0" }],
-    build: (v) => {
-      const d = Number(v.day);
-      return { schedule: day(d), label: `${DAY_NAMES[d] ?? `Giorno ${d}`}` };
-    },
-  },
-  {
-    id: "timeRange",
-    name: "Range orario",
-    fields: [
-      { name: "from", label: "Da", type: "time", defaultValue: "09:00" },
-      { name: "to", label: "A", type: "time", defaultValue: "18:00" },
-    ],
-    build: (v) => ({
-      schedule: timeRange(parseTime(v.from), parseTime(v.to)),
-      label: `Orario ${v.from}-${v.to}`,
-    }),
-  },
-  {
-    id: "block",
-    name: "Blocco (giorno + orario)",
-    fields: [
-      { name: "day", label: "Giorno", type: "day", defaultValue: "0" },
-      { name: "from", label: "Da", type: "time", defaultValue: "09:00" },
-      { name: "to", label: "A", type: "time", defaultValue: "18:00" },
-    ],
-    build: (v) => {
-      const d = Number(v.day);
-      return {
-        schedule: block(d, parseTime(v.from), parseTime(v.to)),
-        label: `${DAY_NAMES[d] ?? `G${d}`} ${v.from}-${v.to}`,
-      };
-    },
-  },
-  {
-    id: "weekdays",
-    name: "Feriali (Lun-Ven)",
-    fields: [
-      { name: "from", label: "Da", type: "time", defaultValue: "09:00" },
-      { name: "to", label: "A", type: "time", defaultValue: "18:00" },
-    ],
-    build: (v) => ({
-      schedule: weekdays(parseTime(v.from), parseTime(v.to)),
-      label: `Feriali ${v.from}-${v.to}`,
-    }),
-  },
-  {
-    id: "weekend",
-    name: "Weekend (Sab-Dom)",
-    fields: [
-      { name: "from", label: "Da", type: "time", defaultValue: "09:00" },
-      { name: "to", label: "A", type: "time", defaultValue: "18:00" },
-    ],
-    build: (v) => ({
-      schedule: weekend(parseTime(v.from), parseTime(v.to)),
-      label: `Weekend ${v.from}-${v.to}`,
-    }),
-  },
-  {
-    id: "duration",
-    name: "Durata da orario",
-    fields: [
-      { name: "start", label: "Inizio", type: "time", defaultValue: "14:30" },
-      { name: "minutes", label: "Durata (min)", type: "number", defaultValue: "15" },
-    ],
-    build: (v) => ({
-      schedule: duration(parseTime(v.start), Number(v.minutes)),
-      label: `${v.start} per ${v.minutes}min`,
-    }),
-  },
-  {
-    id: "recurring",
-    name: "Ricorrente",
-    fields: [
-      { name: "every", label: "Ogni N min", type: "number", defaultValue: "30" },
-      { name: "dur", label: "Durata (min)", type: "number", defaultValue: "5" },
-    ],
-    build: (v) => ({
-      schedule: recurring(Number(v.every), Number(v.dur)),
-      label: `${v.dur}min ogni ${v.every}min`,
-    }),
-  },
-];
-
-// -------------------------------------------------------------------------------------
-// Example presets
-// -------------------------------------------------------------------------------------
-
-interface Preset {
-  readonly name: string;
-  readonly description: string;
-  readonly steps: ScheduleStep[];
-}
-
-const PRESETS: Preset[] = [
-  {
-    name: "Eccezione giornaliera",
-    description: "Tutti i giorni 9-18, escludi Lunedì, aggiungi Lun 18-19",
-    steps: [
-      { label: "Tutti i giorni 9:00-18:00", schedule: timeRange([9, 0], [18, 0]), op: "union" },
-      { label: "Lunedì", schedule: day(0), op: "subtract" },
-      { label: "Lun 18:00-19:00", schedule: block(0, [18, 0], [19, 0]), op: "union" },
-    ],
-  },
-  {
-    name: "Digital signage negozio",
-    description: "Promo feriali 9-20, weekend 10-18, blackout pausa pranzo",
-    steps: [
-      { label: "Feriali 9:00-20:00", schedule: weekdays([9, 0], [20, 0]), op: "union" },
-      { label: "Weekend 10:00-18:00", schedule: weekend([10, 0], [18, 0]), op: "union" },
-      { label: "Pausa pranzo 13:00-14:00", schedule: timeRange([13, 0], [14, 0]), op: "subtract" },
-    ],
-  },
-  {
-    name: "Palinsesto TV",
-    description: "TG mattina e sera + spot ricorrenti in fascia diurna",
-    steps: [
-      { label: "TG Mattina 7:00-7:30", schedule: duration([7, 0], 30), op: "union" },
-      { label: "TG Sera 20:00-20:30", schedule: duration([20, 0], 30), op: "union" },
-      { label: "Spot 2min ogni 20min", schedule: recurring(20, 2), op: "union" },
-      { label: "Solo fascia 6:00-23:00", schedule: timeRange([6, 0], [23, 0]), op: "intersection" },
-    ],
-  },
-  {
-    name: "Supporto clienti",
-    description: "Lun-Ven 8-18, Sab mattina, mai Domenica",
-    steps: [
-      { label: "Feriali 8:00-18:00", schedule: weekdays([8, 0], [18, 0]), op: "union" },
-      { label: "Sab 9:00-13:00", schedule: block(5, [9, 0], [13, 0]), op: "union" },
-    ],
-  },
-  {
-    name: "Manutenzione notturna",
-    description: "Sempre attivo h24, escludi finestra manutenzione 2-5 AM",
-    steps: [
-      { label: "Sempre attivo", schedule: always, op: "union" },
-      { label: "Manutenzione 2:00-5:00", schedule: timeRange([2, 0], [5, 0]), op: "subtract" },
-      { label: "Niente weekend", schedule: weekend([0, 0], [23, 59]), op: "subtract" },
-    ],
-  },
-  {
-    name: "Ristorante",
-    description: "Pranzo e cena, chiuso Martedì, brunch domenicale",
-    steps: [
-      { label: "Pranzo 12:00-14:30", schedule: timeRange([12, 0], [14, 30]), op: "union" },
-      { label: "Cena 19:00-23:00", schedule: timeRange([19, 0], [23, 0]), op: "union" },
-      { label: "Chiuso Martedì", schedule: day(1), op: "subtract" },
-      { label: "Brunch Dom 10:00-14:00", schedule: block(6, [10, 0], [14, 0]), op: "union" },
-    ],
-  },
-];
 
 // -------------------------------------------------------------------------------------
 // Grid helpers
@@ -566,7 +359,7 @@ function StepCard({
   const isFirst = index === 0;
 
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <Paper variant="outlined" sx={{ p: 2, minWidth: 280, flexShrink: 0 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
         <Typography variant="body2" sx={{ fontWeight: 700, color: "#888", minWidth: 24 }}>
           {index + 1}.
@@ -592,10 +385,10 @@ function StepCard({
         </Typography>
         <Box sx={{ display: "flex", gap: 0.5 }}>
           <IconButton size="small" disabled={index === 0} onClick={onMoveUp} title="Sposta su">
-            <span>▲</span>
+            <span> ← </span>
           </IconButton>
           <IconButton size="small" disabled={index === total - 1} onClick={onMoveDown} title="Sposta giù">
-            <span>▼</span>
+            <span>→</span>
           </IconButton>
           <IconButton size="small" onClick={onRemove} title="Rimuovi" sx={{ color: "error.main" }}>
             <span>✕</span>
@@ -603,16 +396,16 @@ function StepCard({
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 2 }}>
-        <Box sx={{ flex: 1 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box>
           <Typography variant="caption" sx={{ color: "#888", mb: 0.5, display: "block" }}>
-            {isFirst ? "Schedule" : "Questo step"}
+            {isFirst ? "Schedule" : "Step"}
           </Typography>
           <MiniGrid schedule={step.schedule} />
         </Box>
-        <Box sx={{ flex: 1 }}>
+        <Box>
           <Typography variant="caption" sx={{ color: "#888", mb: 0.5, display: "block" }}>
-            Risultato cumulativo
+            Risultato composizione
           </Typography>
           <MiniGrid schedule={resultSchedule} highlight />
         </Box>
@@ -655,14 +448,10 @@ function App() {
   return (
     <ThemeProvider theme={createTheme({ palette: { mode: "light" } })}>
       <CssBaseline />
-      <Box sx={{ maxWidth: 900, mx: "auto", p: 3 }}>
+      <Box sx={{ mx: "auto", p: 3 }}>
         <Typography variant="h5" sx={{ mb: 0.5, fontWeight: 700 }}>
-          Schedule Composer
+          Schedule Builder
         </Typography>
-        <Typography variant="body2" sx={{ mb: 2, color: "#666" }}>
-          Costruisci uno schedule step-by-step. Riordina con ▲▼, cambia operazione, o rimuovi con ✕.
-        </Typography>
-
         <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
           <Button variant="contained" size="small" onClick={() => setDialogOpen(true)}>
             + Aggiungi step
@@ -704,7 +493,7 @@ function App() {
           </Paper>
         ) : (
           <>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ display: "flex", flexDirection: "row", gap: 1.5, overflowX: "auto", pb: 1 }}>
               {composed.map((c, i) => (
                 <StepCard
                   key={i}
@@ -723,9 +512,11 @@ function App() {
             <Divider sx={{ my: 3 }} />
 
             <Typography variant="h6" sx={{ mb: 1.5, fontWeight: 700 }}>
-              Risultato finale
+              Risultato
             </Typography>
-            <FinalGrid steps={steps} composed={composed} />
+            <Box sx={{ maxWidth: 900 }}>
+              <FinalGrid steps={steps} composed={composed} />
+            </Box>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2, fontSize: 11 }}>
               <Box sx={{ width: 14, height: 14, bgcolor: "#e0e0e0", borderRadius: 0.5 }} /> 0 min
