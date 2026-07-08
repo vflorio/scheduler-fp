@@ -1,15 +1,4 @@
-import {
-  always,
-  block,
-  day,
-  duration,
-  never,
-  recurring,
-  type Schedule,
-  timeRange,
-  weekdays,
-  weekend,
-} from "@scheduler-fp/core";
+import * as Schedule from "@supervisor/core/schedule";
 
 type Time = [number, number];
 
@@ -17,7 +6,7 @@ interface ScheduleVerb {
   readonly id: string;
   readonly name: string;
   readonly fields: readonly FieldDef[];
-  readonly build: (values: Record<string, string>) => { schedule: Schedule; label: string };
+  readonly build: (values: Record<string, string>) => { schedule: Schedule.Schedule; label: string };
 }
 
 const parseTime = (v: string): Time => {
@@ -39,13 +28,13 @@ export const VERBS: ScheduleVerb[] = [
     id: "always",
     name: "Sempre visibile",
     fields: [],
-    build: () => ({ schedule: always, label: "Sempre visibile" }),
+    build: () => ({ schedule: Schedule.always, label: "Sempre visibile" }),
   },
   {
     id: "never",
     name: "Mai visibile",
     fields: [],
-    build: () => ({ schedule: never, label: "Mai visibile" }),
+    build: () => ({ schedule: Schedule.never, label: "Mai visibile" }),
   },
   {
     id: "day",
@@ -53,7 +42,7 @@ export const VERBS: ScheduleVerb[] = [
     fields: [{ name: "day", label: "Giorno (0=Lun … 6=Dom)", type: "day", defaultValue: "0" }],
     build: (v) => {
       const d = Number(v.day);
-      return { schedule: day(d), label: `${DAY_NAMES[d] ?? `Giorno ${d}`}` };
+      return { schedule: Schedule.day(d), label: `${DAY_NAMES[d] ?? `Giorno ${d}`}` };
     },
   },
   {
@@ -64,7 +53,7 @@ export const VERBS: ScheduleVerb[] = [
       { name: "to", label: "A", type: "time", defaultValue: "18:00" },
     ],
     build: (v) => ({
-      schedule: timeRange(parseTime(v.from), parseTime(v.to)),
+      schedule: Schedule.timeRange(parseTime(v.from), parseTime(v.to)),
       label: `Orario ${v.from}-${v.to}`,
     }),
   },
@@ -79,7 +68,7 @@ export const VERBS: ScheduleVerb[] = [
     build: (v) => {
       const d = Number(v.day);
       return {
-        schedule: block(d, parseTime(v.from), parseTime(v.to)),
+        schedule: Schedule.block(d, parseTime(v.from), parseTime(v.to)),
         label: `${DAY_NAMES[d] ?? `G${d}`} ${v.from}-${v.to}`,
       };
     },
@@ -92,7 +81,7 @@ export const VERBS: ScheduleVerb[] = [
       { name: "to", label: "A", type: "time", defaultValue: "18:00" },
     ],
     build: (v) => ({
-      schedule: weekdays(parseTime(v.from), parseTime(v.to)),
+      schedule: Schedule.weekdays(parseTime(v.from), parseTime(v.to)),
       label: `Feriali ${v.from}-${v.to}`,
     }),
   },
@@ -104,7 +93,7 @@ export const VERBS: ScheduleVerb[] = [
       { name: "to", label: "A", type: "time", defaultValue: "18:00" },
     ],
     build: (v) => ({
-      schedule: weekend(parseTime(v.from), parseTime(v.to)),
+      schedule: Schedule.weekend(parseTime(v.from), parseTime(v.to)),
       label: `Weekend ${v.from}-${v.to}`,
     }),
   },
@@ -116,7 +105,7 @@ export const VERBS: ScheduleVerb[] = [
       { name: "minutes", label: "Durata (min)", type: "number", defaultValue: "15" },
     ],
     build: (v) => ({
-      schedule: duration(parseTime(v.start), Number(v.minutes)),
+      schedule: Schedule.duration(parseTime(v.start), Number(v.minutes)),
       label: `${v.start} per ${v.minutes}min`,
     }),
   },
@@ -128,7 +117,7 @@ export const VERBS: ScheduleVerb[] = [
       { name: "dur", label: "Durata (min)", type: "number", defaultValue: "5" },
     ],
     build: (v) => ({
-      schedule: recurring(Number(v.every), Number(v.dur)),
+      schedule: Schedule.recurring(Number(v.every), Number(v.dur)),
       label: `${v.dur}min ogni ${v.every}min`,
     }),
   },

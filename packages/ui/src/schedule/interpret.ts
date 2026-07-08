@@ -1,4 +1,4 @@
-import { never, type Schedule, ScheduleIntersection, ScheduleUnion, subtract } from "./schedule";
+import { never, type Schedule, ScheduleIntersection, ScheduleUnion, subtract } from "@supervisor/core/schedule";
 
 export type StepOp = "union" | "intersection" | "subtract";
 

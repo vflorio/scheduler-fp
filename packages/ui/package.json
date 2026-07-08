@@ -1,0 +1,37 @@
+{
+  "name": "@supervisor/ui",
+  "version": "0.1.0",
+  "peerDependencies": {
+    "@supervisor/core": "workspace:*",
+    "@mui/material": "9.2.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
+    "fp-ts": "2.16.11",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.5",
+    "@types/react-dom": "19.2.3",
+    "@supervisor/core": "workspace:*",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
+    "@mui/material": "9.2.0",
+    "fp-ts": "2.16.11",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "typescript": "6.0.3"
+  },
+  "private": true,
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsc --build",
+    "dev": "tsc --noEmit --watch"
+  },
+  "exports": {
+    "./*": "./src/*.tsx",
+    "./schedule": "./src/schedule/index.tsx"
+  },
+
+  "type": "module"
+}

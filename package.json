@@ -1,19 +1,16 @@
 {
-  "name": "scheduler-fp",
+  "name": "supervisor",
   "version": "0.1.0",
-  "dependencies": {
-    "logging-ts": "^0.3.4"
-  },
   "devDependencies": {
     "@biomejs/biome": "2.5.0",
     "@playwright/test": "^1.61.1",
-    "@tsconfig/node20": "^20.1.8",
+    "@tsconfig/node24": "^24.0.4",
     "@tsconfig/vite-react": "^7.0.2",
     "@types/node": "^25.0.3",
     "@vitest/ui": "^4.0.16",
     "jsdom": "^27.3.0",
     "syncpack": "^13.0.4",
-    "turbo": "^2.7.2",
+    "turbo": "^2.10.4",
     "vitest": "^4.0.16"
   },
   "author": {

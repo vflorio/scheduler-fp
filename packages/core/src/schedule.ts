@@ -107,16 +107,12 @@ export const ScheduleUnion: M.Monoid<Schedule> = {
   empty: () => false,
 };
 
-export const union = M.concatAll(ScheduleUnion);
-
 // Intersezione di due schedule:
 // visibile solo se ENTRAMBI sono attivi
 export const ScheduleIntersection: M.Monoid<Schedule> = {
   concat: (first, second) => (slot) => first(slot) && second(slot),
   empty: () => true,
 };
-
-export const intersection = M.concatAll(ScheduleIntersection);
 
 // -------------------------------------------------------------------------------------
 // Derived combinators
