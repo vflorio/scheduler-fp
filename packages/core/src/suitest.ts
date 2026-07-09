@@ -178,19 +178,19 @@ export const getControlUnits = (config: SuitestConfig): TE.TaskEither<SuitestErr
 export const rebootControlUnit = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
   pipe(
     postJsonAuth(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/reboot`), config.auth),
-    TE.map(() => undefined),
+    TE.asUnit,
   );
 
 // Spegni una control unit
 export const powerOffControlUnit = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
   pipe(
     postJsonAuth(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/power-off`), config.auth),
-    TE.map(() => undefined),
+    TE.asUnit,
   );
 
 // Riavvia SuitestDrive su una control unit
 export const restartSuitestDrive = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
   pipe(
     postJsonAuth(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/restart-sd`), config.auth),
-    TE.map(() => undefined),
+    TE.asUnit,
   );
