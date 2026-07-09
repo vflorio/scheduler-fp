@@ -3,6 +3,7 @@ import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
 import { type BasicAuth, getJsonAuth, type HTTPError, postJsonAuth } from "./http";
+import { fetchAllPages, type PaginationError } from "./suitest-paginate";
 
 // -------------------------------------------------------------------------------------
 // Configuration
@@ -25,7 +26,7 @@ export type ValidationError = {
   message: string;
 };
 
-export type SuitestError = HTTPError | ValidationError;
+export type SuitestError = HTTPError | ValidationError | PaginationError;
 
 const createValidationError = (errors: t.Errors): ValidationError => ({
   type: "ValidationError",
@@ -151,9 +152,9 @@ const ControlUnitsResponseSchema = t.array(ControlUnitSchema);
 // API - Devices
 // -------------------------------------------------------------------------------------
 
-// Lista di tutti i device
-export const getDevices = (config: SuitestConfig): TE.TaskEither<SuitestError, DevicesResponse> =>
-  pipe(getJsonAuth(endpoint(config, "/devices"), config.auth), TE.flatMapEither(validate(DevicesResponseSchema)));
+// Tutti i device
+export const getAllDevices = (config: SuitestConfig): TE.TaskEither<SuitestError, readonly Device[]> =>
+  fetchAllPages(endpoint(config, "/devices"), config.auth, DeviceSchema);
 
 // Dettaglio di un singolo device
 export const getDevice = (config: SuitestConfig, deviceId: string): TE.TaskEither<SuitestError, DeviceDetail> =>
