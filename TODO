@@ -1,0 +1,63 @@
+# TODO
+
+## Core
+
+- [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, monoid instances
+- [ ] Device model: types for TV, Candybox, AndroidCamera (id, name, owner relations, etc.)
+- [ ] Recovery policy model: offline threshold, grace period, retry count, delay between attempts
+- [ ] Notification policy model: immediate vs. after-all-retries-exhausted, per-device-type config
+- [ ] Config model: full supervisor configuration (devices, policies, schedule, Slack)
+
+## Monitoring
+
+- [ ] Candybox reachability check 
+- [ ] Android camera availability check
+- [ ] Polling loop with configurable interval per device type
+- [ ] Monitor activation gate: skip polling outside the configured working schedule
+- [ ] Offline state tracker: track how long each device has been unreachable
+
+## Recovery Workflows
+
+### Candybox
+- [ ] Suitest Private API client (auth, reboot, power on/off)
+- [ ] Candybox recovery workflow: detect -> wait grace period -> reboot via Suitest -> verify reachability
+- [ ] Bulk-offline heuristic: trigger recovery when multiple devices owned by the same Candybox go offline
+
+### Android Camera
+- [ ] ADB over TCP client
+- [ ] Android recovery workflow - level 1: restart Suitest/Automation app via ADB
+- [ ] Android recovery workflow - level 2: reboot device via ADB, wait for boot, start apps
+- [ ] Post-boot startup sequence: launch Suitest app + ADB-TCP exposure
+- [ ] Camera stream verification after recovery
+
+### Retry Engine
+- [ ] Generic retry runner: configurable attempts, delay, per-device-type strategy
+- [ ] Backoff strategy (fixed / exponential) - decide which to use
+- [ ] Mark device as "manual intervention required" after all retries are exhausted
+
+## Notifications
+
+- [ ] Slack client
+- [ ] Notification payload builder: device info, failure reason, recovery attempts summary
+- [ ] Send notification on recovery exhaustion
+- [ ] Send immediate notification for critical failures (configurable per policy)
+
+## Operational Safety
+
+- [ ] Manual maintenance mode flag: prevent automatic recovery for a device that was manually powered off
+
+## Service / Runtime
+
+- [ ] Config file loading (JSON) with validation (io-ts)
+- [ ] Docker/PM2 Production env
+- [ ] Logging (structured, with device context)
+- [ ] Graceful shutdown handling
+
+# Nice to have
+
+## Scheduled TV Recording Sessions
+
+- [ ] Recording session model: start time, end time, target device, input/channel
+- [ ] Scheduling interface (UI) for creating recording sessions
+- [ ] Session runner: power on -> select input -> start recording -> stop -> store -> optional power off
+- [ ] Recording storage strategy (local path, naming convention)
