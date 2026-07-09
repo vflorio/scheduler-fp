@@ -2,13 +2,13 @@ import { CssBaseline, createTheme, ThemeProvider } from "@mui/material";
 import * as Schedule from "@supervisor/core/schedule";
 import * as UISchedule from "@supervisor/ui/schedule";
 import { createRoot } from "react-dom/client";
-
-export { config } from "./env";
+import "./retry";
 
 function App() {
   return (
     <ThemeProvider theme={createTheme({ palette: { mode: "light" } })}>
       <CssBaseline />
+
       <UISchedule.Builder
         presets={[
           {
