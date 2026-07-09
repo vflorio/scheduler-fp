@@ -3,6 +3,7 @@
 ## Core
 
 - [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, monoid instances
+    - [ ] Add Unit Testing
 - [ ] Device model: types for TV, Candybox, AndroidCamera (id, name, owner relations, etc.)
 - [ ] Recovery policy model: offline threshold, grace period, retry count, delay between attempts
 - [ ] Notification policy model: immediate vs. after-all-retries-exhausted, per-device-type config

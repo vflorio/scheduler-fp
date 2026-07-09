@@ -9,11 +9,11 @@ export interface Status {
 
 export const initialStatus: Status = {
   iteration: 0,
-  previousDelay: null,
+  previousDelay: null, // Indichiamo c
 };
 
-// Una Policy è una funzione che dato uno Status restituisce
-// un delay in millisecondi se non si ha raggiunto il limite di tentativi
+// Una Policy è una funzione che dato uno Status restituisce un delay in millisecondi
+// con null indichiamo che la policy ha terminato i tentativi
 export type Policy = (status: Status) => number | null;
 
 // -------------------------------------------------------------------------------------
@@ -51,7 +51,8 @@ export const capDelay =
     return delay === null ? null : Math.min(maxDelay, delay);
   };
 
-// Combina due policy: si continua solo se entrambe dicono di continuare, si aspetta il delay più lungo tra le due
+// Combina due policy: si continua solo se entrambe dicono di continuare,
+// si aspetta il delay più lungo tra le due
 export const concat =
   (second: Policy) =>
   (first: Policy): Policy =>
