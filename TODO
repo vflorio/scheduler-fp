@@ -2,64 +2,70 @@
 
 ## Core
 
-- [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, monoid instances
-    - [ ] Add Unit Testing
-- [ ] Device model: types for TV, Candybox, AndroidCamera (id, name, owner relations, etc.)
-- [ ] Recovery policy model: offline threshold, grace period, retry count, delay between attempts
-- [ ] Notification policy model: immediate vs. after-all-retries-exhausted, per-device-type config
-- [ ] Config model: full supervisor configuration (devices, policies, schedule, Slack)
+- [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, instanze monoidi
+    - [ ] Aggiungere unit testing
+- [ ] Device model: tipi per TV, Candybox, AndroidCamera (id, name, owner relations, ecc.)
+- [ ] Recovery policy model: offline threshold, grace period, retry count, delay tra tentativi
+- [ ] Notification policy model: immediate vs. after-all-retries-exhausted, config per device type
+- [ ] Config model: configurazione completa supervisor (devices, policies, schedule, Slack)
 
 ## Monitoring
 
-- [ ] Candybox reachability check 
+- [ ] Candybox reachability check
 - [ ] Android camera availability check
-- [ ] Polling loop with configurable interval per device type
-- [ ] Monitor activation gate: skip polling outside the configured working schedule
-- [ ] Offline state tracker: track how long each device has been unreachable
+- [ ] Polling loop con intervallo configurabile per device type
+- [ ] Activation gate: saltare il polling fuori dallo schedule di lavoro configurato
+- [ ] Offline state tracker: tracciare da quanto tempo ogni device e' irraggiungibile
 
 ## Recovery Workflows
 
 ### Candybox
 - [X] Suitest Public API client (auth, reboot, power on/off)
 - [ ] Candybox recovery workflow: detect -> wait grace period -> reboot via Suitest -> verify reachability
-- [ ] Bulk-offline heuristic: trigger recovery when multiple devices owned by the same Candybox go offline
+- [ ] Bulk-offline heuristic: attivare recovery quando piu' device dello stesso Candybox vanno offline
+
+### TV Device
+- [ ] TV power-on workflow: verifica che il device sia acceso, se OFF/OFFLINE accendi via Suitest API
+- [ ] Pre-recording readiness check: assicura stato READY/CONTROLLABLE prima di una registrazione schedulata
+- [ ] TV recovery workflow: detect -> power on -> verify status -> retry/notify
+- [ ] Integrazione con Bulk-offline heuristic (il risultato di questo workflow alimenta la detection)
 
 ### Android Camera
 - [ ] ADB over TCP client
-- [ ] Android recovery workflow - level 1: restart Suitest/Automation app via ADB
-- [ ] Android recovery workflow - level 2: reboot device via ADB, wait for boot, start apps
-- [ ] Post-boot startup sequence: launch Suitest app + ADB-TCP exposure
-- [ ] Camera stream verification after recovery
+- [ ] Android recovery workflow - livello 1: restart Suitest/Automation app via ADB
+- [ ] Android recovery workflow - livello 2: reboot device via ADB, attesa boot, avvio app
+- [ ] Post-boot startup sequence: avvio Suitest app + esposizione ADB-TCP
+- [ ] Verifica camera stream dopo recovery
 
 ### Retry Engine
-- [X] Retry model (constant, exponential, limit, cap) 
-- [ ] Generic retry runner: configurable attempts, delay, per-device-type strategy
-- [ ] Backoff strategy (fixed / exponential) - decide which to use
-- [ ] Mark device as "manual intervention required" after all retries are exhausted
+- [X] Retry model (constant, exponential, limit, cap)
+- [ ] Generic retry runner: tentativi configurabili, delay, strategia per device type
+- [ ] Backoff strategy (fixed / exponential) - decidere quale usare
+- [ ] Marcare device come "intervento manuale necessario" dopo esaurimento retry
 
 ## Notifications
 
 - [X] Slack client
-- [ ] Notification payload builder: device info, failure reason, recovery attempts summary
-- [ ] Send notification on recovery exhaustion
-- [ ] Send immediate notification for critical failures (configurable per policy)
+- [ ] Notification payload builder: info device, motivo failure, riepilogo tentativi recovery
+- [ ] Invio notifica al termine dei retry senza successo
+- [ ] Invio notifica immediata per failure critici (configurabile per policy)
 
 ## Operational Safety
 
-- [ ] Manual maintenance mode flag: prevent automatic recovery for a device that was manually powered off
+- [ ] Flag maintenance mode manuale: impedire recovery automatico per device spento manualmente
 
 ## Service / Runtime
 
-- [ ] Config file loading (JSON) with validation (io-ts)
-- [ ] Docker/PM2 Production env
-- [ ] Logging (structured, with device context)
-- [ ] Graceful shutdown handling
+- [ ] Caricamento config (JSON) con validazione (io-ts)
+- [ ] Docker/PM2 per ambiente production
+- [ ] Logging (strutturato, con contesto device)
+- [ ] Gestione graceful shutdown
 
 # Nice to have
 
 ## Scheduled TV Recording Sessions
 
 - [ ] Recording session model: start time, end time, target device, input/channel
-- [ ] Scheduling interface (UI) for creating recording sessions
-- [ ] Session runner: power on -> select input -> start recording -> stop -> store -> optional power off
-- [ ] Recording storage strategy (local path, naming convention)
+- [ ] Interfaccia scheduling (UI) per creare recording sessions
+- [ ] Session runner: power on -> selezione input -> avvio registrazione -> stop -> salvataggio -> power off opzionale
+- [ ] Strategia storage registrazioni (path locale, naming convention)
