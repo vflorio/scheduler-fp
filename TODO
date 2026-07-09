@@ -20,7 +20,7 @@
 ## Recovery Workflows
 
 ### Candybox
-- [ ] Suitest Private API client (auth, reboot, power on/off)
+- [X] Suitest Public API client (auth, reboot, power on/off)
 - [ ] Candybox recovery workflow: detect -> wait grace period -> reboot via Suitest -> verify reachability
 - [ ] Bulk-offline heuristic: trigger recovery when multiple devices owned by the same Candybox go offline
 
@@ -32,13 +32,14 @@
 - [ ] Camera stream verification after recovery
 
 ### Retry Engine
+- [X] Retry model (constant, exponential, limit, cap) 
 - [ ] Generic retry runner: configurable attempts, delay, per-device-type strategy
 - [ ] Backoff strategy (fixed / exponential) - decide which to use
 - [ ] Mark device as "manual intervention required" after all retries are exhausted
 
 ## Notifications
 
-- [ ] Slack client
+- [X] Slack client
 - [ ] Notification payload builder: device info, failure reason, recovery attempts summary
 - [ ] Send notification on recovery exhaustion
 - [ ] Send immediate notification for critical failures (configurable per policy)

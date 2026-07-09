@@ -5,7 +5,7 @@ import * as t from "io-ts";
 import { type BasicAuth, getJsonAuth, type HTTPError, postJsonAuth } from "./http";
 
 // -------------------------------------------------------------------------------------
-// Configurazione
+// Configuration
 // -------------------------------------------------------------------------------------
 
 const BASE_URL = "https://the.suite.st/api/public/v4";
@@ -17,7 +17,7 @@ export interface SuitestConfig {
 const endpoint = (config: SuitestConfig, path: string): string => `${config.baseUrl ?? BASE_URL}${path}`;
 
 // -------------------------------------------------------------------------------------
-// Errore di validazione
+// Validation
 // -------------------------------------------------------------------------------------
 
 export type ValidationError = {
@@ -32,20 +32,16 @@ const createValidationError = (errors: t.Errors): ValidationError => ({
   message: `Validation Failed: ${errors.map((e) => e.context.map(({ key }) => key).join(".")).join(", ")}`,
 });
 
-// -------------------------------------------------------------------------------------
-// Validatore generico
-// -------------------------------------------------------------------------------------
-
 const validate =
   <A>(codec: t.Type<A, unknown>) =>
   (data: unknown): E.Either<ValidationError, A> =>
     pipe(data, codec.decode, E.mapLeft(createValidationError));
 
 // -------------------------------------------------------------------------------------
-// Model - Stato del device
+// Model - Device Status
 // -------------------------------------------------------------------------------------
 
-// Stati in cui il device e' disponibile
+// Stati in cui il device è disponibile
 const DeviceAvailableStatus = t.union([
   t.literal("CONTROLLABLE"),
   t.literal("OFF"),
@@ -53,7 +49,7 @@ const DeviceAvailableStatus = t.union([
   t.literal("READY"),
 ]);
 
-// Stati in cui il device e' temporaneamente occupato
+// Stati in cui il device è temporaneamente occupato
 const DeviceBusyStatus = t.union([
   t.literal("API_CONTROLLED"),
   t.literal("CANDYBOX_UPDATE"),
@@ -112,7 +108,8 @@ const DevicesResponseSchema = t.type({
 
 export type DevicesResponse = t.TypeOf<typeof DevicesResponseSchema>;
 
-// Dettaglio singolo device (stessi campi senza deviceId, che e' nel path)
+// Dettaglio singolo device (stessi campi senza deviceId, viene usata per la query)
+// (questo codec lo dichiariamo per mimare lo swagger ufficiale)
 const DeviceDetailSchema = t.type({
   manufacturer: t.string,
   model: t.string,
@@ -154,7 +151,7 @@ const ControlUnitsResponseSchema = t.array(ControlUnitSchema);
 // API - Devices
 // -------------------------------------------------------------------------------------
 
-// Lista di tutti i device dell'organizzazione
+// Lista di tutti i device
 export const getDevices = (config: SuitestConfig): TE.TaskEither<SuitestError, DevicesResponse> =>
   pipe(getJsonAuth(endpoint(config, "/devices"), config.auth), TE.flatMapEither(validate(DevicesResponseSchema)));
 
