@@ -11,7 +11,7 @@ const status = (iteration: number, previousDelay: number | null = null): Status 
 // -------------------------------------------------------------------------------------
 
 describe("constantDelay", () => {
-  it("ritorna sempre lo stesso delay", () => {
+  it("always returns the same delay", () => {
     const policy = constantDelay(1000);
     expect(policy(status(0))).toBe(1000);
     expect(policy(status(5))).toBe(1000);
@@ -20,7 +20,7 @@ describe("constantDelay", () => {
 });
 
 describe("limitRetries", () => {
-  it("ritorna 0 finche' ci sono tentativi, null quando esauriti", () => {
+  it("returns 0 while retries remain, null when exhausted", () => {
     const policy = limitRetries(3);
     expect(policy(status(0))).toBe(0);
     expect(policy(status(1))).toBe(0);
@@ -31,7 +31,7 @@ describe("limitRetries", () => {
 });
 
 describe("exponentialBackoff", () => {
-  it("raddoppia il delay ad ogni iterazione", () => {
+  it("doubles the delay on each iteration", () => {
     const policy = exponentialBackoff(100);
     expect(policy(status(0))).toBe(100);
     expect(policy(status(1))).toBe(200);
@@ -41,7 +41,7 @@ describe("exponentialBackoff", () => {
 });
 
 describe("initialStatus", () => {
-  it("parte da iterazione 0 senza delay precedente", () => {
+  it("starts at iteration 0 with no previous delay", () => {
     expect(initialStatus.iteration).toBe(0);
     expect(initialStatus.previousDelay).toBe(null);
   });
@@ -52,7 +52,7 @@ describe("initialStatus", () => {
 // -------------------------------------------------------------------------------------
 
 describe("capDelay", () => {
-  it("limita il delay massimo", () => {
+  it("caps the maximum delay", () => {
     const policy = capDelay(500)(exponentialBackoff(100));
     expect(policy(status(0))).toBe(100);
     expect(policy(status(1))).toBe(200);
@@ -61,7 +61,7 @@ describe("capDelay", () => {
     expect(policy(status(10))).toBe(500);
   });
 
-  it("propaga null quando la policy termina", () => {
+  it("propagates null when the policy terminates", () => {
     const policy = capDelay(500)(limitRetries(1));
     expect(policy(status(0))).toBe(0);
     expect(policy(status(1))).toBe(null);
@@ -69,7 +69,7 @@ describe("capDelay", () => {
 });
 
 describe("concat", () => {
-  it("continua solo se entrambe le policy continuano, usa il delay maggiore", () => {
+  it("continues only if both policies continue, uses the greater delay", () => {
     // exponential + limit: backoff esponenziale con massimo 3 tentativi
     const policy = concat(limitRetries(3))(constantDelay(100));
     expect(policy(status(0))).toBe(100); // max(100, 0)
@@ -77,12 +77,12 @@ describe("concat", () => {
     expect(policy(status(3))).toBe(null); // limitRetries dice basta
   });
 
-  it("ritorna null se una qualsiasi delle due policy termina", () => {
+  it("returns null if either policy terminates", () => {
     const policy = concat(limitRetries(0))(constantDelay(100));
     expect(policy(status(0))).toBe(null);
   });
 
-  it("composizione di exponential + limit + cap", () => {
+  it("composition of exponential + limit + cap", () => {
     const policy = capDelay(1000)(concat(limitRetries(5))(exponentialBackoff(100)));
     expect(policy(status(0))).toBe(100);
     expect(policy(status(1))).toBe(200);

@@ -38,33 +38,33 @@ export const toDayNumber = (day: DayOfWeek): number =>
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-const isValidTime = (t: string): t is ValidTimeString => TIME_RE.test(t);
+const isValidTime = (t: string): t is TimeString => TIME_RE.test(t);
 
-const validateTimeString = (u: unknown, c: t.Context): t.Validation<ValidTimeString> =>
+const validateTimeString = (u: unknown, c: t.Context): t.Validation<TimeString> =>
   typeof u === "string" && isValidTime(u) ? t.success(u) : t.failure(u, c, "Expected: HH:MM (00-23:00-59)");
 
-const isTimeString = (u: unknown): u is ValidTimeString => typeof u === "string" && TIME_RE.test(u);
+const isTimeString = (u: unknown): u is TimeString => typeof u === "string" && TIME_RE.test(u);
 
-export type ValidTimeString = `${number}:${number}`; // 00-23:00-59
+export type TimeString = `${number}:${number}`; // 00-23:00-59
 
-export const ValidTimeString = new t.Type<ValidTimeString, ValidTimeString, unknown>(
+export const TimeString = new t.Type<TimeString, TimeString, unknown>(
   "TimeString",
   isTimeString,
   validateTimeString,
   t.identity,
 );
 
-export const toTimeTuple = (time: ValidTimeString): [number, number] => {
+export const toTimeTuple = (time: TimeString): [number, number] => {
   const [h, m] = time.split(":").map(Number) as [number, number];
   return [h, m];
 };
 
-const toMinutes = (time: ValidTimeString): number => {
+const toMinutes = (time: TimeString): number => {
   const [h, m] = toTimeTuple(time);
   return h * 60 + m;
 };
 
-export const OrdValidTimeString: Ord.Ord<ValidTimeString> = Ord.contramap(toMinutes)(N.Ord);
+export const OrdValidTimeString: Ord.Ord<TimeString> = Ord.contramap(toMinutes)(N.Ord);
 
 export const getDay = (date: Date): number => {
   const jsDay = date.getDay(); // 0=dom, 1=lun ... 6=sab

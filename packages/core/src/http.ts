@@ -22,8 +22,7 @@ const request = (url: string, init?: RequestInit): TE.TaskEither<HTTPError, unkn
   TE.tryCatch(async () => {
     const response = await fetch(url, init);
     if (!response.ok) throw new Error(`Status: ${response.status} Message: ${await response.text()}`);
-    const text = await response.text();
-    return text.length > 0 ? JSON.parse(text) : undefined;
+    return await response.json();
   }, toHTTPError);
 
 // -------------------------------------------------------------------------------------

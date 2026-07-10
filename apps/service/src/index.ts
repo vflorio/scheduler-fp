@@ -7,10 +7,11 @@ import type * as IO from "fp-ts/IO";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
-import * as Activation from "./activation.js";
-import * as ActivationRunner from "./activation-runner.js";
-import * as Args from "./args.js";
-import * as Config from "./config.js";
+import * as Activation from "./activation";
+import * as ActivationRunner from "./activation-runner";
+import * as Args from "./args";
+import * as Config from "./config";
+import * as PinoLogger from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Env
@@ -68,52 +69,45 @@ export const createService: Effect<ServiceHandle> = pipe(
       E.map((activationPolicy) => ({ config, activationPolicy })),
     ),
   ),
-  RTE.flatMap(({ config, activationPolicy }) =>
-    pipe(
-      RTE.ask<Env>(),
-      RTE.flatMap((env) => {
-        const activationGate = Activation.toSchedule(config.workSchedule);
+  RTE.flatMap(({ config, activationPolicy }) => {
+    const logger = permanentLogger(config.log);
+    const activationGate = Activation.toSchedule(config.workSchedule);
 
-        env.logger.info(`Config loaded - schedule: ${ConfigModel.workScheduleToString(config.workSchedule)}`)();
-        env.logger.info(`Polling policy: ${Policy.policyJsonToString(config.monitoring.polling)}`)();
+    logger.info(`Config loaded - schedule: ${ConfigModel.workScheduleToString(config.workSchedule)}`)();
+    logger.info(`Polling policy: ${Policy.policyJsonToString(config.monitoring.polling)}`)();
 
-        const slot = Schedule.toTimeSlot(new Date());
+    const slot = Schedule.toTimeSlot(new Date());
 
-        if (activationGate(slot)) {
-          env.logger.info("Service ACTIVE - currently inside work schedule")();
-        } else {
-          env.logger.info(`Service IDLE - waiting for (${ConfigModel.workScheduleToString(config.workSchedule)})`)();
-        }
+    if (activationGate(slot)) {
+      logger.info("Service ACTIVE - currently inside work schedule")();
+    } else {
+      logger.info(`Service IDLE - waiting for (${ConfigModel.workScheduleToString(config.workSchedule)})`)();
+    }
 
-        const runner = ActivationRunner.create(
-          activationGate,
-          activationPolicy,
-          T.fromIO(pipe(env.logger.info("Executing onActive tick..."))),
-          constVoid,
-          env.logger,
-        );
+    const runner = ActivationRunner.create(
+      activationGate,
+      activationPolicy,
+      T.fromIO(pipe(logger.info("Executing onActive tick..."))),
+      constVoid,
+      logger,
+    );
 
-        return RTE.fromTaskEither(
-          pipe(
-            runner.start,
-            TE.map(() => ({ stop: runner.stop })),
-          ),
-        );
-      }),
-    ),
-  ),
+    return RTE.fromTaskEither(
+      pipe(
+        runner.start,
+        TE.map(() => ({ stop: runner.stop })),
+      ),
+    );
+  }),
 );
 
 // -------------------------------------------------------------------------------------
-// Live instances
+// Env Instances
 // -------------------------------------------------------------------------------------
 
-const datePrefix = (): string => `[${new Date().toISOString()}]`;
+const permanentLogger = (config: ConfigModel.LogConfig): Logger => PinoLogger.create(config);
 
-const liveLogger: Logger = {
-  info: (message) => () => console.log(`${datePrefix()} [INFO] ${message}`),
-  error: (message) => () => console.error(`${datePrefix()} [ERROR] ${message}`),
-};
+const volativeLogger: Logger = PinoLogger.create({ level: "info" });
 
 const liveProcess: Process = {
   onSignal: (signal, handler) => process.on(signal, handler),
@@ -124,23 +118,25 @@ const liveProcess: Process = {
 // Entry point
 // -------------------------------------------------------------------------------------
 
-const main = async () => {
-  const sourceResult = Args.parse(process.argv);
+const main = () => {
+  const argsResult = Args.parse(process.argv);
 
-  if (E.isLeft(sourceResult)) {
-    liveLogger.error(sourceResult.left)();
+  if (E.isLeft(argsResult)) {
+    volativeLogger.error(argsResult.left)();
     liveProcess.exit(1);
   }
 
-  const source = sourceResult.right;
+  const args = argsResult.right;
 
   const env: Env = {
-    logger: liveLogger,
-    configFetcher: Config.toFetcher(source),
+    logger: volativeLogger,
     process: liveProcess,
+    configFetcher: Config.toFetcher(args.config),
   };
 
-  env.logger.info(`Starting service (config: ${source.type}://${source.type === "file" ? source.path : source.url})`)();
+  env.logger.info(
+    `Starting service (config: ${args.config.type}://${args.config.type === "file" ? args.config.path : args.config.url})`,
+  )();
 
   const run = async (): Promise<void> => {
     const result = await createService(env)();
@@ -167,7 +163,7 @@ const main = async () => {
     });
   };
 
-  await run();
+  run();
 };
 
 main();

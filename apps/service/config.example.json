@@ -14,5 +14,8 @@
   },
   "monitoring": {
     "polling": [["constantDelay", "30s"]]
+  },
+  "log": {
+    "level": "info"
   }
 }

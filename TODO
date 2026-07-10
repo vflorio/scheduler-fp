@@ -58,7 +58,7 @@
 
 - [X] Caricamento config (JSON) con validazione (io-ts)
 - [ ] Docker/PM2 per ambiente production
-- [ ] Logging (strutturato, con contesto device)
+- [X] Logging (strutturato, con contesto device)
 - [X] Gestione graceful shutdown/restart
 
 # Nice to have

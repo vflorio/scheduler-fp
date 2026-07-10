@@ -2,7 +2,7 @@ import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as Ord from "fp-ts/Ord";
 import * as t from "io-ts";
-import { DayOfWeek, OrdValidTimeString, ValidTimeString } from "./date-time";
+import { DayOfWeek, OrdValidTimeString, TimeString } from "./date-time";
 import { PolicyJsonCodec } from "./policy-codec";
 
 // -------------------------------------------------------------------------------------
@@ -12,8 +12,8 @@ import { PolicyJsonCodec } from "./policy-codec";
 // Schedule di lavoro: giorni attivi e range orario
 const WorkScheduleRaw = t.type({
   days: t.array(DayOfWeek),
-  from: ValidTimeString,
-  to: ValidTimeString,
+  from: TimeString,
+  to: TimeString,
 });
 
 const WorkScheduleCodec = new t.Type<t.TypeOf<typeof WorkScheduleRaw>>(
@@ -51,12 +51,30 @@ const MonitoringCodec = t.type({
   polling: PolicyJsonCodec,
 });
 
+// Configurazione logging
+const LogLevel = t.keyof({
+  fatal: null,
+  error: null,
+  warn: null,
+  info: null,
+  debug: null,
+  trace: null,
+  silent: null,
+});
+
+export type LogLevel = t.TypeOf<typeof LogLevel>;
+
+const LogCodec = t.intersection([t.type({ level: LogLevel }), t.partial({ path: t.string })]);
+
+export type LogConfig = t.TypeOf<typeof LogCodec>;
+
 // Configurazione completa del servizio
 const ServiceConfigCodec = t.type({
   workSchedule: WorkScheduleCodec,
   suitest: SuitestCodec,
   slack: SlackCodec,
   monitoring: MonitoringCodec,
+  log: LogCodec,
 });
 
 export type ServiceConfig = t.TypeOf<typeof ServiceConfigCodec>;

@@ -6,7 +6,7 @@ import type { Status } from "./retry";
 const status = (iteration: number): Status => ({ iteration, previousDelay: null });
 
 describe("decodePolicy", () => {
-  it("decodifica constantDelay", () => {
+  it("decodes constantDelay", () => {
     const json: PolicyJson = [["constantDelay", 30000]];
     const result = decode(json);
     expect(E.isRight(result)).toBe(true);
@@ -16,7 +16,7 @@ describe("decodePolicy", () => {
     }
   });
 
-  it("decodifica exponentialBackoff + capDelay + limitRetries", () => {
+  it("decodes exponentialBackoff + capDelay + limitRetries", () => {
     const json: PolicyJson = [
       ["exponentialBackoff", 100],
       ["capDelay", 1000],
@@ -28,12 +28,12 @@ describe("decodePolicy", () => {
       expect(result.right(status(0))).toBe(100);
       expect(result.right(status(1))).toBe(200);
       expect(result.right(status(2))).toBe(400);
-      // iteration 3: limitRetries esaurito
+      // iteration 3: limitRetries exhausted
       expect(result.right(status(3))).toBe(null);
     }
   });
 
-  it("decodifica composizione constantDelay + limitRetries", () => {
+  it("decodes constantDelay + limitRetries composition", () => {
     const json: PolicyJson = [
       ["constantDelay", 5000],
       ["limitRetries", 2],
@@ -47,17 +47,17 @@ describe("decodePolicy", () => {
     }
   });
 
-  it("errore per policy vuota", () => {
+  it("errors on empty policy", () => {
     const result = decode([]);
     expect(E.isLeft(result)).toBe(true);
   });
 
-  it("errore per nome sconosciuto", () => {
+  it("errors on unknown policy name", () => {
     const result = decode([["unknownPolicy", 100]]);
     expect(E.isLeft(result)).toBe(true);
   });
 
-  it("errore per capDelay senza policy precedente", () => {
+  it("errors when capDelay has no preceding policy", () => {
     const result = decode([["capDelay", 1000]]);
     expect(E.isLeft(result)).toBe(true);
   });
