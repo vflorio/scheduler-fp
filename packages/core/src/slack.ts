@@ -60,7 +60,7 @@ const isValidResponse = (u: unknown): u is SlackResponse =>
 // Posta un messaggio su un canale Slack
 export const postMessage = (config: SlackConfig, message: SlackMessage): TE.TaskEither<SlackError, void> =>
   pipe(
-    postJsonBearer(`${config.baseUrl ?? DEFAULT_BASE_URL}/chat.postMessage`, config.botToken, message),
+    postJsonBearer(`${config.baseUrl ?? DEFAULT_BASE_URL}/chat.postMessage`, { token: config.botToken }, message),
     TE.flatMap((response) => {
       if (!isValidResponse(response)) {
         return TE.left<SlackAPIError>({ type: "SlackAPIError", code: "invalid_response" });

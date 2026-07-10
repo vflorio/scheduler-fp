@@ -102,14 +102,14 @@ export const invert =
 
 // Unione di due schedule:
 // visibile se ALMENO UNO dei due è attivo
-export const ScheduleUnion: M.Monoid<Schedule> = {
+export const MonoidUnion: M.Monoid<Schedule> = {
   concat: (first, second) => (slot) => first(slot) || second(slot),
   empty: () => false,
 };
 
 // Intersezione di due schedule:
 // visibile solo se ENTRAMBI sono attivi
-export const ScheduleIntersection: M.Monoid<Schedule> = {
+export const MonoidIntersection: M.Monoid<Schedule> = {
   concat: (first, second) => (slot) => first(slot) && second(slot),
   empty: () => true,
 };
@@ -120,20 +120,20 @@ export const ScheduleIntersection: M.Monoid<Schedule> = {
 
 // Blocco di visibilità: un giorno specifico in un range orario
 export const block = (d: number, from: Time, to: Time): Schedule =>
-  ScheduleIntersection.concat(day(d), timeRange(from, to));
+  MonoidIntersection.concat(day(d), timeRange(from, to));
 
 // Visibile tutti i giorni feriali (Lun-Ven) in un range orario
 export const weekdays = (from: Time, to: Time): Schedule =>
-  M.concatAll(ScheduleUnion)([0, 1, 2, 3, 4].map((d) => block(d, from, to)));
+  M.concatAll(MonoidUnion)([0, 1, 2, 3, 4].map((d) => block(d, from, to)));
 
 // Visibile nel weekend (Sab-Dom) in un range orario
 export const weekend = (from: Time, to: Time): Schedule =>
-  M.concatAll(ScheduleUnion)([5, 6].map((d) => block(d, from, to)));
+  M.concatAll(MonoidUnion)([5, 6].map((d) => block(d, from, to)));
 
 // Blackout: rimuove una finestra temporale da uno schedule esistente
 export const withBlackout = (schedule: Schedule, from: Time, to: Time): Schedule =>
-  ScheduleIntersection.concat(schedule, invert(timeRange(from, to)));
+  MonoidIntersection.concat(schedule, invert(timeRange(from, to)));
 
 // Sottrae: visibile dove "base" è attivo ma "exclude" non lo è
 export const subtract = (base: Schedule, exclude: Schedule): Schedule =>
-  ScheduleIntersection.concat(base, invert(exclude));
+  MonoidIntersection.concat(base, invert(exclude));

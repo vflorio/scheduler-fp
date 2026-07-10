@@ -1,0 +1,18 @@
+{
+  "suitest": {
+    "tokenId": "your-token-id",
+    "tokenPassword": "env:SUISTEST_TOKEN_PASSWORD"
+  },
+  "slack": {
+    "botToken": "env:SLACK_BOT_TOKEN",
+    "channelId": "C0123456789"
+  },
+  "workSchedule": {
+    "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    "from": "12:10",
+    "to": "12:30"
+  },
+  "monitoring": {
+    "polling": [["constantDelay", "30s"]]
+  }
+}

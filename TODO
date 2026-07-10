@@ -3,18 +3,18 @@
 ## Core
 
 - [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, instanze monoidi
-    - [ ] Aggiungere unit testing
+    - [X] Aggiungere unit testing
 - [ ] Device model: tipi per TV, Candybox, AndroidCamera (id, name, owner relations, ecc.)
 - [ ] Recovery policy model: offline threshold, grace period, retry count, delay tra tentativi
 - [ ] Notification policy model: immediate vs. after-all-retries-exhausted, config per device type
-- [ ] Config model: configurazione completa supervisor (devices, policies, schedule, Slack)
+- [X] Config model: configurazione completa supervisor (devices, policies, schedule, Slack)
 
 ## Monitoring
 
 - [ ] Candybox reachability check
 - [ ] Android camera availability check
 - [ ] Polling loop con intervallo configurabile per device type
-- [ ] Activation gate: saltare il polling fuori dallo schedule di lavoro configurato
+- [X] Activation gate: saltare il polling fuori dallo schedule di lavoro configurato
 - [ ] Offline state tracker: tracciare da quanto tempo ogni device e' irraggiungibile
 
 ## Recovery Workflows
@@ -56,10 +56,10 @@
 
 ## Service / Runtime
 
-- [ ] Caricamento config (JSON) con validazione (io-ts)
+- [X] Caricamento config (JSON) con validazione (io-ts)
 - [ ] Docker/PM2 per ambiente production
 - [ ] Logging (strutturato, con contesto device)
-- [ ] Gestione graceful shutdown
+- [X] Gestione graceful shutdown/restart
 
 # Nice to have
 

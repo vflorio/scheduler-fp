@@ -5,10 +5,10 @@ import {
   day,
   duration,
   invert,
+  MonoidIntersection,
+  MonoidUnion,
   never,
   recurring,
-  ScheduleIntersection,
-  ScheduleUnion,
   subtract,
   timeRange,
   timeSlot,
@@ -91,7 +91,7 @@ describe("ScheduleUnion", () => {
   it("visibile se almeno uno dei due schedule e' attivo", () => {
     const lun = day(0);
     const mar = day(1);
-    const union = ScheduleUnion.concat(lun, mar);
+    const union = MonoidUnion.concat(lun, mar);
     expect(union(timeSlot(0, 10, 0))).toBe(true);
     expect(union(timeSlot(1, 10, 0))).toBe(true);
     expect(union(timeSlot(2, 10, 0))).toBe(false);
@@ -99,7 +99,7 @@ describe("ScheduleUnion", () => {
 
   it("empty e' l'identita' (mai visibile)", () => {
     const s = day(0);
-    const withEmpty = ScheduleUnion.concat(s, ScheduleUnion.empty);
+    const withEmpty = MonoidUnion.concat(s, MonoidUnion.empty);
     expect(withEmpty(timeSlot(0, 10, 0))).toBe(s(timeSlot(0, 10, 0)));
     expect(withEmpty(timeSlot(1, 10, 0))).toBe(s(timeSlot(1, 10, 0)));
   });
@@ -109,7 +109,7 @@ describe("ScheduleIntersection", () => {
   it("visibile solo se entrambi gli schedule sono attivi", () => {
     const lun = day(0);
     const mattina = timeRange([9, 0], [13, 0]);
-    const inter = ScheduleIntersection.concat(lun, mattina);
+    const inter = MonoidIntersection.concat(lun, mattina);
     expect(inter(timeSlot(0, 10, 0))).toBe(true);
     expect(inter(timeSlot(0, 14, 0))).toBe(false);
     expect(inter(timeSlot(1, 10, 0))).toBe(false);
@@ -117,7 +117,7 @@ describe("ScheduleIntersection", () => {
 
   it("empty e' l'identita' (sempre visibile)", () => {
     const s = day(0);
-    const withEmpty = ScheduleIntersection.concat(s, ScheduleIntersection.empty);
+    const withEmpty = MonoidIntersection.concat(s, MonoidIntersection.empty);
     expect(withEmpty(timeSlot(0, 10, 0))).toBe(s(timeSlot(0, 10, 0)));
     expect(withEmpty(timeSlot(1, 10, 0))).toBe(s(timeSlot(1, 10, 0)));
   });

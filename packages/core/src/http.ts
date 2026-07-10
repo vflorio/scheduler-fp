@@ -30,37 +30,44 @@ const request = (url: string, init?: RequestInit): TE.TaskEither<HTTPError, unkn
 // Clients
 // -------------------------------------------------------------------------------------
 
-// Unauthenticated
-
 export const getJson = (url: string): TE.TaskEither<HTTPError, unknown> => request(url);
 
-// Authenticated
+// Basic auth
 
 export interface BasicAuth {
   readonly tokenId: string;
   readonly tokenPassword: string;
 }
 
-const authHeaders = (auth: BasicAuth): HeadersInit => ({
+const basicAuthHeaders = (auth: BasicAuth): Record<string, string> => ({
   Authorization: `Basic ${btoa(`${auth.tokenId}:${auth.tokenPassword}`)}`,
   "Content-Type": "application/json",
 });
 
 export const getJsonAuth = (url: string, auth: BasicAuth): TE.TaskEither<HTTPError, unknown> =>
-  request(url, { headers: authHeaders(auth) });
+  request(url, { headers: basicAuthHeaders(auth) });
 
-export const postJsonAuth = (url: string, auth: BasicAuth, body?: unknown): TE.TaskEither<HTTPError, unknown> =>
+export const postJsonBasic = (url: string, auth: BasicAuth, body?: unknown): TE.TaskEither<HTTPError, unknown> =>
   request(url, {
     method: "POST",
-    headers: authHeaders(auth),
+    headers: basicAuthHeaders(auth),
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 
-// Bearer token
+// Bearer auth
 
-export const postJsonBearer = (url: string, token: string, body?: unknown): TE.TaskEither<HTTPError, unknown> =>
+export interface BearerAuth {
+  readonly token: string;
+}
+
+const bearerAuthHeaders = (auth: BearerAuth): Record<string, string> => ({
+  Authorization: `Bearer ${auth.token}`,
+  "Content-Type": "application/json",
+});
+
+export const postJsonBearer = (url: string, auth: BearerAuth, body?: unknown): TE.TaskEither<HTTPError, unknown> =>
   request(url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: bearerAuthHeaders(auth),
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });

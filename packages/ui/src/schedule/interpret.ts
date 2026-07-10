@@ -1,4 +1,4 @@
-import { never, type Schedule, ScheduleIntersection, ScheduleUnion, subtract } from "@supervisor/core/schedule";
+import { MonoidIntersection, MonoidUnion, never, type Schedule, subtract } from "@supervisor/core/schedule";
 
 export type StepOp = "union" | "intersection" | "subtract";
 
@@ -11,9 +11,9 @@ export interface ScheduleStep {
 const applyOp = (acc: Schedule, step: Schedule, op: StepOp): Schedule => {
   switch (op) {
     case "union":
-      return ScheduleUnion.concat(acc, step);
+      return MonoidUnion.concat(acc, step);
     case "intersection":
-      return ScheduleIntersection.concat(acc, step);
+      return MonoidIntersection.concat(acc, step);
     case "subtract":
       return subtract(acc, step);
   }

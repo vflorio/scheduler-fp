@@ -2,7 +2,7 @@ import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
-import { type BasicAuth, getJsonAuth, type HTTPError, postJsonAuth } from "./http";
+import { type BasicAuth, getJsonAuth, type HTTPError, postJsonBasic } from "./http";
 import { fetchAllPages, type PaginationError } from "./suitest-paginate";
 
 // -------------------------------------------------------------------------------------
@@ -177,20 +177,20 @@ export const getControlUnits = (config: SuitestConfig): TE.TaskEither<SuitestErr
 // Riavvia una control unit (CandyBox/Raspberry Pi)
 export const rebootControlUnit = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
   pipe(
-    postJsonAuth(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/reboot`), config.auth),
+    postJsonBasic(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/reboot`), config.auth),
     TE.asUnit,
   );
 
 // Spegni una control unit
 export const powerOffControlUnit = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
   pipe(
-    postJsonAuth(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/power-off`), config.auth),
+    postJsonBasic(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/power-off`), config.auth),
     TE.asUnit,
   );
 
 // Riavvia SuitestDrive su una control unit
 export const restartSuitestDrive = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
   pipe(
-    postJsonAuth(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/restart-sd`), config.auth),
+    postJsonBasic(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/restart-sd`), config.auth),
     TE.asUnit,
   );

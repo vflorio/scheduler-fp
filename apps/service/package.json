@@ -1,0 +1,28 @@
+{
+  "name": "@supervisor/service",
+  "version": "0.1.0",
+  "dependencies": {
+    "@supervisor/core": "workspace:*",
+    "fp-ts": "2.16.11",
+    "io-ts": "2.2.22",
+    "ts-pattern": "5.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "6.0.3",
+    "vite": "npm:rolldown-vite@7.2.5",
+    "vite-node": "^6.0.0"
+  },
+  "overrides": {
+    "vite": "npm:rolldown-vite@7.2.5"
+  },
+  "private": true,
+  "scripts": {
+    "clean": "rm -rf dist",
+    "service:build": "vite build",
+    "service:dev": "node scripts/dev.mjs config.example.json",
+    "service:start": "node dist/index.js --config config.example.json",
+    "dev": "tsc --noEmit --watch"
+  },
+  "type": "module"
+}
