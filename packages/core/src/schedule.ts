@@ -1,4 +1,5 @@
 import * as M from "fp-ts/Monoid";
+import { getDay } from "./date-time";
 
 // -------------------------------------------------------------------------------------
 // Model
@@ -28,6 +29,12 @@ export const timeSlot = (day: number, hour: number, minute: number): TimeSlot =>
   day,
   hour,
   minute,
+});
+
+export const toTimeSlot = (now: Date): TimeSlot => ({
+  day: getDay(now),
+  hour: now.getHours(),
+  minute: now.getMinutes(),
 });
 
 // -------------------------------------------------------------------------------------

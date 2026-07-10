@@ -66,10 +66,10 @@ export type WorkSchedule = t.TypeOf<typeof WorkScheduleCodec>;
 // Validazione
 // -------------------------------------------------------------------------------------
 
-export type ConfigError = {
-  type: "ConfigError";
-  message: string;
-};
+export interface ConfigDecodeError {
+  readonly type: "ConfigDecodeError";
+  readonly message: string;
+}
 
 const formatErrors = (errors: t.Errors): string =>
   errors
@@ -83,11 +83,12 @@ const formatErrors = (errors: t.Errors): string =>
     .join("\n");
 
 // Valida e decodifica un oggetto JSON in ServiceConfig
-export const decode = (raw: unknown): E.Either<ConfigError, ServiceConfig> =>
+export const decode = (raw: unknown): E.Either<ConfigDecodeError, ServiceConfig> =>
   pipe(
-    ServiceConfigCodec.decode(raw),
+    raw,
+    ServiceConfigCodec.decode,
     E.mapLeft((errors) => ({
-      type: "ConfigError" as const,
+      type: "ConfigDecodeError" as const,
       message: `Invalid configuration:\n${formatErrors(errors)}`,
     })),
   );

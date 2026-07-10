@@ -10,14 +10,19 @@ import type * as Args from "./args";
 // Config fetcher
 // -------------------------------------------------------------------------------------
 
-export type ConfigFetcher = () => TE.TaskEither<string, unknown>;
+export type FetchError = {
+  readonly type: "FetchError";
+  readonly message: string;
+};
+
+export type ConfigFetcher = () => TE.TaskEither<FetchError, unknown>;
 
 const fromFile =
   (path: string): ConfigFetcher =>
   () =>
     TE.tryCatch(
       () => Promise.resolve(JSON.parse(readFileSync(path, "utf-8"))),
-      (err) => `Cannot read config file: ${err}`,
+      (fsError) => ({ type: "FetchError" as const, message: `Cannot read config file: ${fsError}` }),
     );
 
 const fromUrl =
@@ -25,7 +30,10 @@ const fromUrl =
   () =>
     pipe(
       HTTP.getJson(url),
-      TE.mapLeft((e) => `Cannot fetch config from URL: ${e.error}`),
+      TE.mapLeft((httpError) => ({
+        type: "FetchError" as const,
+        message: `Cannot fetch config from URL: ${httpError.error}`,
+      })),
     );
 
 export const toFetcher = (source: Args.ConfigSource): ConfigFetcher =>
@@ -35,13 +43,18 @@ export const toFetcher = (source: Args.ConfigSource): ConfigFetcher =>
 // Config loading
 // -------------------------------------------------------------------------------------
 
-export const load = (fetcher: ConfigFetcher): TE.TaskEither<string, Config.ServiceConfig> =>
+export type LoadError = {
+  readonly type: "LoadError";
+  readonly message: string;
+};
+
+export const load = (fetcher: ConfigFetcher): TE.TaskEither<LoadError | FetchError, Config.ServiceConfig> =>
   pipe(
     fetcher(),
     TE.flatMapEither(
       flow(
         Config.decode,
-        E.mapLeft((e) => e.message),
+        E.mapLeft((e) => ({ type: "LoadError" as const, message: `Load error: ${e.message}` })),
       ),
     ),
   );

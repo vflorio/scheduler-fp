@@ -31,14 +31,19 @@ const PolicyStepArgCodec = t.union([t.number, DurationStringCodec]);
 
 const isPolicyStepJson = (u: unknown): u is PolicyStepJson =>
   Array.isArray(u) && u.length >= 1 && typeof u[0] === "string" && u.slice(1).every((a) => PolicyStepArgCodec.is(a));
+
 const validateStepJson = (u: unknown, c: t.Context): t.Validation<PolicyStepJson> => {
   if (!Array.isArray(u) || u.length === 0) return t.failure(u, c, "Expected: [name, ...args]");
+
   const [head, ...tail] = u;
+
   if (typeof head !== "string") return t.failure(u, c, "First element must be a string (policy name)");
+
   for (const arg of tail) {
     if (typeof arg !== "number" && !DurationStringCodec.is(arg))
       return t.failure(u, c, `Invalid arg: ${JSON.stringify(arg)} (expected number or DurationString)`);
   }
+
   return t.success([head, ...tail] as unknown as PolicyStepJson);
 };
 
@@ -90,11 +95,11 @@ const decodeStep = (step: PolicyStepJson, acc: Policy | null): E.Either<PolicyDe
   const modifier = MODIFIERS[name];
   if (modifier) {
     if (acc === null) {
-      return E.left({ type: "PolicyDecodeError", message: `Modificatore "${name}" senza policy precedente` });
+      return E.left({ type: "PolicyDecodeError", message: `Modifier "${name}" no previous policy` });
     }
     const arg = args[0];
     if (arg === undefined) {
-      return E.left({ type: "PolicyDecodeError", message: `Modificatore "${name}" richiede un argomento` });
+      return E.left({ type: "PolicyDecodeError", message: `Modifier "${name}" requires an argument` });
     }
     return E.right(modifier(arg)(acc));
   }

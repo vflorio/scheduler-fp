@@ -18,11 +18,3 @@ export const toSchedule = (workSchedule: Config.WorkSchedule): Schedule.Schedule
 
   return Schedule.MonoidIntersection.concat(anyDay, range);
 };
-
-// Restituisce il TimeSlot corrente
-export const currentSlot = (): Schedule.TimeSlot => {
-  const now = new Date();
-  const day = DateTime.getDay(now);
-
-  return { day, hour: now.getHours(), minute: now.getMinutes() };
-};

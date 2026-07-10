@@ -82,7 +82,7 @@ const DURATION_MULTIPLIERS: Record<string, number> = {
   s: 1_000,
   m: 60_000,
   h: 3_600_000,
-};
+} as const;
 
 export type DurationString = `${number}${"s" | "m" | "h"}`;
 
@@ -100,10 +100,10 @@ export const DurationString = new t.Type<DurationString, DurationString, unknown
 
 export const durationToMs = (duration: DurationString): number => {
   const m = DURATION_RE.exec(duration);
-  if (!m) return 0; // non raggiungibile dopo validazione
+  if (!m?.[1] || !m?.[2]) return 0; // non raggiungibile dopo validazione
 
   const value = Number.parseFloat(m[1]);
   const unit = m[2] as "s" | "m" | "h";
 
-  return value * DURATION_MULTIPLIERS[unit];
+  return value * (DURATION_MULTIPLIERS?.[unit] ?? 0);
 };
