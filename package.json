@@ -16,7 +16,7 @@
   "author": {
     "name": "vflorio & ai"
   },
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@11.11.0",
   "private": true,
   "scripts": {
     "build": "turbo run build",

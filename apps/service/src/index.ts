@@ -1,6 +1,8 @@
 import * as ConfigModel from "@supervisor/core/config";
 import * as Policy from "@supervisor/core/policy-codec";
 import * as Schedule from "@supervisor/core/schedule";
+import * as Adb from "@supervisor/shell/adb";
+import * as Mdns from "@supervisor/shell/mdns";
 import * as E from "fp-ts/Either";
 import { constVoid, pipe } from "fp-ts/function";
 import type * as IO from "fp-ts/IO";
@@ -87,7 +89,21 @@ export const createService: Effect<ServiceHandle> = pipe(
     const runner = ActivationRunner.create(
       activationGate,
       activationPolicy,
-      T.fromIO(pipe(logger.info("Executing onActive tick..."))),
+      pipe(
+        T.fromIO(logger.info("Starting mDNS discovery")),
+        T.flatMap(() => Mdns.discoverDefault),
+        T.map((endpoints) => {
+          if (E.isLeft(endpoints)) {
+            logger.info(`Discovery error: ${endpoints.left.message}`)();
+          } else {
+            logger.info(`Discovered ${endpoints.right.length} endpoint(s): ${JSON.stringify(endpoints.right)}`)();
+          }
+          return endpoints;
+        }),
+        T.flatMap(() => Adb.devices),
+        T.tapIO((devices) => logger.info(`ADB devices: ${JSON.stringify(devices)}`)),
+        T.asUnit,
+      ),
       constVoid,
       logger,
     );
