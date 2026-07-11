@@ -81,8 +81,14 @@ const runCommand = (command: string, args: readonly string[]): TE.TaskEither<Dis
 export const discover = (command: string, args: readonly string[]): TE.TaskEither<DiscoverError, Endpoint[]> =>
   pipe(runCommand(command, args), TE.map(parseAvahiBrowse));
 
-/** Default: `avahi-browse -prt _adb-tls-connect._tcp` */
-export const discoverDefault: TE.TaskEither<DiscoverError, Endpoint[]> = discover("avahi-browse", [
+// Default: avahi-browse -prt _adb-tls-connect._tcp
+export const discoverDefaultAdbTslConnect: TE.TaskEither<DiscoverError, Endpoint[]> = discover("avahi-browse", [
   "-prt",
   "_adb-tls-connect._tcp",
+]);
+
+// Default: avahi-browse -prt _adb-tls-pairing._tcp
+export const discoverDefaultAdbTslPairing: TE.TaskEither<DiscoverError, Endpoint[]> = discover("avahi-browse", [
+  "-prt",
+  "_adb-tls-pairing._tcp",
 ]);

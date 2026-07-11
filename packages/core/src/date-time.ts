@@ -36,14 +36,14 @@ export const toDayNumber = (day: DayOfWeek): number =>
 // TimeString - format "HH:MM" (00-23:00-59) -> [hour, minute]
 // -------------------------------------------------------------------------------------
 
-const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-const isValidTime = (t: string): t is TimeString => TIME_RE.test(t);
+const isValidTime = (t: string): t is TimeString => TIME_REGEX.test(t);
 
 const validateTimeString = (u: unknown, c: t.Context): t.Validation<TimeString> =>
   typeof u === "string" && isValidTime(u) ? t.success(u) : t.failure(u, c, "Expected: HH:MM (00-23:00-59)");
 
-const isTimeString = (u: unknown): u is TimeString => typeof u === "string" && TIME_RE.test(u);
+const isTimeString = (u: unknown): u is TimeString => typeof u === "string" && TIME_REGEX.test(u);
 
 export type TimeString = `${number}:${number}`; // 00-23:00-59
 
@@ -76,7 +76,7 @@ export const getDay = (date: Date): number => {
 // DurationString - format "Ns", "Nm", "Nh" (seconds, minutes, hours) -> milliseconds
 // -------------------------------------------------------------------------------------
 
-const DURATION_RE = /^(\d+(?:\.\d+)?)(s|m|h)$/;
+const DURATION_REGEX = /^(\d+(?:\.\d+)?)(s|m|h)$/;
 
 const DURATION_MULTIPLIERS: Record<string, number> = {
   s: 1_000,
@@ -86,7 +86,7 @@ const DURATION_MULTIPLIERS: Record<string, number> = {
 
 export type DurationString = `${number}${"s" | "m" | "h"}`;
 
-const isDurationString = (u: unknown): u is DurationString => typeof u === "string" && DURATION_RE.test(u);
+const isDurationString = (u: unknown): u is DurationString => typeof u === "string" && DURATION_REGEX.test(u);
 
 const validateDurationString = (u: unknown, c: t.Context): t.Validation<DurationString> =>
   isDurationString(u) ? t.success(u) : t.failure(u, c, "Expected: <number>s|m|h (e.g. 30s, 5m, 1h)");
@@ -99,11 +99,11 @@ export const DurationString = new t.Type<DurationString, DurationString, unknown
 );
 
 export const durationToMs = (duration: DurationString): number => {
-  const m = DURATION_RE.exec(duration);
-  if (!m?.[1] || !m?.[2]) return 0; // non raggiungibile dopo validazione
+  const results = DURATION_REGEX.exec(duration);
+  if (!results?.[1] || !results?.[2]) return 0; // non raggiungibile dopo validazione
 
-  const value = Number.parseFloat(m[1]);
-  const unit = m[2] as "s" | "m" | "h";
+  const value = Number.parseFloat(results[1]);
+  const unit = results[2] as "s" | "m" | "h";
 
   return value * (DURATION_MULTIPLIERS?.[unit] ?? 0);
 };

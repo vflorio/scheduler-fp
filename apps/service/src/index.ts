@@ -7,6 +7,7 @@ import * as E from "fp-ts/Either";
 import { constVoid, pipe } from "fp-ts/function";
 import type * as IO from "fp-ts/IO";
 import * as RTE from "fp-ts/ReaderTaskEither";
+import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
 import * as Activation from "./activation";
@@ -86,27 +87,40 @@ export const createService: Effect<ServiceHandle> = pipe(
       logger.info(`Service IDLE - waiting for (${ConfigModel.workScheduleToString(config.workSchedule)})`)();
     }
 
-    const runner = ActivationRunner.create(
-      activationGate,
-      activationPolicy,
+    const adb = (endpoint: Mdns.Endpoint): string => `${endpoint.ip}:${endpoint.port}`;
+
+    const connectEndpoint = (endpoint: Mdns.Endpoint): TE.TaskEither<Adb.AdbError, void> =>
       pipe(
-        T.fromIO(logger.info("Starting mDNS discovery")),
-        T.flatMap(() => Mdns.discoverDefault),
-        T.map((endpoints) => {
-          if (E.isLeft(endpoints)) {
-            logger.info(`Discovery error: ${endpoints.left.message}`)();
-          } else {
-            logger.info(`Discovered ${endpoints.right.length} endpoint(s): ${JSON.stringify(endpoints.right)}`)();
-          }
-          return endpoints;
-        }),
-        T.flatMap(() => Adb.devices),
-        T.tapIO((devices) => logger.info(`ADB devices: ${JSON.stringify(devices)}`)),
-        T.asUnit,
+        Adb.connect(adb(endpoint)),
+        TE.flatMap(() => TE.fromIO(logger.info(`Connected to ${adb(endpoint)}`))),
+        TE.tapError((error) => TE.fromIO(logger.error(`Failed to connect to ${adb(endpoint)}: ${error.message}`))),
+      );
+
+    const filterDisconnected = (
+      endpoints: readonly Mdns.Endpoint[],
+    ): TE.TaskEither<Adb.AdbError, readonly Mdns.Endpoint[]> =>
+      pipe(
+        TE.sequenceSeqArray(endpoints.map((endpoint) => Adb.isConnected(adb(endpoint)))),
+        TE.map(RA.zip(endpoints)),
+        TE.map(RA.filter(([connected]) => !connected)),
+        TE.map(RA.map(([, endpoint]) => endpoint)),
+      );
+
+    const discoverAndConnect: T.Task<void> = pipe(
+      T.fromIO(logger.info("Starting mDNS discovery")),
+      T.flatMap(() =>
+        pipe(
+          Mdns.discoverDefaultAdbTslConnect,
+          TE.tapError((error) => TE.fromIO(logger.error(`mDNS discovery failed: ${error.message}`))),
+          TE.flatMap(filterDisconnected),
+          TE.tap((endpoints) => TE.sequenceSeqArray(endpoints.map(connectEndpoint))),
+          TE.tapIO((results) => logger.info(`mDNS discovery results: ${JSON.stringify(results)}`)),
+        ),
       ),
-      constVoid,
-      logger,
+      T.asUnit,
     );
+
+    const runner = ActivationRunner.create(activationGate, activationPolicy, discoverAndConnect, constVoid, logger);
 
     return RTE.fromTaskEither(
       pipe(

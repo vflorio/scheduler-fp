@@ -71,8 +71,26 @@ const parseDevices = (stdout: string): Device[] => {
 // Public API
 // -------------------------------------------------------------------------------------
 
+// Pair
+export const pair = (target: string, pairingCode: string): TE.TaskEither<AdbError, void> =>
+  pipe(run(["pair", target, pairingCode]), TE.asUnit);
+
+// Connect
+export const connect = (target: string): TE.TaskEither<AdbError, void> => pipe(run(["connect", target]), TE.asUnit);
+
+// Disconnect
+export const disconnect = (target: string): TE.TaskEither<AdbError, void> =>
+  pipe(run(["disconnect", target]), TE.asUnit);
+
 // List connected devices with their status
 export const devices: TE.TaskEither<AdbError, Device[]> = pipe(run(["devices"]), TE.map(parseDevices));
+
+// isConnected
+export const isConnected = (target: string): TE.TaskEither<AdbError, boolean> =>
+  pipe(
+    devices,
+    TE.map((devices) => devices.some((device) => device.serial === target && device.status === "device")),
+  );
 
 // Tap at screen coordinates (x, y)
 export const tap = (target: string, x: number, y: number): TE.TaskEither<AdbError, void> =>
