@@ -17,5 +17,6 @@
   },
   "log": {
     "level": "info"
-  }
+  },
+  "adbPort": 5555
 }

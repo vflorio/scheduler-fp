@@ -1,29 +1,21 @@
 import * as ConfigModel from "@supervisor/core/config";
 import * as Policy from "@supervisor/core/policy-codec";
 import * as Schedule from "@supervisor/core/schedule";
-import * as Adb from "@supervisor/shell/adb";
-import * as Mdns from "@supervisor/shell/mdns";
 import * as E from "fp-ts/Either";
 import { constVoid, pipe } from "fp-ts/function";
-import type * as IO from "fp-ts/IO";
 import * as RTE from "fp-ts/ReaderTaskEither";
-import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
 import * as Activation from "./activation";
 import * as ActivationRunner from "./activation-runner";
 import * as Args from "./args";
 import * as Config from "./config";
-import * as PinoLogger from "./logger";
+import * as Connection from "./connection";
+import * as Logger from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Env
 // -------------------------------------------------------------------------------------
-
-export interface Logger {
-  readonly info: (message: string) => IO.IO<void>;
-  readonly error: (message: string) => IO.IO<void>;
-}
 
 export interface Process {
   readonly onSignal: (signal: NodeJS.Signals, handler: () => void) => void;
@@ -31,7 +23,7 @@ export interface Process {
 }
 
 export interface Env {
-  readonly logger: Logger;
+  readonly logger: Logger.Logger;
   readonly configFetcher: Config.ConfigFetcher;
   readonly process: Process;
 }
@@ -87,40 +79,13 @@ export const createService: Effect<ServiceHandle> = pipe(
       logger.info(`Service IDLE - waiting for (${ConfigModel.workScheduleToString(config.workSchedule)})`)();
     }
 
-    const adb = (endpoint: Mdns.Endpoint): string => `${endpoint.ip}:${endpoint.port}`;
-
-    const connectEndpoint = (endpoint: Mdns.Endpoint): TE.TaskEither<Adb.AdbError, void> =>
-      pipe(
-        Adb.connect(adb(endpoint)),
-        TE.flatMap(() => TE.fromIO(logger.info(`Connected to ${adb(endpoint)}`))),
-        TE.tapError((error) => TE.fromIO(logger.error(`Failed to connect to ${adb(endpoint)}: ${error.message}`))),
-      );
-
-    const filterDisconnected = (
-      endpoints: readonly Mdns.Endpoint[],
-    ): TE.TaskEither<Adb.AdbError, readonly Mdns.Endpoint[]> =>
-      pipe(
-        TE.sequenceSeqArray(endpoints.map((endpoint) => Adb.isConnected(adb(endpoint)))),
-        TE.map(RA.zip(endpoints)),
-        TE.map(RA.filter(([connected]) => !connected)),
-        TE.map(RA.map(([, endpoint]) => endpoint)),
-      );
-
-    const discoverAndConnect: T.Task<void> = pipe(
-      T.fromIO(logger.info("Starting mDNS discovery")),
-      T.flatMap(() =>
-        pipe(
-          Mdns.discoverDefaultAdbTslConnect,
-          TE.tapError((error) => TE.fromIO(logger.error(`mDNS discovery failed: ${error.message}`))),
-          TE.flatMap(filterDisconnected),
-          TE.tap((endpoints) => TE.sequenceSeqArray(endpoints.map(connectEndpoint))),
-          TE.tapIO((results) => logger.info(`mDNS discovery results: ${JSON.stringify(results)}`)),
-        ),
-      ),
-      T.asUnit,
+    const runner = ActivationRunner.create(
+      activationGate,
+      activationPolicy,
+      pipe(Connection.discoverAndConnect({ logger, adbPort: config.adbPort }), T.asUnit),
+      constVoid,
+      logger,
     );
-
-    const runner = ActivationRunner.create(activationGate, activationPolicy, discoverAndConnect, constVoid, logger);
 
     return RTE.fromTaskEither(
       pipe(
@@ -135,9 +100,9 @@ export const createService: Effect<ServiceHandle> = pipe(
 // Env Instances
 // -------------------------------------------------------------------------------------
 
-const permanentLogger = (config: ConfigModel.LogConfig): Logger => PinoLogger.create(config);
+const permanentLogger = (config: ConfigModel.LogConfig): Logger.Logger => Logger.create(config);
 
-const volativeLogger: Logger = PinoLogger.create({ level: "info" });
+const volativeLogger: Logger.Logger = Logger.create({ level: "info" });
 
 const liveProcess: Process = {
   onSignal: (signal, handler) => process.on(signal, handler),

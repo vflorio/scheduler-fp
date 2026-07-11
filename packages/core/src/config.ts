@@ -74,6 +74,7 @@ const ServiceConfigCodec = t.type({
   suitest: SuitestCodec,
   slack: SlackCodec,
   monitoring: MonitoringCodec,
+  adbPort: t.number,
   log: LogCodec,
 });
 

@@ -25,7 +25,7 @@
     "service:start": "node dist/index.cjs --config config.example.json",
     "service:dev": "run-p service-dev:*",
     "service-dev:tsc": "tsc --watch --preserveWatchOutput",
-    "service-dev:node": "node --watch dist/index.cjs --config config.example.json",
+    "service-dev:node": "node --watch-path=dist dist/index.cjs --config config.example.json",
     "service-dev:esbuild": "pnpm run service:build --watch"
   }
 }

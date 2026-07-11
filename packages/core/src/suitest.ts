@@ -1,42 +1,20 @@
-import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
 import { type BasicAuth, getJsonAuth, type HTTPError, postJsonBasic } from "./http";
 import { fetchAllPages, type PaginationError } from "./suitest-paginate";
+import { type ValidationError, validate } from "./validation";
 
-// -------------------------------------------------------------------------------------
-// Configuration
-// -------------------------------------------------------------------------------------
-
-const BASE_URL = "https://the.suite.st/api/public/v4";
+export type SuitestError = HTTPError | ValidationError | PaginationError;
 
 export interface SuitestConfig {
   readonly auth: BasicAuth;
   readonly baseUrl?: string;
 }
+
+const BASE_URL = "https://the.suite.st/api/public/v4";
+
 const endpoint = (config: SuitestConfig, path: string): string => `${config.baseUrl ?? BASE_URL}${path}`;
-
-// -------------------------------------------------------------------------------------
-// Validation
-// -------------------------------------------------------------------------------------
-
-export type ValidationError = {
-  type: "ValidationError";
-  message: string;
-};
-
-export type SuitestError = HTTPError | ValidationError | PaginationError;
-
-const createValidationError = (errors: t.Errors): ValidationError => ({
-  type: "ValidationError",
-  message: `Validation Failed: ${errors.map((e) => e.context.map(({ key }) => key).join(".")).join(", ")}`,
-});
-
-const validate =
-  <A>(codec: t.Type<A, unknown>) =>
-  (data: unknown): E.Either<ValidationError, A> =>
-    pipe(data, codec.decode, E.mapLeft(createValidationError));
 
 // -------------------------------------------------------------------------------------
 // Model - Device Status

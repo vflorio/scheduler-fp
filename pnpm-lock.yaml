@@ -144,6 +144,10 @@ importers:
         version: 6.0.3
 
   packages/shell:
+    dependencies:
+      '@supervisor/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: 24.10.1
