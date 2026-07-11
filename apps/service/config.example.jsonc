@@ -1,0 +1,81 @@
+{
+  "suitest": {
+    "tokenId": "your-token-id",
+    "tokenPassword": "env:SUISTEST_TOKEN_PASSWORD" // iniettata da env
+  },
+  "slack": {
+    "botToken": "env:SLACK_BOT_TOKEN", // iniettata da env
+    "channelId": "C0123456789"
+  },
+  "workSchedule": {
+    "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+    "from": "00:00",
+    "to": "23:59"
+  },
+  "monitoring": {
+    "polling": [["constantDelay", "15s"]] // polling loop principale
+  },
+  "log": {
+    "level": "info" // "error" | "warn" | "info" | "debug"
+    //"file": "logs/service.log"
+  },
+  "adb": {
+    "port": 5555,
+    "reconnectPolicy": [
+      ["constantDelay", "400ms"],
+      ["exponentialBackoff", "800ms"],
+      ["capDelay", "60s"],
+      ["limitRetries", 10]
+    ]
+  },
+  "recovery": {
+    "scripts": [
+      [
+        "suitest-connect",
+        [
+          ["tap", { "x": 0.9, "y": 0.1 }], // tap connect button
+          ["tap", { "x": 0.5, "y": 0.5 }] // tap confirm
+        ]
+      ],
+      [
+        "suitest-set-profile",
+        [
+          ["tap", { "x": 0.9, "y": 0.1 }], // tap settings
+          ["tap", { "x": 0.5, "y": 0.5 }], // tap profiles dialog
+          ["tap", { "x": 0.1, "y": 0.1 }], // tap Experimental
+          ["tap", { "x": 0.1, "y": 0.9 }] // tap save
+        ]
+      ]
+    ],
+    "workflows": [
+      [
+        "android-suitest-camera",
+        {
+          "primary": {
+            "commands": [
+              ["restartApp", "com.suitest.android.camera"],
+              ["waitForActivity", "com.suitest.android.camera.CameraActivity"],
+              ["run", "suitest-connect"]
+            ],
+            "policy": [
+              ["constantDelay", "500ms"],
+              ["exponentialBackoff", "500ms"],
+              ["capDelay", "30s"],
+              ["limitRetries", 10]
+            ]
+          },
+          "secondary": {
+            "commands": [
+              ["reboot"],
+              ["waitForDevice"],
+              ["waitForActivity", "com.suitest.android.camera.CameraActivity"],
+              ["run", "suitest-set-profile"],
+              ["run", "suitest-connect"]
+            ],
+            "policy": [["constantDelay", "30s"], ["limitRetries", 3]]
+          }
+        }
+      ]
+    ]
+  }
+}

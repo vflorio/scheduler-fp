@@ -17,7 +17,7 @@ import type { Logger } from "./logger";
 export interface Env {
   readonly logger: Logger;
   readonly adbPort: number;
-  readonly adbConnectPolicy: Retry.Policy;
+  readonly adbReconnectPolicy: Retry.Policy;
 }
 
 type Effect<A> = RTE.ReaderTaskEither<Env, AdbCore.AdbError | Mdns.DiscoverError, A>;
@@ -55,17 +55,17 @@ const connect = (setupTarget: AdbCore.Target): Effect<void> =>
     RTE.tapError((error) => logError(`Failed to connect to ${setupTarget}: ${error.message}`)),
 
     // Step 2: Imposta una porta statica persistente
-    RTE.tap(({ adbPort }) => RTE.fromTaskEither(AdbShell.tcpip(setupTarget, adbPort))),
+    RTE.tap(({ adbPort }) => RTE.fromTaskEither(AdbShell.tcpip(adbPort)(setupTarget))),
     RTE.tap(({ adbPort }) => logInfo(`Set TCP port to ${adbPort} for ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to set TCP port for ${setupTarget}: ${error.message}`)),
 
     // Step 3: Delay per dare tempo ad adbd di riavviarsi, poi connect con retry policy
     RTE.tap(() => delay(1000)),
     RTE.tap(() => logInfo("Waited 1s for adbd restart")),
-    RTE.flatMap(({ adbPort, adbConnectPolicy }) => {
+    RTE.flatMap(({ adbPort, adbReconnectPolicy }) => {
       const persistentTarget = AdbCore.withPort(setupTarget, adbPort);
       return pipe(
-        RTE.fromTaskEither(Retry.retrying(adbConnectPolicy)(AdbShell.connect(persistentTarget))),
+        RTE.fromTaskEither(Retry.retrying(adbReconnectPolicy)(AdbShell.connect(persistentTarget))),
         RTE.tap(() => logInfo(`Connected to ${persistentTarget}`)),
         RTE.tapError((error) => logError(`Failed to connect to ${persistentTarget}: ${error.message}`)),
       );
@@ -80,7 +80,7 @@ const connect = (setupTarget: AdbCore.Target): Effect<void> =>
   );
 
 // Get the targets that are already connected via ADB
-const getConnectedTargets: Effect<readonly AdbCore.Target[]> = pipe(
+const getConnectedAdbDevices: Effect<readonly AdbCore.Target[]> = pipe(
   RTE.fromTaskEither(AdbShell.devices),
   RTE.map((ds) => ds.filter((d) => d.status === "device").map((d) => d.target)),
 );
@@ -97,7 +97,7 @@ export const discoverAndConnect: Effect<readonly AdbCore.Target[]> = pipe(
   logInfo("Starting mDNS discovery"),
 
   // Discovery connected ADB devices
-  RTE.bind("connected", () => getConnectedTargets),
+  RTE.bind("connected", () => getConnectedAdbDevices),
   RTE.tap(({ connected }) =>
     connected.length > 0
       ? logInfo(`Already connected hosts: ${connected.map((target) => AdbCore.fromTarget(target).host).join(", ")}`)

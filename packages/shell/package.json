@@ -1,12 +1,6 @@
 {
   "name": "@supervisor/shell",
   "version": "1.0.0",
-  "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist",
-    "dev": "tsc --watch",
-    "test": "vitest run"
-  },
   "dependencies": {
     "@supervisor/core": "workspace:*"
   },
@@ -15,21 +9,27 @@
     "fp-ts": "2.16.11",
     "io-ts": "2.2.22",
     "ts-pattern": "5.9.0",
-    "typescript": "6.0.3"
-  },
-  "peerDependencies": {
-    "fp-ts": "2.16.11",
-    "io-ts": "2.2.22",
-    "ts-pattern": "5.9.0",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "exports": {
     "./*": "./src/*.ts"
   },
-  "type": "module",
   "files": [
     "dist"
   ],
   "main": "./dist/index.js",
+  "peerDependencies": {
+    "fp-ts": "2.16.11",
+    "io-ts": "2.2.22",
+    "ts-pattern": "5.9.0",
+    "typescript": "7.0.2"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "type": "module",
   "types": "./dist/index.d.ts"
 }

@@ -90,8 +90,10 @@ export const getState = (target: Adb.Target): TE.TaskEither<Adb.AdbError, Adb.De
   );
 
 // Pair
-export const pair = (target: Adb.Target, pairingCode: string): TE.TaskEither<Adb.AdbError, void> =>
-  pipe(run(["pair", target, pairingCode]), TE.asUnit);
+export const pair =
+  (pairingCode: string) =>
+  (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
+    pipe(run(["pair", target, pairingCode]), TE.asUnit);
 
 // Connect
 export const connect = (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
@@ -102,8 +104,10 @@ export const disconnect = (target: Adb.Target): TE.TaskEither<Adb.AdbError, void
   pipe(run(["disconnect", target]), TE.asUnit);
 
 // TCP-IP protocol set
-export const tcpip = (target: Adb.Target, port: number): TE.TaskEither<Adb.AdbError, void> =>
-  pipe(run(["tcpip", String(port)], target), TE.asUnit);
+export const tcpip =
+  (port: number) =>
+  (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
+    pipe(run(["tcpip", String(port)], target), TE.asUnit);
 
 // List connected devices with their status
 export const devices: TE.TaskEither<Adb.AdbError, Device[]> = pipe(run(["devices"]), TE.map(parseDevices));
@@ -120,16 +124,24 @@ export const isConnected = (target: Adb.Target): TE.TaskEither<Adb.AdbError, boo
   );
 
 // Tap at screen coordinates (x, y)
-export const tap = (target: Adb.Target, x: number, y: number): TE.TaskEither<Adb.AdbError, void> =>
-  pipe(run(["shell", "input", "tap", String(x), String(y)], target), TE.asUnit);
+export const tap =
+  (x: number, y: number) =>
+  (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
+    pipe(run(["shell", "input", "tap", String(x), String(y)], target), TE.asUnit);
+
+// adb shell am start -n com.android.chrome/com.google.android.apps.chrome.Main
 
 // Force-stop and then restart an app by package id
-export const restartApp = (target: Adb.Target, packageId: string): TE.TaskEither<Adb.AdbError, void> =>
-  pipe(
-    run(["shell", "am", "force-stop", packageId], target),
-    TE.flatMap(() => run(["shell", "monkey", "-p", packageId, "-c", "android.intent.category.LAUNCHER", "1"], target)),
-    TE.asUnit,
-  );
+export const restartApp =
+  (packageId: string) =>
+  (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
+    pipe(
+      run(["shell", "am", "force-stop", packageId], target),
+      TE.flatMap(() =>
+        run(["shell", "monkey", "-p", packageId, "-c", "android.intent.category.LAUNCHER", "1"], target),
+      ),
+      TE.asUnit,
+    );
 
 // Reboot the device
 export const reboot = (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>

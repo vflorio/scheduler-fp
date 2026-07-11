@@ -4,6 +4,7 @@ import * as HTTP from "@supervisor/core/http";
 import * as E from "fp-ts/Either";
 import { flow, pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
+import { parse as parseJsonc } from "jsonc-parser";
 import type * as Args from "./args";
 
 // -------------------------------------------------------------------------------------
@@ -21,7 +22,7 @@ const fromFile =
   (path: string): ConfigFetcher =>
   () =>
     TE.tryCatch(
-      () => Promise.resolve(JSON.parse(readFileSync(path, "utf-8"))),
+      () => Promise.resolve(parseJsonc(readFileSync(path, "utf-8"))),
       (fsError) => ({ type: "FetchError" as const, message: `Cannot read config file: ${fsError}` }),
     );
 

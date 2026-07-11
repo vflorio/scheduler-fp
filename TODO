@@ -33,7 +33,7 @@
 ### Android Camera
 - [ ] ADB over TCP client
     - [X] Connection, Devices, Tap, RestartApp, Reboot
-- [ ] Android recovery workflow - livello 1: restart Suitest/Automation app via ADB
+- [X] Android recovery workflow - livello 1: restart Suitest/Automation app via ADB
 - [ ] Android recovery workflow - livello 2: reboot device via ADB, attesa boot, avvio app
 - [ ] Post-boot startup sequence: avvio Suitest app + esposizione ADB-TCP
     - [X] ADB over wifi automation

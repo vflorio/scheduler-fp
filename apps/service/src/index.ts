@@ -1,9 +1,11 @@
 import * as ConfigModel from "@supervisor/core/config";
 import * as Policy from "@supervisor/core/policy-codec";
 import * as Schedule from "@supervisor/core/schedule";
+import * as AdbShell from "@supervisor/shell/adb";
 import * as E from "fp-ts/Either";
 import { constVoid, pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
+import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
 import * as Activation from "./activation";
@@ -12,7 +14,6 @@ import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
 import * as Logger from "./logger";
-
 // -------------------------------------------------------------------------------------
 // Env
 // -------------------------------------------------------------------------------------
@@ -62,11 +63,11 @@ export const createService: Effect<ServiceHandle> = pipe(
     pipe(
       E.Do,
       E.bind("activationPolicy", () => Policy.decode(config.monitoring.polling)),
-      E.bind("adbConnectPolicy", () => Policy.decode(config.adb.connectRetry)),
-      E.map(({ activationPolicy, adbConnectPolicy }) => ({ config, activationPolicy, adbConnectPolicy })),
+      E.bind("adbReconnectPolicy", () => Policy.decode(config.adb.reconnectPolicy)),
+      E.map(({ activationPolicy, adbReconnectPolicy }) => ({ config, activationPolicy, adbReconnectPolicy })),
     ),
   ),
-  RTE.flatMap(({ config, activationPolicy, adbConnectPolicy }) => {
+  RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
     const logger = permanentLogger(config.log);
     const activationGate = Activation.toSchedule(config.workSchedule);
 
@@ -84,7 +85,13 @@ export const createService: Effect<ServiceHandle> = pipe(
     const runner = ActivationRunner.create(
       activationGate,
       activationPolicy,
-      pipe(Connection.discoverAndConnect({ logger, adbPort: config.adb.port, adbConnectPolicy }), T.asUnit),
+      pipe(
+        Connection.discoverAndConnect({ logger, adbPort: config.adb.port, adbReconnectPolicy }),
+        TE.flatMap((targets) =>
+          pipe(targets, RA.traverse(TE.ApplicativePar)(AdbShell.restartApp("com.android.chrome"))),
+        ),
+        T.asUnit,
+      ),
       constVoid,
       logger,
     );

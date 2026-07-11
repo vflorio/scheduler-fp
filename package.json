@@ -1,6 +1,9 @@
 {
   "name": "supervisor",
   "version": "0.1.0",
+  "author": {
+    "name": "vflorio & ai"
+  },
   "devDependencies": {
     "@biomejs/biome": "2.5.0",
     "@playwright/test": "^1.61.1",
@@ -13,18 +16,15 @@
     "turbo": "^2.10.4",
     "vitest": "^4.0.16"
   },
-  "author": {
-    "name": "vflorio & ai"
-  },
-  "packageManager": "pnpm@11.11.0",
+  "packageManager": "bun@1.3.14",
   "private": true,
   "scripts": {
     "build": "turbo run build",
     "build-no-cache": "turbo run build --force",
     "clean": "turbo run clean",
     "dev": "turbo run dev",
-    "format": "turbo run format && npx @biomejs/biome format --write",
-    "lint": "turbo run lint && npx @biomejs/biome check --write",
+    "format": "turbo run format && bunx @biomejs/biome format --write",
+    "lint": "turbo run lint && bunx @biomejs/biome check --write",
     "syncpack:check": "syncpack list-mismatches",
     "syncpack:fix": "syncpack fix-mismatches",
     "syncpack:format": "syncpack format",
@@ -32,5 +32,9 @@
     "test:e2e": "playwright test apps/tests --headed --ui",
     "test:unit": "turbo run test"
   },
-  "type": "module"
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }
