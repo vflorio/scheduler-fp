@@ -76,20 +76,21 @@ export const getDay = (date: Date): number => {
 // DurationString - format "Ns", "Nm", "Nh" (seconds, minutes, hours) -> milliseconds
 // -------------------------------------------------------------------------------------
 
-const DURATION_REGEX = /^(\d+(?:\.\d+)?)(s|m|h)$/;
+const DURATION_REGEX = /^(\d+(?:\.\d+)?)(ms|s|m|h)$/;
 
 const DURATION_MULTIPLIERS: Record<string, number> = {
+  ms: 1,
   s: 1_000,
   m: 60_000,
   h: 3_600_000,
 } as const;
 
-export type DurationString = `${number}${"s" | "m" | "h"}`;
+export type DurationString = `${number}${"ms" | "s" | "m" | "h"}`;
 
 const isDurationString = (u: unknown): u is DurationString => typeof u === "string" && DURATION_REGEX.test(u);
 
 const validateDurationString = (u: unknown, c: t.Context): t.Validation<DurationString> =>
-  isDurationString(u) ? t.success(u) : t.failure(u, c, "Expected: <number>s|m|h (e.g. 30s, 5m, 1h)");
+  isDurationString(u) ? t.success(u) : t.failure(u, c, "Expected: <number>ms|s|m|h (e.g. 200ms, 30s, 5m, 1h)");
 
 export const DurationString = new t.Type<DurationString, DurationString, unknown>(
   "DurationString",
@@ -103,7 +104,7 @@ export const durationToMs = (duration: DurationString): number => {
   if (!results?.[1] || !results?.[2]) return 0; // non raggiungibile dopo validazione
 
   const value = Number.parseFloat(results[1]);
-  const unit = results[2] as "s" | "m" | "h";
+  const unit = results[2] as "ms" | "s" | "m" | "h";
 
   return value * (DURATION_MULTIPLIERS?.[unit] ?? 0);
 };

@@ -20,6 +20,11 @@
   },
   "adb": {
     "port": 5555,
-    "connectRetry": [["constantDelay", "1s"], ["limitRetries", 3]]
+    "connectRetry": [
+      ["constantDelay", "400ms"],
+      ["exponentialBackoff", "800ms"],
+      ["capDelay", "30s"],
+      ["limitRetries", 10]
+    ]
   }
 }
