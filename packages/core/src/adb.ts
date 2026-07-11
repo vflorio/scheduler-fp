@@ -1,4 +1,6 @@
+import * as Eq from "fp-ts/Eq";
 import * as O from "fp-ts/Option";
+import * as S from "fp-ts/string";
 import * as t from "io-ts";
 import { match, P } from "ts-pattern";
 
@@ -46,6 +48,8 @@ export const fromTarget = (target: Target): { host: string; port: number } => {
   const [host = "", portStr = ""] = target.split(":");
   return { host, port: Number(portStr) };
 };
+
+export const EqByHost: Eq.Eq<Target> = Eq.contramap((t: Target) => fromTarget(t).host)(S.Eq);
 
 export const withPort = (target: Target, persistentPort: number): Target =>
   toTarget(fromTarget(target).host, persistentPort);

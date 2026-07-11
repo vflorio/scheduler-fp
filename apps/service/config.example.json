@@ -18,5 +18,8 @@
   "log": {
     "level": "info"
   },
-  "adbPort": 5555
+  "adb": {
+    "port": 5555,
+    "connectRetry": [["constantDelay", "1s"], ["limitRetries", 3]]
+  }
 }

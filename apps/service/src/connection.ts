@@ -1,10 +1,12 @@
 import * as AdbCore from "@supervisor/core/adb";
+import * as Retry from "@supervisor/core/retry";
 import * as AdbShell from "@supervisor/shell/adb";
 import * as Mdns from "@supervisor/shell/mdns";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
+import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
 import type { Logger } from "./logger";
 
@@ -15,6 +17,7 @@ import type { Logger } from "./logger";
 export interface Env {
   readonly logger: Logger;
   readonly adbPort: number;
+  readonly adbConnectPolicy: Retry.Policy;
 }
 
 type Effect<A> = RTE.ReaderTaskEither<Env, AdbCore.AdbError | Mdns.DiscoverError, A>;
@@ -39,58 +42,52 @@ const toTarget = (endpoint: Mdns.Endpoint): E.Either<AdbCore.AdbError, AdbCore.T
     E.mapLeft(() => ({ type: "AdbError" as const, message: `Invalid endpoint: ${endpoint.ip}:${endpoint.port}` })),
   );
 
+const delay = (ms: number): Effect<void> => RTE.fromTaskEither(TE.fromTask(T.delay(ms)(T.of(undefined))));
+
 const connect = (setupTarget: AdbCore.Target): Effect<void> =>
   pipe(
     RTE.ask<Env>(),
     RTE.tap(({ adbPort }) => logInfo(`Connecting to ${setupTarget} with persistent port ${adbPort}`)),
 
-    // Step 1: Connect with temporary TCP port
+    // Step 1: Connessione via porta ADB temporanea (cambia ad ogni reboot)
     RTE.tap(() => RTE.fromTaskEither(AdbShell.connect(setupTarget))),
     RTE.tap(() => logInfo(`Connected to ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to connect to ${setupTarget}: ${error.message}`)),
 
-    // Step 2: Set TCP port to persistent adb port (default 5555) and establish persistent connection
+    // Step 2: Imposta una porta statica persistente
     RTE.tap(({ adbPort }) => RTE.fromTaskEither(AdbShell.tcpip(setupTarget, adbPort))),
     RTE.tap(({ adbPort }) => logInfo(`Set TCP port to ${adbPort} for ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to set TCP port for ${setupTarget}: ${error.message}`)),
 
-    // Step 3: Disconnect temporary connection
+    // Step 3: Delay per dare tempo ad adbd di riavviarsi, poi connect con retry policy
+    RTE.tap(() => delay(1000)),
+    RTE.tap(() => logInfo("Waited 1s for adbd restart")),
+    RTE.flatMap(({ adbPort, adbConnectPolicy }) => {
+      const persistentTarget = AdbCore.withPort(setupTarget, adbPort);
+      return pipe(
+        RTE.fromTaskEither(Retry.retrying(adbConnectPolicy)(AdbShell.connect(persistentTarget))),
+        RTE.tap(() => logInfo(`Connected to ${persistentTarget}`)),
+        RTE.tapError((error) => logError(`Failed to connect to ${persistentTarget}: ${error.message}`)),
+      );
+    }),
+
+    // Step 4: Disconnessione dalla porta ADB temporanea (non più necessaria)
     RTE.tap(() => RTE.fromTaskEither(AdbShell.disconnect(setupTarget))),
     RTE.tap(() => logInfo(`Disconnected temporary connection for ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to disconnect temporary connection for ${setupTarget}: ${error.message}`)),
 
-    // Step 4: Connect with persistent ADB TCP port
-    RTE.map(({ adbPort }) => AdbCore.withPort(setupTarget, adbPort)),
-    RTE.tap((persistentTarget) =>
-      pipe(
-        RTE.fromTaskEither(AdbShell.connect(persistentTarget)),
-        RTE.tap(() => logInfo(`Connected to ${persistentTarget}`)),
-        RTE.tapError((error) => logError(`Failed to connect to ${persistentTarget}: ${error.message}`)),
-      ),
-    ),
-
     RTE.asUnit,
   );
 
-export const disconnect = (target: AdbCore.Target): Effect<void> =>
-  pipe(
-    RTE.fromTaskEither(AdbShell.disconnect(target)),
-    RTE.flatMap(() => logInfo(`Disconnected ${target}`)),
-    RTE.tapError((error) => logError(`Failed to disconnect ${target}: ${error.message}`)),
-  );
+// Get the targets that are already connected via ADB
+const getConnectedTargets: Effect<readonly AdbCore.Target[]> = pipe(
+  RTE.fromTaskEither(AdbShell.devices),
+  RTE.map((ds) => ds.filter((d) => d.status === "device").map((d) => d.target)),
+);
 
-const filterValidEndpoints = (endpoints: readonly Mdns.Endpoint[]): Effect<readonly AdbCore.Target[]> =>
+// Map mDNS endpoint to ADB Target, filtering out invalid ones
+const filterMapValidEndpoints = (endpoints: readonly Mdns.Endpoint[]): Effect<readonly AdbCore.Target[]> =>
   pipe(endpoints.map(toTarget), RA.rights, RTE.of);
-
-const filterDisconnected = (targets: readonly AdbCore.Target[]): Effect<readonly AdbCore.Target[]> =>
-  RTE.fromTaskEither(
-    pipe(
-      TE.sequenceSeqArray(targets.map(AdbShell.isConnected)),
-      TE.map(RA.zip(targets)),
-      TE.map(RA.filter(([connected]) => !connected)),
-      TE.map(RA.map(([, target]) => target)),
-    ),
-  );
 
 // -------------------------------------------------------------------------------------
 // Public API
@@ -98,11 +95,34 @@ const filterDisconnected = (targets: readonly AdbCore.Target[]): Effect<readonly
 
 export const discoverAndConnect: Effect<readonly AdbCore.Target[]> = pipe(
   logInfo("Starting mDNS discovery"),
-  RTE.flatMap(() => RTE.fromTaskEither(Mdns.discoverDefaultAdbTslConnect)),
-  RTE.tapError((error) => logError(`mDNS discovery failed: ${error.message}`)),
-  RTE.flatMap(filterValidEndpoints),
-  RTE.flatMap(filterDisconnected),
+
+  // Discovery connected ADB devices
+  RTE.bind("connected", () => getConnectedTargets),
+  RTE.tap(({ connected }) =>
+    connected.length > 0
+      ? logInfo(`Already connected hosts: ${connected.map((target) => AdbCore.fromTarget(target).host).join(", ")}`)
+      : logInfo("No already connected hosts"),
+  ),
+
+  // Discover new devices via mDNS
+  RTE.bind("discovered", () =>
+    pipe(
+      RTE.fromTaskEither(Mdns.discoverDefaultAdbTslConnect),
+      RTE.tapError((error) => logError(`mDNS discovery failed: ${error.message}`)),
+      RTE.flatMap(filterMapValidEndpoints),
+    ),
+  ),
+
+  // Filter out already connected (by host), connect new ones
+  RTE.map(({ connected, discovered }) => RA.difference(AdbCore.EqByHost)(connected)(discovered)),
+  RTE.tap((targets) =>
+    targets.length > 0
+      ? logInfo(`New targets to connect: ${JSON.stringify(targets)}`)
+      : logInfo("No new targets to connect"),
+  ),
+
   RTE.tap((targets) => RTE.sequenceSeqArray(targets.map(connect))),
-  RTE.tap(() => logInfo(`Discovery complete`)),
   RTE.tapError((error) => logError(`Failed to connect to targets: ${error.message}`)),
+
+  RTE.tap(() => logInfo("Discovery complete")),
 );

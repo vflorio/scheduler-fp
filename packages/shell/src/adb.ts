@@ -106,22 +106,7 @@ export const tcpip = (target: Adb.Target, port: number): TE.TaskEither<Adb.AdbEr
   pipe(run(["tcpip", String(port)], target), TE.asUnit);
 
 // List connected devices with their status
-export const devices: TE.TaskEither<Adb.AdbError, Device[]> = pipe(
-  run(["devices"]),
-  TE.map(parseDevices),
-  TE.tap((devices) =>
-    TE.fromIO(() => {
-      console.log(`Discovered ${devices.length} devices: ${JSON.stringify(devices)}`);
-    }),
-  ),
-);
-
-// isConnected
-export const isConnected1 = (target: Adb.Target): TE.TaskEither<Adb.AdbError, boolean> =>
-  pipe(
-    getState(target),
-    TE.map((state) => state === "device"),
-  );
+export const devices: TE.TaskEither<Adb.AdbError, Device[]> = pipe(run(["devices"]), TE.map(parseDevices));
 
 // isConnected
 export const isConnected = (target: Adb.Target): TE.TaskEither<Adb.AdbError, boolean> =>
@@ -153,7 +138,7 @@ export const reboot = (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
 export const waitForState =
   (state: Adb.DeviceState) =>
   (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
-    pipe(run(["wait-for", state], target), TE.asUnit);
+    pipe(run([`wait-for-${state}`], target), TE.asUnit);
 
 export const waitForDevice = waitForState("device");
 export const waitForDisconnect = waitForState("disconnect");

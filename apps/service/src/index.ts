@@ -60,11 +60,13 @@ export const createService: Effect<ServiceHandle> = pipe(
   RTE.flatMap(() => loadConfig),
   RTE.flatMapEither((config) =>
     pipe(
-      Policy.decode(config.monitoring.polling),
-      E.map((activationPolicy) => ({ config, activationPolicy })),
+      E.Do,
+      E.bind("activationPolicy", () => Policy.decode(config.monitoring.polling)),
+      E.bind("adbConnectPolicy", () => Policy.decode(config.adb.connectRetry)),
+      E.map(({ activationPolicy, adbConnectPolicy }) => ({ config, activationPolicy, adbConnectPolicy })),
     ),
   ),
-  RTE.flatMap(({ config, activationPolicy }) => {
+  RTE.flatMap(({ config, activationPolicy, adbConnectPolicy }) => {
     const logger = permanentLogger(config.log);
     const activationGate = Activation.toSchedule(config.workSchedule);
 
@@ -82,7 +84,7 @@ export const createService: Effect<ServiceHandle> = pipe(
     const runner = ActivationRunner.create(
       activationGate,
       activationPolicy,
-      pipe(Connection.discoverAndConnect({ logger, adbPort: config.adbPort }), T.asUnit),
+      pipe(Connection.discoverAndConnect({ logger, adbPort: config.adb.port, adbConnectPolicy }), T.asUnit),
       constVoid,
       logger,
     );

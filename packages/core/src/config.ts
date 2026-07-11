@@ -69,12 +69,18 @@ const LogCodec = t.intersection([t.type({ level: LogLevel }), t.partial({ path: 
 export type LogConfig = t.TypeOf<typeof LogCodec>;
 
 // Configurazione completa del servizio
+// Configurazione connessione ADB
+const AdbCodec = t.type({
+  port: t.number,
+  connectRetry: PolicyJsonCodec,
+});
+
 const ServiceConfigCodec = t.type({
   workSchedule: WorkScheduleCodec,
   suitest: SuitestCodec,
   slack: SlackCodec,
   monitoring: MonitoringCodec,
-  adbPort: t.number,
+  adb: AdbCodec,
   log: LogCodec,
 });
 
