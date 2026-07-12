@@ -1,4 +1,5 @@
 import { pipe } from "fp-ts/function";
+import * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
 import { match } from "ts-pattern";
 import type { Logger } from "./logger";
@@ -12,9 +13,9 @@ import { findScript } from "./workflow";
 // -------------------------------------------------------------------------------------
 
 export interface WorkflowEnv {
+  readonly logger: Logger;
   readonly capabilities: CommandCapabilities;
   readonly scripts: readonly Script[];
-  readonly log: Logger;
 }
 
 export interface CommandCapabilities {
@@ -37,89 +38,118 @@ export interface WorkflowError {
 const workflowError = (message: string): WorkflowError => ({ type: "WorkflowError", message });
 
 // -------------------------------------------------------------------------------------
+// Effect type
+// -------------------------------------------------------------------------------------
+
+type Effect<A> = RTE.ReaderTaskEither<WorkflowEnv, WorkflowError | PolicyDecodeError, A>;
+
+// -------------------------------------------------------------------------------------
+// Helpers
+// -------------------------------------------------------------------------------------
+
+const logInfo =
+  (message: string): Effect<void> =>
+  ({ logger }) =>
+    TE.fromIO(logger.info(message));
+
+const logError =
+  (message: string): Effect<void> =>
+  ({ logger }) =>
+    TE.fromIO(logger.error(message));
+
+const commandToString = (cmd: Command): string =>
+  match(cmd)
+    .with({ type: "restartApp" }, ({ packageId }) => `restartApp(${packageId})`)
+    .with({ type: "reboot" }, () => "reboot")
+    .with({ type: "inputTap" }, ({ coords }) => `inputTap(${coords.x}, ${coords.y})`)
+    .with({ type: "waitForDevice" }, () => "waitForDevice")
+    .with({ type: "waitForActivity" }, ({ activity }) => `waitForActivity(${activity})`)
+    .with({ type: "run" }, ({ scriptName }) => `run(${scriptName})`)
+    .exhaustive();
+
+const liftCommand =
+  (effect: (command: CommandCapabilities) => TE.TaskEither<WorkflowError, void>): Effect<void> =>
+  ({ capabilities }) =>
+    effect(capabilities);
+
+// -------------------------------------------------------------------------------------
 // Interpreters
 // -------------------------------------------------------------------------------------
 
-const interpretCommand =
-  (env: WorkflowEnv) =>
-  (cmd: Command): TE.TaskEither<WorkflowError, void> =>
-    match(cmd)
-      .with({ type: "restartApp" }, ({ packageId }) => env.capabilities.restartApp(packageId))
-      .with({ type: "reboot" }, () => env.capabilities.reboot())
-      .with({ type: "inputTap" }, ({ coords }) => env.capabilities.inputTap(coords))
-      .with({ type: "waitForDevice" }, () => env.capabilities.waitForDevice())
-      .with({ type: "waitForActivity" }, ({ activity }) => env.capabilities.waitForActivity(activity))
-      .with({ type: "run" }, ({ scriptName }) =>
-        pipe(
-          TE.fromEither(findScript(env.scripts, scriptName)),
-          TE.mapLeft((e) => workflowError(e.message)),
-          TE.flatMap((script) => interpretCommands(env)(script.commands)),
-        ),
-      )
-      .exhaustive();
+const interpretCommand = (cmd: Command): Effect<void> =>
+  pipe(
+    logInfo(`  → ${commandToString(cmd)}`),
+    RTE.flatMap(() =>
+      match(cmd)
+        .with({ type: "restartApp" }, ({ packageId }) => liftCommand((c) => c.restartApp(packageId)))
+        .with({ type: "reboot" }, () => liftCommand((c) => c.reboot()))
+        .with({ type: "inputTap" }, ({ coords }) => liftCommand((c) => c.inputTap(coords)))
+        .with({ type: "waitForDevice" }, () => liftCommand((c) => c.waitForDevice()))
+        .with({ type: "waitForActivity" }, ({ activity }) => liftCommand((c) => c.waitForActivity(activity)))
+        .with({ type: "run" }, ({ scriptName }) =>
+          pipe(
+            RTE.asks<WorkflowEnv, readonly Script[]>((env) => env.scripts),
+            RTE.flatMapEither((scripts) => findScript(scripts, scriptName)),
+            RTE.mapLeft((e) => workflowError(e.message)),
+            RTE.flatMap((script) => interpretCommands(script.commands)),
+          ),
+        )
+        .exhaustive(),
+    ),
+    RTE.tapError((error) => logError(`  ✗ ${commandToString(cmd)} failed: ${error.message}`)),
+  );
 
 // Interpreta una sequenza di comandi in ordine
-const interpretCommands =
-  (env: WorkflowEnv) =>
-  (commands: readonly Command[]): TE.TaskEither<WorkflowError, void> =>
-    pipe(
-      commands.reduce<TE.TaskEither<WorkflowError, void>>(
-        (acc, cmd) =>
-          pipe(
-            acc,
-            TE.flatMap(() => interpretCommand(env)(cmd)),
-          ),
-        TE.right(undefined),
-      ),
-    );
+const interpretCommands = (commands: readonly Command[]): Effect<void> =>
+  pipe(
+    commands.reduce<Effect<void>>(
+      (acc, cmd) =>
+        pipe(
+          acc,
+          RTE.flatMap(() => interpretCommand(cmd)),
+        ),
+      RTE.right(undefined),
+    ),
+  );
 
 // Esegue una strategia con la sua retry policy
-const interpretStrategy =
-  (env: WorkflowEnv) =>
-  (strategy: WorkflowStrategy): TE.TaskEither<WorkflowError | PolicyDecodeError, void> =>
-    pipe(
-      TE.fromEither(decodePolicy(strategy.policy)),
-      TE.flatMap((policy) => retrying(policy)(interpretCommands(env)(strategy.commands))),
-    );
+const interpretStrategy = (strategy: WorkflowStrategy): Effect<void> =>
+  pipe(
+    RTE.fromEither(decodePolicy(strategy.policy)),
+    RTE.flatMap((policy) => (env: WorkflowEnv) => retrying(policy)(interpretCommands(strategy.commands)(env))),
+  );
 
 // Esegue le fasi in ordine, passa alla successiva se la corrente fallisce
-export const interpretWorkflow =
-  (env: WorkflowEnv) =>
-  (workflow: Workflow): TE.TaskEither<WorkflowError | PolicyDecodeError, void> => {
-    const { log } = env;
+export const interpretWorkflow = (workflow: Workflow): Effect<void> => {
+  const runStrategies = (strategies: readonly WorkflowStrategy[], index: number): Effect<void> => {
+    if (index >= strategies.length)
+      return RTE.left(workflowError(`Workflow "${workflow.name}": all strategies exhausted`));
 
-    const runStrategies = (
-      strategies: readonly WorkflowStrategy[],
-      index: number,
-    ): TE.TaskEither<WorkflowError | PolicyDecodeError, void> => {
-      if (index >= strategies.length)
-        return TE.left(workflowError(`Workflow "${workflow.name}": all strategies exhausted`));
+    const strategy = strategies[index]!;
 
-      const strategy = strategies[index]!;
-
-      return pipe(
-        TE.fromIO(() => log.info(`Workflow "${workflow.name}": starting strategy ${index + 1}/${strategies.length}`)),
-        TE.flatMap(() => interpretStrategy(env)(strategy)),
-        TE.orElse((error) => {
-          log.error(`Workflow "${workflow.name}": strategy ${index + 1} failed — ${error.message}`);
-          return runStrategies(strategies, index + 1);
-        }),
-      );
-    };
-
-    return runStrategies(workflow.strategies, 0);
+    return pipe(
+      logInfo(`Workflow "${workflow.name}": starting strategy ${index + 1}/${strategies.length}`),
+      RTE.flatMap(() => interpretStrategy(strategy)),
+      RTE.orElse((error) =>
+        pipe(
+          logError(`Workflow "${workflow.name}": strategy ${index + 1} failed — ${error.message}`),
+          RTE.flatMap(() => runStrategies(strategies, index + 1)),
+        ),
+      ),
+    );
   };
+
+  return runStrategies(workflow.strategies, 0);
+};
 
 // -------------------------------------------------------------------------------------
 // Recovery runner
 // -------------------------------------------------------------------------------------
 
 // esegue un workflow per nome dalla config
-export const runWorkflow =
-  (env: WorkflowEnv) =>
-  (config: RecoveryConfig, workflowName: string): TE.TaskEither<WorkflowError | PolicyDecodeError, void> => {
-    const workflow = config.workflows.find((w) => w.name === workflowName);
-    if (!workflow) return TE.left(workflowError(`Workflow not found: "${workflowName}"`));
+export const runWorkflow = (config: RecoveryConfig, workflowName: string): Effect<void> => {
+  const workflow = config.workflows.find((w) => w.name === workflowName);
+  if (!workflow) return RTE.left(workflowError(`Workflow not found: "${workflowName}"`));
 
-    return interpretWorkflow({ ...env, scripts: config.scripts })(workflow);
-  };
+  return (env) => interpretWorkflow(workflow)({ ...env, scripts: config.scripts });
+};

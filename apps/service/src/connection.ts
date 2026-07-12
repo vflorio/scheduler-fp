@@ -114,15 +114,23 @@ export const discoverAndConnect: Effect<readonly AdbCore.Target[]> = pipe(
   ),
 
   // Filter out already connected (by host), connect new ones
-  RTE.map(({ connected, discovered }) => RA.difference(AdbCore.EqByHost)(connected)(discovered)),
-  RTE.tap((targets) =>
-    targets.length > 0
-      ? logInfo(`New targets to connect: ${JSON.stringify(targets)}`)
+  RTE.bind("newTargets", ({ connected, discovered }) => RTE.of(RA.difference(AdbCore.EqByHost)(connected)(discovered))),
+  RTE.tap(({ newTargets }) =>
+    newTargets.length > 0
+      ? logInfo(`New targets to connect: ${JSON.stringify(newTargets)}`)
       : logInfo("No new targets to connect"),
   ),
 
-  RTE.tap((targets) => RTE.sequenceSeqArray(targets.map(connect))),
+  RTE.tap(({ newTargets }) => RTE.sequenceSeqArray(newTargets.map(connect))),
   RTE.tapError((error) => logError(`Failed to connect to targets: ${error.message}`)),
+
+  // Return persistent targets: already connected + newly connected (all with persistent port)
+  RTE.flatMap(({ connected, newTargets }) =>
+    RTE.asks<Env, readonly AdbCore.Target[]>(({ adbPort }) => [
+      ...connected,
+      ...newTargets.map((t) => AdbCore.withPort(t, adbPort)),
+    ]),
+  ),
 
   RTE.tap(() => logInfo("Discovery complete")),
 );

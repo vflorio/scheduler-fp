@@ -2,7 +2,7 @@ import * as E from "fp-ts/Either";
 import * as t from "io-ts";
 import { match } from "ts-pattern";
 import { PolicyJsonCodec } from "./retry-codec";
-import type { Command, RecoveryConfig, Script, Workflow, WorkflowStrategy } from "./workflow";
+import type { Command, Script, Workflow, WorkflowStrategy } from "./workflow";
 
 // -------------------------------------------------------------------------------------
 // Codecs
@@ -61,7 +61,12 @@ const encodeCommand = (cmd: Command): unknown[] =>
     .exhaustive();
 
 // JSON: ["commandName", ...args] -> Command
-const CommandCodec = new t.Type<Command, unknown[], unknown>("Command", isCommand, validateCommand, encodeCommand);
+export const CommandCodec = new t.Type<Command, unknown[], unknown>(
+  "Command",
+  isCommand,
+  validateCommand,
+  encodeCommand,
+);
 
 // ----
 // Script — JSON: ["name", [[cmd], [cmd], ...]]
@@ -90,7 +95,7 @@ const validateScript = (u: unknown, c: t.Context): t.Validation<Script> => {
 
 const encodeScript = (s: Script): unknown => [s.name, s.commands.map((cmd) => CommandCodec.encode(cmd))];
 
-const ScriptJsonCodec = new t.Type<Script, unknown, unknown>("Script", isScript, validateScript, encodeScript);
+export const ScriptJsonCodec = new t.Type<Script, unknown, unknown>("Script", isScript, validateScript, encodeScript);
 
 // WorkflowStrategy — JSON: { commands: [...], policy: [...] }
 const WorkflowStrategyCodec = t.type({
@@ -126,37 +131,9 @@ const encodeWorkflow = (w: Workflow): unknown => [
   Object.fromEntries(w.strategies.map((p, i) => [i === 0 ? "primary" : `strategy_${i}`, p])),
 ];
 
-const WorkflowJsonCodec = new t.Type<Workflow, unknown, unknown>(
+export const WorkflowJsonCodec = new t.Type<Workflow, unknown, unknown>(
   "Workflow",
   isWorkflow,
   validateWorkflow,
   encodeWorkflow,
 );
-
-const RecoveryConfigCodec = t.type({
-  scripts: t.array(ScriptJsonCodec),
-  workflows: t.array(WorkflowJsonCodec),
-});
-
-// -------------------------------------------------------------------------------------
-// Decode
-// -------------------------------------------------------------------------------------
-
-export interface WorkflowDecodeError {
-  readonly type: "WorkflowDecodeError";
-  readonly message: string;
-}
-
-export const decode = (raw: unknown): E.Either<WorkflowDecodeError, RecoveryConfig> =>
-  E.mapLeft((errors: t.Errors) => ({
-    type: "WorkflowDecodeError" as const,
-    message: `Invalid recovery config:\n${errors
-      .map(
-        (e) =>
-          `  ${e.context
-            .map((c) => c.key)
-            .filter(Boolean)
-            .join(".")} : ${e.message ?? JSON.stringify(e.value)}`,
-      )
-      .join("\n")}`,
-  }))(RecoveryConfigCodec.decode(raw));

@@ -49,6 +49,27 @@
     ],
     "workflows": [
       [
+        "android-chrome-test",
+        {
+          "primary": {
+            "commands": [
+              ["restartApp", "com.android.chrome"],
+              ["waitForActivity", "com.google.android.apps.chrome.Main"]
+            ],
+            "policy": [
+              ["constantDelay", "500ms"],
+              ["exponentialBackoff", "500ms"],
+              ["capDelay", "30s"],
+              ["limitRetries", 10]
+            ]
+          },
+          "secondary": {
+            "commands": [["reboot"], ["waitForDevice"], ["waitForActivity", "com.google.android.apps.chrome.Main"]],
+            "policy": [["constantDelay", "60s"], ["limitRetries", 3]]
+          }
+        }
+      ],
+      [
         "android-suitest-camera",
         {
           "primary": {

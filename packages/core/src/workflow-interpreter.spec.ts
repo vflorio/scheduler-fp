@@ -8,7 +8,7 @@ import * as Interpreter from "./workflow-interpreter";
 
 const noopEnv = (log: string[] = []): Interpreter.WorkflowEnv => ({
   scripts: [],
-  log: {
+  logger: {
     info: (msg) => () => log.push(`[INFO] ${msg}`),
     error: (msg) => () => log.push(`[ERROR] ${msg}`),
   },
@@ -28,7 +28,7 @@ const failingEnv = (failCount: number): { env: Interpreter.WorkflowEnv; calls: s
     calls,
     env: {
       scripts: [],
-      log: { info: () => () => {}, error: () => () => {} },
+      logger: { info: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: (pkg) => {
           calls.push(`restartApp:${pkg}`);
@@ -64,7 +64,7 @@ describe("workflow interpreter", () => {
       ],
     };
 
-    const result = await Interpreter.interpretWorkflow(env)(workflow)();
+    const result = await Interpreter.interpretWorkflow(workflow)(env)();
     expect(E.isRight(result)).toBe(true);
   });
 
@@ -84,7 +84,7 @@ describe("workflow interpreter", () => {
       ],
     };
 
-    const result = await Interpreter.interpretWorkflow(env)(workflow)();
+    const result = await Interpreter.interpretWorkflow(workflow)(env)();
     expect(E.isRight(result)).toBe(true);
     expect(calls.length).toBe(3); // 2 failures + 1 success
   });
@@ -93,7 +93,7 @@ describe("workflow interpreter", () => {
     const calls: string[] = [];
     const env: Interpreter.WorkflowEnv = {
       scripts: [],
-      log: { info: () => () => {}, error: () => () => {} },
+      logger: { info: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: () => {
           calls.push("restartApp");
@@ -132,7 +132,7 @@ describe("workflow interpreter", () => {
       ],
     };
 
-    const result = await Interpreter.interpretWorkflow(env)(workflow)();
+    const result = await Interpreter.interpretWorkflow(workflow)(env)();
     expect(E.isRight(result)).toBe(true);
     // Primary: 3 attempts (initial + 2 retries), then secondary succeeds
     expect(calls.filter((c) => c === "restartApp").length).toBe(3);
@@ -144,7 +144,7 @@ describe("workflow interpreter", () => {
     const tapCalls: Array<{ x: number; y: number }> = [];
     const env: Interpreter.WorkflowEnv = {
       scripts: [{ name: "my-script", commands: [{ type: "inputTap", coords: { x: 0.5, y: 0.5 } }] }],
-      log: { info: () => () => {}, error: () => () => {} },
+      logger: { info: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: () => TE.right(undefined),
         reboot: () => TE.right(undefined),
@@ -170,7 +170,7 @@ describe("workflow interpreter", () => {
       ],
     };
 
-    const result = await Interpreter.interpretWorkflow(env)(workflow)();
+    const result = await Interpreter.interpretWorkflow(workflow)(env)();
     expect(E.isRight(result)).toBe(true);
     expect(tapCalls).toEqual([{ x: 0.5, y: 0.5 }]);
   });
@@ -178,7 +178,7 @@ describe("workflow interpreter", () => {
   it("fails when all strategies are exhausted", async () => {
     const env: Interpreter.WorkflowEnv = {
       scripts: [],
-      log: { info: () => () => {}, error: () => () => {} },
+      logger: { info: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: () => TE.left({ type: "WorkflowError", message: "nope" }),
         reboot: () => TE.left({ type: "WorkflowError", message: "nope" }),
@@ -208,7 +208,7 @@ describe("workflow interpreter", () => {
       ],
     };
 
-    const result = await Interpreter.interpretWorkflow(env)(workflow)();
+    const result = await Interpreter.interpretWorkflow(workflow)(env)();
     expect(E.isLeft(result)).toBe(true);
     if (E.isLeft(result)) {
       expect(result.left.message).toContain("all strategies exhausted");

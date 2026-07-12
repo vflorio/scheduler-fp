@@ -129,8 +129,6 @@ export const inputTap =
   (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
     pipe(run(["shell", "input", "tap", String(x), String(y)], target), TE.asUnit);
 
-// adb shell am start -n com.android.chrome/com.google.android.apps.chrome.Main
-
 // Force-stop and then restart an app by package id
 export const restartApp =
   (packageId: string) =>
@@ -154,3 +152,24 @@ export const waitForState =
 
 export const waitForDevice = waitForState("device");
 export const waitForDisconnect = waitForState("disconnect");
+
+// Get the currently focused (foreground) app activity
+// Uses `dumpsys window` and reads `mFocusedApp` which reports the actual foreground activity
+// even when system UI (NotificationShade, etc.) has window focus.
+// Format: "mFocusedApp=ActivityRecord{hash u0 com.pkg/com.pkg.Activity} ..."
+export const getResumedActivity = (target: Adb.Target): TE.TaskEither<Adb.AdbError, O.Option<string>> =>
+  pipe(
+    run(["shell", "dumpsys", "window"], target),
+    TE.map((stdout) => {
+      // Join all lines to handle line wrapping in dumpsys output
+      const flat = stdout.replace(/\n\s*/g, " ");
+      const m = flat.match(/mFocusedApp=ActivityRecord\{[^}]*\s([a-zA-Z0-9_.]+\/[a-zA-Z0-9_.]+)/);
+      return m ? O.some(m[1]!) : O.none;
+    }),
+  );
+
+// Check if a specific activity (full component or substring) is currently in foreground
+export const isActivityResumed =
+  (activity: string) =>
+  (target: Adb.Target): TE.TaskEither<Adb.AdbError, boolean> =>
+    pipe(getResumedActivity(target), TE.map(O.exists((resumed) => resumed.includes(activity))));

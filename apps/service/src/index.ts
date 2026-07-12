@@ -1,9 +1,8 @@
 import * as ConfigModel from "@supervisor/core/config";
 import * as RetryPolicy from "@supervisor/core/retry-codec";
 import * as Schedule from "@supervisor/core/schedule";
-import * as AdbShell from "@supervisor/shell/adb";
 import * as E from "fp-ts/Either";
-import { constVoid, pipe } from "fp-ts/function";
+import { pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
@@ -14,6 +13,7 @@ import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
 import * as Logger from "./logger";
+import { runWorkflow } from "./workflow";
 
 // -------------------------------------------------------------------------------------
 // Env
@@ -83,18 +83,21 @@ export const createService: Effect<ServiceHandle> = pipe(
       logger.info(`Service IDLE - waiting for (${ConfigModel.workScheduleToString(config.workSchedule)})`)();
     }
 
-    const onActive = pipe(
-      Connection.discoverAndConnect({ logger, adbPort: config.adb.port, adbReconnectPolicy }),
-      TE.flatMap((targets) => pipe(targets, RA.traverse(TE.ApplicativePar)(AdbShell.restartApp("com.android.chrome")))),
-      T.asUnit,
-    );
-
-    const runner = ActivationRunner.create(logger, activationGate, activationPolicy, { onActive });
+    const { start, stop } = ActivationRunner.create(logger, activationGate, activationPolicy, {
+      onActive: pipe(
+        Connection.discoverAndConnect({ logger, adbPort: config.adb.port, adbReconnectPolicy }),
+        TE.flatMap(
+          RA.traverse(TE.ApplicativeSeq)(runWorkflow({ logger, recovery: config.recovery })("android-chrome-test")),
+        ),
+        TE.tapError((error) => TE.fromIO(logger.error(`Activation tick failed: ${error.message}`))),
+        T.asUnit,
+      ),
+    });
 
     return RTE.fromTaskEither(
       pipe(
-        runner.start,
-        TE.map(() => ({ stop: runner.stop })),
+        start,
+        TE.map(() => ({ stop })),
       ),
     );
   }),

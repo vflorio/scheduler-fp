@@ -1,6 +1,5 @@
 import * as E from "fp-ts/Either";
 import type { PolicyJson } from "./retry-codec";
-import type { WorkflowDecodeError } from "./workflow-codec";
 
 // -------------------------------------------------------------------------------------
 // Model — Recovery Scripts & Workflows
@@ -42,6 +41,11 @@ export interface Workflow {
 export interface RecoveryConfig {
   readonly scripts: readonly Script[];
   readonly workflows: readonly Workflow[];
+}
+
+export interface WorkflowDecodeError {
+  readonly type: "WorkflowDecodeError";
+  readonly message: string;
 }
 
 // -------------------------------------------------------------------------------------
