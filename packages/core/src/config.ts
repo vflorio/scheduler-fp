@@ -3,7 +3,7 @@ import { pipe } from "fp-ts/function";
 import * as Ord from "fp-ts/Ord";
 import * as t from "io-ts";
 import { DayOfWeek, OrdValidTimeString, TimeString } from "./date-time";
-import { PolicyJsonCodec } from "./policy-codec";
+import { PolicyJsonCodec } from "./retry-codec";
 
 // -------------------------------------------------------------------------------------
 // Model - Configurazione del servizio
@@ -75,14 +75,25 @@ const AdbCodec = t.type({
   reconnectPolicy: PolicyJsonCodec,
 });
 
-const ServiceConfigCodec = t.type({
-  workSchedule: WorkScheduleCodec,
-  suitest: SuitestCodec,
-  slack: SlackCodec,
-  monitoring: MonitoringCodec,
-  adb: AdbCodec,
-  log: LogCodec,
+// Recovery config: raw JSON, decoded semantically via workflow module
+const RecoveryCodec = t.type({
+  scripts: t.array(t.UnknownArray),
+  workflows: t.array(t.UnknownArray),
 });
+
+const ServiceConfigCodec = t.intersection([
+  t.type({
+    workSchedule: WorkScheduleCodec,
+    suitest: SuitestCodec,
+    slack: SlackCodec,
+    monitoring: MonitoringCodec,
+    adb: AdbCodec,
+    log: LogCodec,
+  }),
+  t.partial({
+    recovery: RecoveryCodec,
+  }),
+]);
 
 export type ServiceConfig = t.TypeOf<typeof ServiceConfigCodec>;
 export type WorkSchedule = t.TypeOf<typeof WorkScheduleCodec>;

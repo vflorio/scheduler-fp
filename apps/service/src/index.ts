@@ -1,5 +1,5 @@
 import * as ConfigModel from "@supervisor/core/config";
-import * as Policy from "@supervisor/core/policy-codec";
+import * as RetryPolicy from "@supervisor/core/retry-codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as AdbShell from "@supervisor/shell/adb";
 import * as E from "fp-ts/Either";
@@ -14,6 +14,7 @@ import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
 import * as Logger from "./logger";
+
 // -------------------------------------------------------------------------------------
 // Env
 // -------------------------------------------------------------------------------------
@@ -31,7 +32,7 @@ export interface Env {
 
 type Effect<A> = RTE.ReaderTaskEither<
   Env,
-  Config.LoadError | Config.FetchError | Policy.PolicyDecodeError | ActivationRunner.StartError,
+  Config.LoadError | Config.FetchError | RetryPolicy.PolicyDecodeError | ActivationRunner.StartError,
   A
 >;
 
@@ -62,17 +63,17 @@ export const createService: Effect<ServiceHandle> = pipe(
   RTE.flatMapEither((config) =>
     pipe(
       E.Do,
-      E.bind("activationPolicy", () => Policy.decode(config.monitoring.polling)),
-      E.bind("adbReconnectPolicy", () => Policy.decode(config.adb.reconnectPolicy)),
+      E.bind("activationPolicy", () => RetryPolicy.decode(config.monitoring.polling)),
+      E.bind("adbReconnectPolicy", () => RetryPolicy.decode(config.adb.reconnectPolicy)),
       E.map(({ activationPolicy, adbReconnectPolicy }) => ({ config, activationPolicy, adbReconnectPolicy })),
     ),
   ),
   RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
-    const logger = permanentLogger(config.log);
+    const logger = configuredLogger(config.log);
     const activationGate = Activation.toSchedule(config.workSchedule);
 
     logger.info(`Config loaded - schedule: ${ConfigModel.workScheduleToString(config.workSchedule)}`)();
-    logger.info(`Polling policy: ${Policy.policyJsonToString(config.monitoring.polling)}`)();
+    logger.info(`Polling policy: ${RetryPolicy.policyJsonToString(config.monitoring.polling)}`)();
 
     const slot = Schedule.toTimeSlot(new Date());
 
@@ -82,19 +83,13 @@ export const createService: Effect<ServiceHandle> = pipe(
       logger.info(`Service IDLE - waiting for (${ConfigModel.workScheduleToString(config.workSchedule)})`)();
     }
 
-    const runner = ActivationRunner.create(
-      activationGate,
-      activationPolicy,
-      pipe(
-        Connection.discoverAndConnect({ logger, adbPort: config.adb.port, adbReconnectPolicy }),
-        TE.flatMap((targets) =>
-          pipe(targets, RA.traverse(TE.ApplicativePar)(AdbShell.restartApp("com.android.chrome"))),
-        ),
-        T.asUnit,
-      ),
-      constVoid,
-      logger,
+    const onActive = pipe(
+      Connection.discoverAndConnect({ logger, adbPort: config.adb.port, adbReconnectPolicy }),
+      TE.flatMap((targets) => pipe(targets, RA.traverse(TE.ApplicativePar)(AdbShell.restartApp("com.android.chrome")))),
+      T.asUnit,
     );
+
+    const runner = ActivationRunner.create(logger, activationGate, activationPolicy, { onActive });
 
     return RTE.fromTaskEither(
       pipe(
@@ -109,9 +104,9 @@ export const createService: Effect<ServiceHandle> = pipe(
 // Env Instances
 // -------------------------------------------------------------------------------------
 
-const permanentLogger = (config: ConfigModel.LogConfig): Logger.Logger => Logger.create(config);
+const startLogger: Logger.Logger = Logger.create({ level: "info" });
 
-const volativeLogger: Logger.Logger = Logger.create({ level: "info" });
+const configuredLogger = (config: ConfigModel.LogConfig): Logger.Logger => Logger.create(config);
 
 const liveProcess: Process = {
   onSignal: (signal, handler) => process.on(signal, handler),
@@ -126,14 +121,14 @@ const main = () => {
   const argsResult = Args.parse(process.argv);
 
   if (E.isLeft(argsResult)) {
-    volativeLogger.error(argsResult.left)();
+    startLogger.error(argsResult.left)();
     liveProcess.exit(1);
   }
 
   const args = argsResult.right;
 
   const env: Env = {
-    logger: volativeLogger,
+    logger: startLogger,
     process: liveProcess,
     configFetcher: Config.toFetcher(args.config),
   };

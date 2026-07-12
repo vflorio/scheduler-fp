@@ -1,11 +1,9 @@
 import type { LogConfig } from "@supervisor/core/config";
+import type { Logger } from "@supervisor/core/logger";
 import type * as IO from "fp-ts/IO";
 import pino from "pino";
 
-export interface Logger {
-  readonly info: (message: string) => IO.IO<void>;
-  readonly error: (message: string) => IO.IO<void>;
-}
+export type { Logger };
 
 const levelColors: Record<string, string> = {
   fatal: "\x1b[41m\x1b[37m",

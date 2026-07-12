@@ -23,7 +23,7 @@ export type PolicyStepJson = readonly [string, ...PolicyStepArg[]];
 export type PolicyJson = readonly PolicyStepJson[];
 
 // -------------------------------------------------------------------------------------
-// io-ts Codec
+// Codec
 // -------------------------------------------------------------------------------------
 
 // Codec per un singolo argomento di step: number o DurationString

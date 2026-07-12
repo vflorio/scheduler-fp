@@ -124,7 +124,7 @@ export const isConnected = (target: Adb.Target): TE.TaskEither<Adb.AdbError, boo
   );
 
 // Tap at screen coordinates (x, y)
-export const tap =
+export const inputTap =
   (x: number, y: number) =>
   (target: Adb.Target): TE.TaskEither<Adb.AdbError, void> =>
     pipe(run(["shell", "input", "tap", String(x), String(y)], target), TE.asUnit);

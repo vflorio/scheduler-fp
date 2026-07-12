@@ -33,17 +33,17 @@
       [
         "suitest-connect",
         [
-          ["tap", { "x": 0.9, "y": 0.1 }], // tap connect button
-          ["tap", { "x": 0.5, "y": 0.5 }] // tap confirm
+          ["inputTap", { "x": 0.9, "y": 0.1 }], // tap connect button
+          ["inputTap", { "x": 0.5, "y": 0.5 }] // tap confirm
         ]
       ],
       [
         "suitest-set-profile",
         [
-          ["tap", { "x": 0.9, "y": 0.1 }], // tap settings
-          ["tap", { "x": 0.5, "y": 0.5 }], // tap profiles dialog
-          ["tap", { "x": 0.1, "y": 0.1 }], // tap Experimental
-          ["tap", { "x": 0.1, "y": 0.9 }] // tap save
+          ["inputTap", { "x": 0.9, "y": 0.1 }], // tap settings
+          ["inputTap", { "x": 0.5, "y": 0.5 }], // tap profiles dialog
+          ["inputTap", { "x": 0.1, "y": 0.1 }], // tap Experimental
+          ["inputTap", { "x": 0.1, "y": 0.9 }] // tap save
         ]
       ]
     ],
@@ -72,7 +72,7 @@
               ["run", "suitest-set-profile"],
               ["run", "suitest-connect"]
             ],
-            "policy": [["constantDelay", "30s"], ["limitRetries", 3]]
+            "policy": [["constantDelay", "60s"], ["limitRetries", 3]]
           }
         }
       ]

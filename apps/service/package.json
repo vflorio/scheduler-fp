@@ -18,7 +18,8 @@
   "private": true,
   "scripts": {
     "service:dev": "bun --watch run src/index.ts --config config.example.jsonc",
-    "service:start": "bun run src/index.ts --config config.example.jsonc"
+    "service:start": "bun run src/index.ts --config config.example.jsonc",
+    "types": "tsc --noEmit --watch"
   },
   "type": "module"
 }

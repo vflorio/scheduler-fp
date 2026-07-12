@@ -1,7 +1,9 @@
 import * as Retry from "@supervisor/core/retry";
 import * as Schedule from "@supervisor/core/schedule";
-import type * as IO from "fp-ts/IO";
+import { constVoid } from "fp-ts/lib/function";
+import type * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
+import type { Logger } from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Activation Runner
@@ -16,15 +18,19 @@ export interface StartError {
 // Usa la policy per determinare il delay tra i tick.
 // Ritorna un handle con `abort` per fermare il loop.
 export const create = (
+  log: Logger,
   // Questo schedule contiene il range di operatività
   activationGate: Schedule.Schedule,
   // Policy di polling per determinare il delay tra i tick
   policy: Retry.Policy,
   // Status change, vengono chiamati ad ogni tick
-  onActive: () => void | Promise<void>,
-  onInactive: () => void | Promise<void>,
-  // Logger
-  log: { info: (msg: string) => IO.IO<void> },
+  {
+    onActive = constVoid,
+    onInactive = constVoid,
+  }: {
+    onActive?: () => void | Promise<void>;
+    onInactive?: () => void | Promise<void>;
+  },
 ) => {
   const controller = new AbortController();
 
