@@ -42,6 +42,12 @@ export const create = (config: LogConfig): Logger => {
   };
 
   return {
+    debug:
+      (message: string): IO.IO<void> =>
+      () => {
+        if (config.path) p.debug(message);
+        if (p.isLevelEnabled("debug")) write("debug", message);
+      },
     info:
       (message: string): IO.IO<void> =>
       () => {

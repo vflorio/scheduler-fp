@@ -44,35 +44,41 @@ const toTarget = (endpoint: Mdns.Endpoint): E.Either<AdbCore.AdbError, AdbCore.T
 
 const delay = (ms: number): Effect<void> => RTE.fromTaskEither(TE.fromTask(T.delay(ms)(T.of(undefined))));
 
+// Lift AdbShell RTE (requires AdbShellEnv) into our Effect (requires Env)
+const liftAdb =
+  <A>(effect: RTE.ReaderTaskEither<AdbShell.AdbShellEnv, AdbCore.AdbError, A>): Effect<A> =>
+  (env) =>
+    effect({ logger: env.logger });
+
 const connect = (setupTarget: AdbCore.Target): Effect<void> =>
   pipe(
     RTE.ask<Env>(),
     RTE.tap(({ adbPort }) => logInfo(`Connecting to ${setupTarget} with persistent port ${adbPort}`)),
 
     // Step 1: Connessione via porta ADB temporanea (cambia ad ogni reboot)
-    RTE.tap(() => RTE.fromTaskEither(AdbShell.connect(setupTarget))),
+    RTE.tap(() => liftAdb(AdbShell.connect(setupTarget))),
     RTE.tap(() => logInfo(`Connected to ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to connect to ${setupTarget}: ${error.message}`)),
 
     // Step 2: Imposta una porta statica persistente
-    RTE.tap(({ adbPort }) => RTE.fromTaskEither(AdbShell.tcpip(adbPort)(setupTarget))),
+    RTE.tap(({ adbPort }) => liftAdb(AdbShell.tcpip(adbPort)(setupTarget))),
     RTE.tap(({ adbPort }) => logInfo(`Set TCP port to ${adbPort} for ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to set TCP port for ${setupTarget}: ${error.message}`)),
 
     // Step 3: Delay per dare tempo ad adbd di riavviarsi, poi connect con retry policy
     RTE.tap(() => delay(1000)),
     RTE.tap(() => logInfo("Waited 1s for adbd restart")),
-    RTE.flatMap(({ adbPort, adbReconnectPolicy }) => {
+    RTE.flatMap(({ adbPort, adbReconnectPolicy, logger }) => {
       const persistentTarget = AdbCore.withPort(setupTarget, adbPort);
       return pipe(
-        RTE.fromTaskEither(Retry.retrying(adbReconnectPolicy)(AdbShell.connect(persistentTarget))),
+        RTE.fromTaskEither(Retry.retrying(adbReconnectPolicy)(AdbShell.connect(persistentTarget)({ logger }))),
         RTE.tap(() => logInfo(`Connected to ${persistentTarget}`)),
         RTE.tapError((error) => logError(`Failed to connect to ${persistentTarget}: ${error.message}`)),
       );
     }),
 
     // Step 4: Disconnessione dalla porta ADB temporanea (non più necessaria)
-    RTE.tap(() => RTE.fromTaskEither(AdbShell.disconnect(setupTarget))),
+    RTE.tap(() => liftAdb(AdbShell.disconnect(setupTarget))),
     RTE.tap(() => logInfo(`Disconnected temporary connection for ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to disconnect temporary connection for ${setupTarget}: ${error.message}`)),
 
@@ -81,7 +87,7 @@ const connect = (setupTarget: AdbCore.Target): Effect<void> =>
 
 // Get the targets that are already connected via ADB
 const getConnectedAdbDevices: Effect<readonly AdbCore.Target[]> = pipe(
-  RTE.fromTaskEither(AdbShell.devices),
+  liftAdb(AdbShell.devices),
   RTE.map((ds) => ds.filter((d) => d.status === "device").map((d) => d.target)),
 );
 

@@ -9,12 +9,15 @@ import * as Interpreter from "./workflow-interpreter";
 const noopEnv = (log: string[] = []): Interpreter.WorkflowEnv => ({
   scripts: [],
   logger: {
+    debug: (msg) => () => log.push(`[DEBUG] ${msg}`),
     info: (msg) => () => log.push(`[INFO] ${msg}`),
     error: (msg) => () => log.push(`[ERROR] ${msg}`),
   },
   capabilities: {
     restartApp: () => TE.right(undefined),
+    ensureActivity: () => TE.right(undefined),
     reboot: () => TE.right(undefined),
+    wakeUp: () => TE.right(undefined),
     inputTap: () => TE.right(undefined),
     waitForDevice: () => TE.right(undefined),
     waitForActivity: () => TE.right(undefined),
@@ -28,7 +31,7 @@ const failingEnv = (failCount: number): { env: Interpreter.WorkflowEnv; calls: s
     calls,
     env: {
       scripts: [],
-      logger: { info: () => () => {}, error: () => () => {} },
+      logger: { debug: () => () => {}, info: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: (pkg) => {
           calls.push(`restartApp:${pkg}`);
@@ -37,7 +40,9 @@ const failingEnv = (failCount: number): { env: Interpreter.WorkflowEnv; calls: s
             ? TE.left({ type: "WorkflowError", message: `fail #${attempts}` })
             : TE.right(undefined);
         },
+        ensureActivity: () => TE.right(undefined),
         reboot: () => TE.right(undefined),
+        wakeUp: () => TE.right(undefined),
         inputTap: () => TE.right(undefined),
         waitForDevice: () => TE.right(undefined),
         waitForActivity: () => TE.right(undefined),
@@ -93,16 +98,18 @@ describe("workflow interpreter", () => {
     const calls: string[] = [];
     const env: Interpreter.WorkflowEnv = {
       scripts: [],
-      logger: { info: () => () => {}, error: () => () => {} },
+      logger: { debug: () => () => {}, info: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: () => {
           calls.push("restartApp");
           return TE.left({ type: "WorkflowError", message: "always fails" });
         },
+        ensureActivity: () => TE.right(undefined),
         reboot: () => {
           calls.push("reboot");
           return TE.right(undefined);
         },
+        wakeUp: () => TE.right(undefined),
         inputTap: () => TE.right(undefined),
         waitForDevice: () => {
           calls.push("waitForDevice");
@@ -144,10 +151,12 @@ describe("workflow interpreter", () => {
     const tapCalls: Array<{ x: number; y: number }> = [];
     const env: Interpreter.WorkflowEnv = {
       scripts: [{ name: "my-script", commands: [{ type: "inputTap", coords: { x: 0.5, y: 0.5 } }] }],
-      logger: { info: () => () => {}, error: () => () => {} },
+      logger: { debug: () => () => {}, info: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: () => TE.right(undefined),
+        ensureActivity: () => TE.right(undefined),
         reboot: () => TE.right(undefined),
+        wakeUp: () => TE.right(undefined),
         inputTap: (coords) => {
           tapCalls.push(coords);
           return TE.right(undefined);
@@ -178,10 +187,12 @@ describe("workflow interpreter", () => {
   it("fails when all strategies are exhausted", async () => {
     const env: Interpreter.WorkflowEnv = {
       scripts: [],
-      logger: { info: () => () => {}, error: () => () => {} },
+      logger: { debug: () => () => {}, info: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: () => TE.left({ type: "WorkflowError", message: "nope" }),
+        ensureActivity: () => TE.left({ type: "WorkflowError", message: "nope" }),
         reboot: () => TE.left({ type: "WorkflowError", message: "nope" }),
+        wakeUp: () => TE.right(undefined),
         inputTap: () => TE.right(undefined),
         waitForDevice: () => TE.right(undefined),
         waitForActivity: () => TE.right(undefined),

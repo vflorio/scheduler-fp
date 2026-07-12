@@ -12,7 +12,9 @@ export type TapCoords = { readonly x: number; readonly y: number };
 // JSON format: ["commandName", ...args] -> viene decodificato nel tipo corretto.
 export type Command =
   | { readonly type: "restartApp"; readonly packageId: string }
+  | { readonly type: "ensureActivity"; readonly packageId: string; readonly activity: string }
   | { readonly type: "reboot" }
+  | { readonly type: "wakeUp" }
   | { readonly type: "inputTap"; readonly coords: TapCoords }
   | { readonly type: "waitForDevice" }
   | { readonly type: "waitForActivity"; readonly activity: string }

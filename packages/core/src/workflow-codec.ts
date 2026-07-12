@@ -27,7 +27,16 @@ const validateCommand = (u: unknown, c: t.Context): t.Validation<Command> => {
 
       return t.success({ type: "restartApp" as const, packageId });
     })
+    .with("ensureActivity", () => {
+      const packageId = args[0];
+      const activity = args[1];
+      if (typeof packageId !== "string") return t.failure(u, c, "ensureActivity requires a string package id");
+      if (typeof activity !== "string") return t.failure(u, c, "ensureActivity requires a string activity name");
+
+      return t.success({ type: "ensureActivity" as const, packageId, activity });
+    })
     .with("reboot", () => t.success({ type: "reboot" as const }))
+    .with("wakeUp", () => t.success({ type: "wakeUp" as const }))
     .with("inputTap", () => {
       const coords = args[0];
       if (!TapCoordsCodec.is(coords)) return t.failure(u, c, "inputTap requires {x, y} coords");
@@ -53,7 +62,9 @@ const validateCommand = (u: unknown, c: t.Context): t.Validation<Command> => {
 const encodeCommand = (cmd: Command): unknown[] =>
   match(cmd)
     .with({ type: "restartApp" }, ({ packageId }) => ["restartApp", packageId])
+    .with({ type: "ensureActivity" }, ({ packageId, activity }) => ["ensureActivity", packageId, activity])
     .with({ type: "reboot" }, () => ["reboot"])
+    .with({ type: "wakeUp" }, () => ["wakeUp"])
     .with({ type: "inputTap" }, ({ coords }) => ["inputTap", coords])
     .with({ type: "waitForDevice" }, () => ["waitForDevice"])
     .with({ type: "waitForActivity" }, ({ activity }) => ["waitForActivity", activity])

@@ -31,11 +31,11 @@
 - [ ] Integrazione con Bulk-offline heuristic (il risultato di questo workflow alimenta la detection)
 
 ### Android Camera
-- [ ] ADB over TCP client
-    - [X] Connection, Devices, Tap, RestartApp, Reboot
+- [X] ADB over TCP client
+    - [X] Connection, Devices, Tap, Apps Management, Reboot, etc
 - [X] Android recovery workflow - livello 1: restart Suitest/Automation app via ADB
 - [X] Android recovery workflow - livello 2: reboot device via ADB, attesa boot, avvio app
-- [ ] Post-boot startup sequence: avvio Suitest app + esposizione ADB-TCP
+- [X] Post-boot startup sequence: avvio Suitest app + esposizione ADB-TCP
     - [X] ADB over wifi automation
     - [X] Avvia suitest-camera, imposta profilo experimental-wide, e premi tasto connect (le coordinate considerare orientamento schermo)
 - [ ] Verifica camera stream dopo recovery

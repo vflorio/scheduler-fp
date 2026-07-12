@@ -20,7 +20,9 @@ export interface WorkflowEnv {
 
 export interface CommandCapabilities {
   readonly restartApp: (packageId: string) => TE.TaskEither<WorkflowError, void>;
+  readonly ensureActivity: (packageId: string, activity: string) => TE.TaskEither<WorkflowError, void>;
   readonly reboot: () => TE.TaskEither<WorkflowError, void>;
+  readonly wakeUp: () => TE.TaskEither<WorkflowError, void>;
   readonly inputTap: (coords: TapCoords) => TE.TaskEither<WorkflowError, void>;
   readonly waitForDevice: () => TE.TaskEither<WorkflowError, void>;
   readonly waitForActivity: (activity: string) => TE.TaskEither<WorkflowError, void>;
@@ -60,7 +62,9 @@ const logError =
 const commandToString = (cmd: Command): string =>
   match(cmd)
     .with({ type: "restartApp" }, ({ packageId }) => `restartApp(${packageId})`)
+    .with({ type: "ensureActivity" }, ({ packageId, activity }) => `ensureActivity(${packageId}, ${activity})`)
     .with({ type: "reboot" }, () => "reboot")
+    .with({ type: "wakeUp" }, () => "wakeUp")
     .with({ type: "inputTap" }, ({ coords }) => `inputTap(${coords.x}, ${coords.y})`)
     .with({ type: "waitForDevice" }, () => "waitForDevice")
     .with({ type: "waitForActivity" }, ({ activity }) => `waitForActivity(${activity})`)
@@ -78,11 +82,15 @@ const liftCommand =
 
 const interpretCommand = (cmd: Command): Effect<void> =>
   pipe(
-    logInfo(`  → ${commandToString(cmd)}`),
+    logInfo(`  -> ${commandToString(cmd)}`),
     RTE.flatMap(() =>
       match(cmd)
         .with({ type: "restartApp" }, ({ packageId }) => liftCommand((c) => c.restartApp(packageId)))
+        .with({ type: "ensureActivity" }, ({ packageId, activity }) =>
+          liftCommand((c) => c.ensureActivity(packageId, activity)),
+        )
         .with({ type: "reboot" }, () => liftCommand((c) => c.reboot()))
+        .with({ type: "wakeUp" }, () => liftCommand((c) => c.wakeUp()))
         .with({ type: "inputTap" }, ({ coords }) => liftCommand((c) => c.inputTap(coords)))
         .with({ type: "waitForDevice" }, () => liftCommand((c) => c.waitForDevice()))
         .with({ type: "waitForActivity" }, ({ activity }) => liftCommand((c) => c.waitForActivity(activity)))
@@ -96,7 +104,7 @@ const interpretCommand = (cmd: Command): Effect<void> =>
         )
         .exhaustive(),
     ),
-    RTE.tapError((error) => logError(`  ✗ ${commandToString(cmd)} failed: ${error.message}`)),
+    RTE.tapError((error) => logError(`  X ${commandToString(cmd)} failed: ${error.message}`)),
   );
 
 // Interpreta una sequenza di comandi in ordine

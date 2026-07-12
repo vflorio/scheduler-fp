@@ -13,10 +13,10 @@
     "to": "23:59"
   },
   "monitoring": {
-    "polling": [["constantDelay", "15s"]] // polling loop principale
+    "polling": [["constantDelay", "30s"]] // loop principale
   },
   "log": {
-    "level": "info" // "error" | "warn" | "info" | "debug"
+    "level": "debug" // "error" | "warn" | "info" | "debug"
     //"file": "logs/service.log"
   },
   "adb": {
@@ -53,8 +53,10 @@
         {
           "primary": {
             "commands": [
-              ["restartApp", "com.android.chrome"],
-              ["waitForActivity", "com.google.android.apps.chrome.Main"]
+              // wake screen up
+              ["wakeUp"],
+              // Ensure APp is running (start if not opened)
+              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
             ],
             "policy": [
               ["constantDelay", "500ms"],
@@ -64,7 +66,12 @@
             ]
           },
           "secondary": {
-            "commands": [["reboot"], ["waitForDevice"], ["waitForActivity", "com.google.android.apps.chrome.Main"]],
+            "commands": [
+              ["reboot"],
+              // Attende la fine del reboot
+              ["waitForDevice"],
+              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
+            ],
             "policy": [["constantDelay", "60s"], ["limitRetries", 3]]
           }
         }
@@ -89,7 +96,8 @@
             "commands": [
               ["reboot"],
               ["waitForDevice"],
-              ["waitForActivity", "com.suitest.android.camera.CameraActivity"],
+              ["ensureActivity", "com.suitest.android.camera", "com.suitest.android.camera.CameraActivity"],
+              // ["waitForActivity", "com.suitest.android.camera.CameraActivity"],
               ["run", "suitest-set-profile"],
               ["run", "suitest-connect"]
             ],

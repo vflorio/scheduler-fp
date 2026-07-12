@@ -12,40 +12,64 @@ const mapWorkflowError = (
   error: WorkflowInterpreter.WorkflowError | AdbCore.AdbError | RetryPolicy.PolicyDecodeError,
 ): WorkflowInterpreter.WorkflowError => ({ type: "WorkflowError" as const, message: error.message });
 
-const makeCapabilities = (target: AdbCore.Target): WorkflowInterpreter.CommandCapabilities => ({
-  // Restart Application (AM)
-  restartApp: (packageId) => pipe(AdbShell.restartApp(packageId)(target), TE.mapLeft(mapWorkflowError)),
+const makeCapabilities = (logger: Logger, target: AdbCore.Target): WorkflowInterpreter.CommandCapabilities => {
+  const adbEnv: AdbShell.AdbShellEnv = { logger };
 
-  // Reboot Device
-  reboot: () => pipe(AdbShell.reboot(target), TE.mapLeft(mapWorkflowError)),
+  return {
+    // Restart Application (AM)
+    restartApp: (packageId) => pipe(AdbShell.restartApp(packageId)(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
 
-  // Emulates screen tap
-  inputTap: (coords) => pipe(AdbShell.inputTap(coords.x, coords.y)(target), TE.mapLeft(mapWorkflowError)),
+    // Ensure app is in foreground — launch only if not already resumed
+    ensureActivity: (packageId, activity) =>
+      pipe(
+        AdbShell.isActivityResumed(activity)(target)(adbEnv),
+        TE.mapLeft(mapWorkflowError),
+        TE.flatMap((active) =>
+          active
+            ? TE.right(undefined)
+            : pipe(AdbShell.launchApp(packageId)(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
+        ),
+      ),
 
-  // Wait for ADB status "device"
-  waitForDevice: () => pipe(AdbShell.waitForDevice(target), TE.mapLeft(mapWorkflowError)),
+    // Reboot Device
+    reboot: () => pipe(AdbShell.reboot(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
 
-  // Wait for activity to be foreground
-  waitForActivity: (activity) =>
-    pipe(
-      Retry.retrying(Retry.constantDelay(1000))(
-        pipe(
-          AdbShell.isActivityResumed(activity)(target),
-          TE.mapLeft(mapWorkflowError),
-          TE.flatMap((active) =>
-            active
-              ? TE.right(undefined)
-              : TE.left(
-                  mapWorkflowError({
-                    type: "WorkflowError" as const,
-                    message: `Activity "${activity}" not yet resumed`,
-                  }),
-                ),
+    // Wake screen + dismiss keyguard (no PIN)
+    wakeUp: () =>
+      pipe(
+        AdbShell.wakeUp(target)(adbEnv),
+        TE.flatMap(() => AdbShell.dismissKeyguard(target)(adbEnv)),
+        TE.mapLeft(mapWorkflowError),
+      ),
+
+    // Emulates screen tap
+    inputTap: (coords) => pipe(AdbShell.inputTap(coords.x, coords.y)(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
+
+    // Wait for ADB status "device"
+    waitForDevice: () => pipe(AdbShell.waitForDevice(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
+
+    // Wait for activity to be foreground
+    waitForActivity: (activity) =>
+      pipe(
+        Retry.retrying(Retry.constantDelay(1000))(
+          pipe(
+            AdbShell.isActivityResumed(activity)(target)(adbEnv),
+            TE.mapLeft(mapWorkflowError),
+            TE.flatMap((active) =>
+              active
+                ? TE.right(undefined)
+                : TE.left(
+                    mapWorkflowError({
+                      type: "WorkflowError" as const,
+                      message: `Activity "${activity}" not yet resumed`,
+                    }),
+                  ),
+            ),
           ),
         ),
       ),
-    ),
-});
+  };
+};
 
 interface WorkflowRunnerEnv {
   readonly logger: Logger;
@@ -62,7 +86,7 @@ export const runWorkflow =
         workflow,
       )({
         logger: env.logger,
-        capabilities: makeCapabilities(target),
+        capabilities: makeCapabilities(env.logger, target),
         scripts: env.recovery.scripts,
       }),
 
