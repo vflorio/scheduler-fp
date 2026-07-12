@@ -1,4 +1,12 @@
 # TODO
+next: 
+- va rivista la logica principale del servizio. bisogna avere un db stabili di [device-name, ip-statico]
+quando il servizio diventa attivo, tutto ciò che è in db dovrebbe essere online, in caso contrario bisogna gestirlo
+- correggere il waitForDevice, e se un dispositivo torna online dopo un reboot, il mDNS non lo può catturare finchè il workflow è in esecuzione
+- offline-tracker/availability-check
+- elaborare dove/come eseguire le policy in base ad uno stato centralinizzato e finalizzato (finite state machine) - per esempio, l'intero processo dovrebbe andare in pausa se perde la connettività, in base al connection tracker, etc 
+- servizio deve gestire la ricaduta della sua connnettività 
+- servizio deve inviare i messaggi slack
 
 ## Core
 

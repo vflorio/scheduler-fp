@@ -127,7 +127,9 @@ const interpretCommands = (commands: readonly Command[]): Effect<void> =>
 const interpretStrategy = (strategy: WorkflowStrategy): Effect<void> =>
   pipe(
     RTE.fromEither(decodePolicy(strategy.policy)),
-    RTE.flatMap((policy) => (env: WorkflowEnv) => retrying(policy)(interpretCommands(strategy.commands)(env))),
+    RTE.flatMap(
+      (policy) => (env: WorkflowEnv) => retrying(policy, env.logger)(interpretCommands(strategy.commands)(env)),
+    ),
   );
 
 // Esegue le fasi in ordine, passa alla successiva se la corrente fallisce

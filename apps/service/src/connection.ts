@@ -71,7 +71,7 @@ const connect = (setupTarget: AdbCore.Target): Effect<void> =>
     RTE.flatMap(({ adbPort, adbReconnectPolicy, logger }) => {
       const persistentTarget = AdbCore.withPort(adbPort)(setupTarget);
       return pipe(
-        RTE.fromTaskEither(Retry.retrying(adbReconnectPolicy)(AdbShell.connect(persistentTarget)({ logger }))),
+        RTE.fromTaskEither(Retry.retrying(adbReconnectPolicy, logger)(AdbShell.connect(persistentTarget)({ logger }))),
         RTE.tap(() => logInfo(`Connected to ${persistentTarget}`)),
         RTE.tapError((error) => logError(`Failed to connect to ${persistentTarget}: ${error.message}`)),
       );

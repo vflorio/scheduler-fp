@@ -1,4 +1,5 @@
 import * as TE from "fp-ts/TaskEither";
+import type { Logger } from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Model
@@ -85,7 +86,7 @@ const delay = (ms: number): TE.TaskEither<never, void> =>
 
 // Riprova un TaskEither usando una Policy fino a quando la policy non è esaurita o l'azione ha successo
 export const retrying =
-  (policy: Policy) =>
+  (policy: Policy, logger?: Logger) =>
   <E, A>(action: TE.TaskEither<E, A>): TE.TaskEither<E, A> => {
     const apply = applyPolicy(policy);
 
@@ -94,7 +95,14 @@ export const retrying =
         const next = apply(status);
 
         const exhausted = next.previousDelay === null;
-        if (exhausted) return TE.left(error);
+        if (exhausted) {
+          logger?.debug(`Retry policy exhausted after ${status.iteration + 1} attempt(s)`)();
+          return TE.left(error);
+        }
+
+        logger?.debug(
+          `Retry attempt ${next.iteration}/${exhausted ? "∞" : "?"} — next delay: ${next.previousDelay}ms`,
+        )();
 
         return TE.flatMap(() => loop(next))(delay(next.previousDelay!));
       })(action);

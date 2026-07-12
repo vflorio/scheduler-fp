@@ -55,7 +55,10 @@ const makeCapabilities = (logger: TaggedLogger, target: AdbCore.Target): Workflo
     // Wait for activity to be foreground
     waitForActivity: (activity) =>
       pipe(
-        Retry.retrying(Retry.constantDelay(1000))(
+        Retry.retrying(
+          Retry.constantDelay(1000),
+          logger,
+        )(
           pipe(
             AdbShell.isActivityResumed(activity)(target)(adbEnv),
             TE.mapLeft(mapWorkflowError),

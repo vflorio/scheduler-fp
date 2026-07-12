@@ -68,7 +68,7 @@
           "secondary": {
             "commands": [
               ["reboot"],
-              // Attende la fine del reboot
+              // FIXME va rivista, attende sulla 5555, mentre dopo un reboot è necessario il processo di connessione
               ["waitForDevice"],
               ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
             ],
