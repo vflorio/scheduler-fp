@@ -35,6 +35,12 @@ const validateCommand = (u: unknown, c: t.Context): t.Validation<Command> => {
 
       return t.success({ type: "ensureActivity" as const, packageId, activity });
     })
+    .with("openUrl", () => {
+      const url = args[0];
+      if (typeof url !== "string") return t.failure(u, c, "openUrl requires a string URL");
+
+      return t.success({ type: "openUrl" as const, url });
+    })
     .with("reboot", () => t.success({ type: "reboot" as const }))
     .with("wakeUp", () => t.success({ type: "wakeUp" as const }))
     .with("inputTap", () => {
@@ -63,6 +69,7 @@ const encodeCommand = (cmd: Command): unknown[] =>
   match(cmd)
     .with({ type: "restartApp" }, ({ packageId }) => ["restartApp", packageId])
     .with({ type: "ensureActivity" }, ({ packageId, activity }) => ["ensureActivity", packageId, activity])
+    .with({ type: "openUrl" }, ({ url }) => ["openUrl", url])
     .with({ type: "reboot" }, () => ["reboot"])
     .with({ type: "wakeUp" }, () => ["wakeUp"])
     .with({ type: "inputTap" }, ({ coords }) => ["inputTap", coords])

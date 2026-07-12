@@ -31,6 +31,9 @@ const makeCapabilities = (logger: Logger, target: AdbCore.Target): WorkflowInter
         ),
       ),
 
+    // Open URL in default browser
+    openUrl: (url) => pipe(AdbShell.openUrl(url)(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
+
     // Reboot Device
     reboot: () => pipe(AdbShell.reboot(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
 

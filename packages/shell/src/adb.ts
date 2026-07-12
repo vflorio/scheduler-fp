@@ -147,6 +147,12 @@ export const launchApp =
   (target: Adb.Target): Effect<void> =>
     pipe(run(["shell", "monkey", "-p", packageId, "-c", "android.intent.category.LAUNCHER", "1"], target), RTE.asUnit);
 
+// Open a URL in the default browser via ACTION_VIEW intent
+export const openUrl =
+  (url: string) =>
+  (target: Adb.Target): Effect<void> =>
+    pipe(run(["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", url], target), RTE.asUnit);
+
 // Force-stop and then restart an app by package id
 export const restartApp =
   (packageId: string) =>

@@ -5,7 +5,7 @@
   },
   "slack": {
     "botToken": "env:SLACK_BOT_TOKEN", // iniettata da env
-    "channelId": "C0123456789"
+    "channelId": "C0123456789" // @deprecato
   },
   "workSchedule": {
     "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
@@ -56,7 +56,9 @@
               // wake screen up
               ["wakeUp"],
               // Ensure APp is running (start if not opened)
-              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
+              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"],
+              // Open target URL
+              ["openUrl", "https://miosito.it"]
             ],
             "policy": [
               ["constantDelay", "500ms"],
@@ -108,37 +110,50 @@
     ],
 
     // WIP
-    "workflowsNewConfigModel": [
+    "workflowsNewConfigModel1": [
       [
+        "android-chrome-test",
         {
-          "id": "android-chrome-test",
-          // Le strategie vengono elaborate sequenzialmente in ordine, se la policy si esaurisce
-          // prima che i comandi terminino, si passa alla strategia successiva.
-          // Se tutte le strategie falliscono, il workflow fallisce.
-          "strategies": [
-            {
-              "policy": [
-                ["constantDelay", "500ms"],
-                ["exponentialBackoff", "500ms"],
-                ["capDelay", "30s"],
-                ["limitRetries", 10]
-              ],
-              "commands": [
-                //
-                ["wakeUp"],
-                ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
-              ]
-            },
-            {
-              "name": "secondary",
-              "policy": [["constantDelay", "90s"], ["limitRetries", 3]],
-              "commands": [
-                ["reboot"],
-                ["waitForDevice"],
-                ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
-              ]
-            }
-          ]
+          "basic-error": {
+            "commands": [
+              // wake screen up
+              ["wakeUp"],
+              // Ensure App is running (start if not opened)
+              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
+            ],
+            "policy": [
+              ["constantDelay", "500ms"],
+              ["exponentialBackoff", "500ms"],
+              ["capDelay", "30s"],
+              ["limitRetries", 10]
+            ]
+          },
+          "serious-failure": {
+            "commands": [
+              ["reboot"],
+              // Attende la fine del reboot
+              ["waitForDevice"],
+              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
+            ],
+            "policy": [["constantDelay", "60s"], ["limitRetries", 3]]
+          },
+          "manual-intervention": {
+            "commands": [
+              ["wakeUp"],
+              // Il servizio hosta la pagina che viene mostrata su schermo, così è subito evidente quale device non funziona
+              ["openUrl", "http://(service-ip):8080/device.html?status=offline"]
+            ],
+            "policy": [["constantDelay", "10s"], ["limitRetries", 1]],
+            "notifications": [
+              {
+                "trigger": "exhausted", // "immediate" | "exhausted"
+                "slack": {
+                  "channelId": "C0123456789",
+                  "message": "Recovery failed, manual intervention required"
+                }
+              }
+            ]
+          }
         }
       ]
     ]

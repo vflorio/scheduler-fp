@@ -16,6 +16,7 @@ const noopEnv = (log: string[] = []): Interpreter.WorkflowEnv => ({
   capabilities: {
     restartApp: () => TE.right(undefined),
     ensureActivity: () => TE.right(undefined),
+    openUrl: () => TE.right(undefined),
     reboot: () => TE.right(undefined),
     wakeUp: () => TE.right(undefined),
     inputTap: () => TE.right(undefined),
@@ -41,6 +42,7 @@ const failingEnv = (failCount: number): { env: Interpreter.WorkflowEnv; calls: s
             : TE.right(undefined);
         },
         ensureActivity: () => TE.right(undefined),
+        openUrl: () => TE.right(undefined),
         reboot: () => TE.right(undefined),
         wakeUp: () => TE.right(undefined),
         inputTap: () => TE.right(undefined),
@@ -105,6 +107,7 @@ describe("workflow interpreter", () => {
           return TE.left({ type: "WorkflowError", message: "always fails" });
         },
         ensureActivity: () => TE.right(undefined),
+        openUrl: () => TE.right(undefined),
         reboot: () => {
           calls.push("reboot");
           return TE.right(undefined);
@@ -155,6 +158,7 @@ describe("workflow interpreter", () => {
       capabilities: {
         restartApp: () => TE.right(undefined),
         ensureActivity: () => TE.right(undefined),
+        openUrl: () => TE.right(undefined),
         reboot: () => TE.right(undefined),
         wakeUp: () => TE.right(undefined),
         inputTap: (coords) => {
@@ -191,6 +195,7 @@ describe("workflow interpreter", () => {
       capabilities: {
         restartApp: () => TE.left({ type: "WorkflowError", message: "nope" }),
         ensureActivity: () => TE.left({ type: "WorkflowError", message: "nope" }),
+        openUrl: () => TE.right(undefined),
         reboot: () => TE.left({ type: "WorkflowError", message: "nope" }),
         wakeUp: () => TE.right(undefined),
         inputTap: () => TE.right(undefined),
