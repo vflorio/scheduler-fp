@@ -21,7 +21,7 @@
   },
   "adb": {
     "port": 5555,
-    "reconnectPolicy": [
+    "reconnect": [
       ["constantDelay", "400ms"],
       ["exponentialBackoff", "800ms"],
       ["capDelay", "60s"],
@@ -103,6 +103,42 @@
             ],
             "policy": [["constantDelay", "60s"], ["limitRetries", 3]]
           }
+        }
+      ]
+    ],
+
+    // WIP
+    "workflowsNewConfigModel": [
+      [
+        {
+          "id": "android-chrome-test",
+          // Le strategie vengono elaborate sequenzialmente in ordine, se la policy si esaurisce
+          // prima che i comandi terminino, si passa alla strategia successiva.
+          // Se tutte le strategie falliscono, il workflow fallisce.
+          "strategies": [
+            {
+              "policy": [
+                ["constantDelay", "500ms"],
+                ["exponentialBackoff", "500ms"],
+                ["capDelay", "30s"],
+                ["limitRetries", 10]
+              ],
+              "commands": [
+                //
+                ["wakeUp"],
+                ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
+              ]
+            },
+            {
+              "name": "secondary",
+              "policy": [["constantDelay", "90s"], ["limitRetries", 3]],
+              "commands": [
+                ["reboot"],
+                ["waitForDevice"],
+                ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
+              ]
+            }
+          ]
         }
       ]
     ]

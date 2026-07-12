@@ -1,3 +1,4 @@
+import type { Endomorphism } from "fp-ts/Endomorphism";
 import * as Eq from "fp-ts/Eq";
 import * as O from "fp-ts/Option";
 import * as S from "fp-ts/string";
@@ -51,7 +52,12 @@ export const fromTarget = (target: Target): { host: string; port: number } => {
 
 export const EqByHost: Eq.Eq<Target> = Eq.contramap((t: Target) => fromTarget(t).host)(S.Eq);
 
-export const withPort = (target: Target, persistentPort: number): Target =>
-  toTarget(fromTarget(target).host, persistentPort);
+export const withPort =
+  (persistentPort: number): Endomorphism<Target> =>
+  (target) =>
+    toTarget(fromTarget(target).host, persistentPort);
 
-export const withHost = (target: Target, host: string): Target => toTarget(host, fromTarget(target).port);
+export const withHost =
+  (host: string): Endomorphism<Target> =>
+  (target) =>
+    toTarget(host, fromTarget(target).port);

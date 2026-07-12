@@ -69,7 +69,7 @@ const connect = (setupTarget: AdbCore.Target): Effect<void> =>
     RTE.tap(() => delay(1000)),
     RTE.tap(() => logInfo("Waited 1s for adbd restart")),
     RTE.flatMap(({ adbPort, adbReconnectPolicy, logger }) => {
-      const persistentTarget = AdbCore.withPort(setupTarget, adbPort);
+      const persistentTarget = AdbCore.withPort(adbPort)(setupTarget);
       return pipe(
         RTE.fromTaskEither(Retry.retrying(adbReconnectPolicy)(AdbShell.connect(persistentTarget)({ logger }))),
         RTE.tap(() => logInfo(`Connected to ${persistentTarget}`)),
@@ -134,7 +134,7 @@ export const discoverAndConnect: Effect<readonly AdbCore.Target[]> = pipe(
   RTE.flatMap(({ connected, newTargets }) =>
     RTE.asks<Env, readonly AdbCore.Target[]>(({ adbPort }) => [
       ...connected,
-      ...newTargets.map((t) => AdbCore.withPort(t, adbPort)),
+      ...newTargets.map(AdbCore.withPort(adbPort)),
     ]),
   ),
 

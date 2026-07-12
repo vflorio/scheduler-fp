@@ -64,7 +64,7 @@ export const createService: Effect<ServiceHandle> = pipe(
     pipe(
       E.Do,
       E.bind("activationPolicy", () => RetryPolicy.decode(config.monitoring.polling)),
-      E.bind("adbReconnectPolicy", () => RetryPolicy.decode(config.adb.reconnectPolicy)),
+      E.bind("adbReconnectPolicy", () => RetryPolicy.decode(config.adb.reconnect)),
       E.map(({ activationPolicy, adbReconnectPolicy }) => ({ config, activationPolicy, adbReconnectPolicy })),
     ),
   ),

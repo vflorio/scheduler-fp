@@ -73,7 +73,7 @@ export type LogConfig = t.TypeOf<typeof LogCodec>;
 // Configurazione connessione ADB
 const AdbCodec = t.type({
   port: t.number,
-  reconnectPolicy: PolicyJsonCodec,
+  reconnect: PolicyJsonCodec,
 });
 
 const RecoveryCodec = t.type({
