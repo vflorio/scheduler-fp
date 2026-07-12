@@ -56,9 +56,7 @@
               // wake screen up
               ["wakeUp"],
               // Ensure APp is running (start if not opened)
-              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"],
-              // Open target URL
-              ["openUrl", "https://miosito.it"]
+              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
             ],
             "policy": [
               ["constantDelay", "500ms"],

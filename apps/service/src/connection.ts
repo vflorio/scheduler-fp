@@ -8,14 +8,14 @@ import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
-import type { Logger } from "./logger";
+import type { TaggedLogger } from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Model
 // -------------------------------------------------------------------------------------
 
 export interface Env {
-  readonly logger: Logger;
+  readonly logger: TaggedLogger;
   readonly adbPort: number;
   readonly adbReconnectPolicy: Retry.Policy;
 }

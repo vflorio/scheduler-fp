@@ -12,6 +12,7 @@ import * as ActivationRunner from "./activation-runner";
 import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
+import type { TaggedLogger } from "./logger";
 import * as Logger from "./logger";
 import { runWorkflow } from "./workflow";
 
@@ -25,7 +26,7 @@ export interface Process {
 }
 
 export interface Env {
-  readonly logger: Logger.Logger;
+  readonly logger: TaggedLogger;
   readonly configFetcher: Config.ConfigFetcher;
   readonly process: Process;
 }
@@ -69,7 +70,8 @@ export const createService: Effect<ServiceHandle> = pipe(
     ),
   ),
   RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
-    const logger = configuredLogger(config.log);
+    const baseLogger = configuredLogger(config.log);
+    const logger = Logger.tagged(baseLogger, "Service");
     const activationGate = Activation.toSchedule(config.workSchedule);
 
     logger.info(`Config loaded - schedule: ${ConfigModel.workScheduleToString(config.workSchedule)}`)();
@@ -83,12 +85,20 @@ export const createService: Effect<ServiceHandle> = pipe(
       logger.info(`Service IDLE - waiting for (${ConfigModel.workScheduleToString(config.workSchedule)})`)();
     }
 
-    const { start, stop } = ActivationRunner.create(logger, activationGate, activationPolicy, {
+    const activationLog = logger.child("ActivationRunner");
+    const discoveryLog = activationLog.child("Discovery");
+    const workflowLog = discoveryLog.child("Workflow");
+
+    const { start, stop } = ActivationRunner.create(activationLog, activationGate, activationPolicy, {
       onActive: pipe(
-        Connection.discoverAndConnect({ logger, adbPort: config.adb.port, adbReconnectPolicy }),
+        Connection.discoverAndConnect({ logger: discoveryLog, adbPort: config.adb.port, adbReconnectPolicy }),
         TE.flatMap(
-          RA.traverse(TE.ApplicativeSeq)(runWorkflow({ logger, recovery: config.recovery })("android-chrome-test")),
+          RA.traverse(TE.ApplicativeSeq)(
+            runWorkflow({ logger: workflowLog, recovery: config.recovery })("android-chrome-test"),
+          ),
         ),
+        // FIXME: Questo deve essere gestito attraverso un recovery workflow, altrimenti
+        // non viene notificato l'irranggiungibilità del device
         TE.tapError((error) => TE.fromIO(logger.error(`Activation tick failed: ${error.message}`))),
         T.asUnit,
       ),
@@ -107,7 +117,7 @@ export const createService: Effect<ServiceHandle> = pipe(
 // Env Instances
 // -------------------------------------------------------------------------------------
 
-const startLogger: Logger.Logger = Logger.create({ level: "info" });
+const startLogger: Logger.TaggedLogger = Logger.tagged(Logger.create({ level: "info" }), "Service");
 
 const configuredLogger = (config: ConfigModel.LogConfig): Logger.Logger => Logger.create(config);
 

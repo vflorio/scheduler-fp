@@ -6,14 +6,15 @@ import * as WorkflowInterpreter from "@supervisor/core/workflow-interpreter";
 import * as AdbShell from "@supervisor/shell/adb";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
-import type { Logger } from "./logger";
+import type { TaggedLogger } from "./logger";
 
 const mapWorkflowError = (
   error: WorkflowInterpreter.WorkflowError | AdbCore.AdbError | RetryPolicy.PolicyDecodeError,
 ): WorkflowInterpreter.WorkflowError => ({ type: "WorkflowError" as const, message: error.message });
 
-const makeCapabilities = (logger: Logger, target: AdbCore.Target): WorkflowInterpreter.CommandCapabilities => {
-  const adbEnv: AdbShell.AdbShellEnv = { logger };
+const makeCapabilities = (logger: TaggedLogger, target: AdbCore.Target): WorkflowInterpreter.CommandCapabilities => {
+  const adbLog = logger.child("AdbShell");
+  const adbEnv: AdbShell.AdbShellEnv = { logger: adbLog };
 
   return {
     // Restart Application (AM)
@@ -75,7 +76,7 @@ const makeCapabilities = (logger: Logger, target: AdbCore.Target): WorkflowInter
 };
 
 interface WorkflowRunnerEnv {
-  readonly logger: Logger;
+  readonly logger: TaggedLogger;
   readonly recovery: RecoveryConfig;
 }
 
@@ -84,13 +85,13 @@ export const runWorkflow =
   (workflow: string) =>
   (target: AdbCore.Target): TE.TaskEither<WorkflowInterpreter.WorkflowError | RetryPolicy.PolicyDecodeError, void> =>
     pipe(
-      WorkflowInterpreter.runWorkflow(
+      WorkflowInterpreter.run(
         env.recovery,
         workflow,
       )({
         logger: env.logger,
-        capabilities: makeCapabilities(env.logger, target),
         scripts: env.recovery.scripts,
+        capabilities: makeCapabilities(env.logger, target),
       }),
 
       TE.tapIO(() => env.logger.info(`Workflow "${workflow}" completed on ${target}`)),

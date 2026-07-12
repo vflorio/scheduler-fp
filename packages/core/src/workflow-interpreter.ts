@@ -158,7 +158,7 @@ export const interpretWorkflow = (workflow: Workflow): Effect<void> => {
 // -------------------------------------------------------------------------------------
 
 // esegue un workflow per nome dalla config
-export const runWorkflow = (config: RecoveryConfig, workflowName: string): Effect<void> => {
+export const run = (config: RecoveryConfig, workflowName: string): Effect<void> => {
   const workflow = config.workflows.find((w) => w.name === workflowName);
   if (!workflow) return RTE.left(workflowError(`Workflow not found: "${workflowName}"`));
 

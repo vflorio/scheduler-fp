@@ -3,7 +3,7 @@ import * as Schedule from "@supervisor/core/schedule";
 import { constVoid } from "fp-ts/lib/function";
 import type * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
-import type { Logger } from "./logger";
+import type { TaggedLogger } from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Activation Runner
@@ -18,7 +18,7 @@ export interface StartError {
 // Usa la policy per determinare il delay tra i tick.
 // Ritorna un handle con `abort` per fermare il loop.
 export const create = (
-  log: Logger,
+  log: TaggedLogger,
   // Questo schedule contiene il range di operatività
   activationGate: Schedule.Schedule,
   // Policy di polling per determinare il delay tra i tick

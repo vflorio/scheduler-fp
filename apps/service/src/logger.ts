@@ -1,9 +1,11 @@
 import type { LogConfig } from "@supervisor/core/config";
 import type { Logger } from "@supervisor/core/logger";
+import { type TaggedLogger, tagged } from "@supervisor/core/logger";
 import type * as IO from "fp-ts/IO";
 import pino from "pino";
 
-export type { Logger };
+export type { Logger, TaggedLogger };
+export { tagged };
 
 const levelColors: Record<string, string> = {
   fatal: "\x1b[41m\x1b[37m",
@@ -53,6 +55,12 @@ export const create = (config: LogConfig): Logger => {
       () => {
         if (config.path) p.info(message);
         write("info", message);
+      },
+    warn:
+      (message: string): IO.IO<void> =>
+      () => {
+        if (config.path) p.warn(message);
+        write("warn", message);
       },
     error:
       (message: string): IO.IO<void> =>
