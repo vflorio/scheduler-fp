@@ -44,7 +44,6 @@ const SuitestCodec = t.type({
 // Credenziali Slack
 const SlackCodec = t.type({
   botToken: t.string,
-  channelId: t.string,
 });
 
 // Configurazione monitoring con policy di polling

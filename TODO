@@ -1,5 +1,6 @@
 # TODO
 next: 
+- la connessione adb deve essere troncata quando il workflow fallisce
 - va rivista la logica principale del servizio. bisogna avere un db stabili di [device-name, ip-statico]
 quando il servizio diventa attivo, tutto ciò che è in db dovrebbe essere online, in caso contrario bisogna gestirlo
 - correggere il waitForDevice, e se un dispositivo torna online dopo un reboot, il mDNS non lo può catturare finchè il workflow è in esecuzione

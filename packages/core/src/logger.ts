@@ -7,6 +7,51 @@ export interface Logger {
   readonly error: (message: string) => IO.IO<void>;
 }
 
+// -------------------------------------------------------------------------------------
+// Log levels
+// -------------------------------------------------------------------------------------
+
+export type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
+
+const LEVEL_PRIORITY: Record<LogLevel, number> = {
+  fatal: 60,
+  error: 50,
+  warn: 40,
+  info: 30,
+  debug: 20,
+  trace: 10,
+  silent: Infinity,
+};
+
+export const isLevelEnabled = (configured: LogLevel, target: LogLevel): boolean =>
+  (LEVEL_PRIORITY[target] ?? 0) >= LEVEL_PRIORITY[configured];
+
+// -------------------------------------------------------------------------------------
+// ANSI utilities
+// -------------------------------------------------------------------------------------
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escape sequences
+const ANSI_REGEX = /\x1b\[[0-9;]*m/g;
+
+export const stripAnsi = (str: string): string => str.replace(ANSI_REGEX, "");
+
+// -------------------------------------------------------------------------------------
+// Level colors
+// -------------------------------------------------------------------------------------
+
+const LEVEL_COLORS: Record<string, string> = {
+  fatal: "\x1b[41m\x1b[37m",
+  error: "\x1b[31m",
+  warn: "\x1b[33m",
+  info: "\x1b[36m",
+  debug: "\x1b[90m",
+  trace: "\x1b[90m",
+};
+
+// -------------------------------------------------------------------------------------
+// Tag colors (per-module coloring)
+// -------------------------------------------------------------------------------------
+
 const TAG_COLORS = [
   "\x1b[32m", // green
   "\x1b[33m", // yellow
@@ -32,22 +77,37 @@ const getModuleColor = (tag: string): string => {
   if (existing) return existing;
 
   const color = TAG_COLORS[colorIndex % TAG_COLORS.length];
-
   colorIndex++;
   moduleColorMap.set(tag, color);
 
   return color;
 };
 
-export interface TaggedLogger extends Logger {
-  // Crea un logger indentato e prefissato
-  readonly child: (tag: string) => TaggedLogger;
-}
+// -------------------------------------------------------------------------------------
+// Formatting utilities
+// -------------------------------------------------------------------------------------
 
-export const tagged = (base: Logger, tag: string, depth = 0): TaggedLogger => {
+export const colorizeLevel = (level: string, msg: string): string => {
+  const color = LEVEL_COLORS[level] ?? "";
+  return `${color}${msg}${RESET}`;
+};
+
+export const formatTagPrefix = (tag: string, depth: number): string => {
   const color = getModuleColor(tag);
   const indent = " ".repeat(depth * INDENT_SIZE);
-  const prefix = `${indent}${color}[${tag}]${RESET} `;
+  return `${indent}${color}[${tag}]${RESET} `;
+};
+
+// -------------------------------------------------------------------------------------
+// TaggedLogger [TAG] ...message
+// -------------------------------------------------------------------------------------
+
+export interface Tagged extends Logger {
+  readonly child: (tag: string) => Tagged;
+}
+
+export const tagged = (base: Logger, tag: string, depth = 0): Tagged => {
+  const prefix = formatTagPrefix(tag, depth);
 
   const wrap =
     (log: (message: string) => IO.IO<void>) =>
@@ -62,3 +122,46 @@ export const tagged = (base: Logger, tag: string, depth = 0): TaggedLogger => {
     child: (childTag: string) => tagged(base, childTag, depth + 1),
   };
 };
+
+// -------------------------------------------------------------------------------------
+// Generic logger factory
+// -------------------------------------------------------------------------------------
+
+export type Transport = (level: LogLevel, message: string) => void;
+
+export const createLogger = (level: LogLevel, transports: readonly Transport[]): Logger => {
+  const write =
+    (lvl: LogLevel) =>
+    (message: string): IO.IO<void> =>
+    () => {
+      if (isLevelEnabled(level, lvl)) {
+        for (const t of transports) t(lvl, message);
+      }
+    };
+
+  return {
+    debug: write("debug"),
+    info: write("info"),
+    warn: write("warn"),
+    error: write("error"),
+  };
+};
+
+// -------------------------------------------------------------------------------------
+// Built-in transports
+// -------------------------------------------------------------------------------------
+
+export const consoleTransport: Transport = (level, message) => {
+  console.log(colorizeLevel(level, message));
+};
+
+export const stdoutTransport: Transport = (level, message) => {
+  (globalThis as any).process?.stdout?.write(`${colorizeLevel(level, message)}\n`);
+};
+
+// -------------------------------------------------------------------------------------
+// Console logger (convenience, no dependencies)
+// -------------------------------------------------------------------------------------
+
+export const createConsoleLogger = (level: LogLevel = "info"): Logger => createLogger(level, [consoleTransport]);
+export const createStdoutLogger = (level: LogLevel = "info"): Logger => createLogger(level, [stdoutTransport]);
