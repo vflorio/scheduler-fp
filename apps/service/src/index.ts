@@ -1,4 +1,5 @@
 import * as ConfigModel from "@supervisor/core/config";
+import * as CoreLogger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry-codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as E from "fp-ts/Either";
@@ -12,7 +13,6 @@ import * as ActivationRunner from "./activation-runner";
 import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
-import type { TaggedLogger } from "./logger";
 import * as Logger from "./logger";
 import { runWorkflow } from "./workflow";
 
@@ -26,7 +26,7 @@ export interface Process {
 }
 
 export interface Env {
-  readonly logger: TaggedLogger;
+  readonly logger: CoreLogger.Tagged;
   readonly configFetcher: Config.ConfigFetcher;
   readonly process: Process;
 }
@@ -71,7 +71,7 @@ export const createService: Effect<ServiceHandle> = pipe(
   ),
   RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
     const baseLogger = configuredLogger(config.log);
-    const logger = Logger.tagged(baseLogger, "Service");
+    const logger = CoreLogger.tagged(baseLogger, "Service");
     const activationGate = Activation.toSchedule(config.workSchedule);
 
     logger.info(`Config loaded - schedule: ${ConfigModel.workScheduleToString(config.workSchedule)}`)();
@@ -117,9 +117,9 @@ export const createService: Effect<ServiceHandle> = pipe(
 // Env Instances
 // -------------------------------------------------------------------------------------
 
-const startLogger: Logger.TaggedLogger = Logger.tagged(Logger.create({ level: "info" }), "Service");
+const startLogger: CoreLogger.Tagged = CoreLogger.tagged(Logger.create({ level: "info" }), "Service");
 
-const configuredLogger = (config: ConfigModel.LogConfig): Logger.Logger => Logger.create(config);
+const configuredLogger = (config: ConfigModel.LogConfig) => Logger.create(config);
 
 const liveProcess: Process = {
   onSignal: (signal, handler) => process.on(signal, handler),

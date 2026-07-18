@@ -1,11 +1,10 @@
 {
   "suitest": {
-    "tokenId": "your-token-id",
-    "tokenPassword": "env:SUISTEST_TOKEN_PASSWORD" // iniettata da env
+    "tokenId": "dev-suitest-token-id",
+    "tokenPassword": "dev-suitest-token-password"
   },
   "slack": {
-    "botToken": "env:SLACK_BOT_TOKEN", // iniettata da env
-    "channelId": "C0123456789" // @deprecato
+    "botToken": "dev-slack-token"
   },
   "workSchedule": {
     "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],

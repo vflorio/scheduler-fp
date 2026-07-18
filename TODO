@@ -6,7 +6,7 @@ next:
 - coordinate relative per tap
 - va rivista la logica principale del servizio. bisogna avere un db stabile di [device-name, ip-statico]
 - aggiungere un sistema di predicati per eseguire i comandi 
-quando il servizio diventa attivo, tutto ciò che è in db dovrebbe essere online, in caso contrario bisogna gestirlo
+- la connessione adb deve essere troncata quando il workflow fallisce
 - correggere il waitForDevice, e se un dispositivo torna online dopo un reboot, il mDNS non lo può catturare finchè il workflow è in esecuzione
 - offline-tracker/availability-check
 - elaborare dove/come eseguire le policy in base ad uno stato centralinizzato e finalizzato (finite state machine) - per esempio, l'intero processo dovrebbe andare in pausa se perde la connettività, in base al connection tracker, etc 
