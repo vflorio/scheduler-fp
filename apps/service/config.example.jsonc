@@ -31,6 +31,7 @@
   "recovery": {
     "scripts": [
       [
+        // Avviando l'applicazione la connessione è automatica, bisogna eseguire questo flow manualmente in alcuni casi
         "suitest-connect",
         [
           ["inputTap", { "x": 0.9, "y": 0.1 }], // tap connect button
@@ -38,16 +39,36 @@
         ]
       ],
       [
-        "suitest-set-profile",
+        "suitest-set-experimental-profile",
         [
-          ["inputTap", { "x": 0.9, "y": 0.1 }], // tap settings
-          ["inputTap", { "x": 0.5, "y": 0.5 }], // tap profiles dialog
-          ["inputTap", { "x": 0.1, "y": 0.1 }], // tap Experimental
-          ["inputTap", { "x": 0.1, "y": 0.9 }] // tap save
+          ["inputTap", { "x": 2200, "y": 160 }], // tap  right-top corner icon (settings)
+          ["inputTap", { "x": 1000, "y": 440 }], // tap first setting (profile)
+          ["inputTap", { "x": 1000, "y": 640 }], // tap third entry (profile: experimental)
+          ["inputTap", { "x": 180, "y": 180 }] // tap left-top corner icon (back)
         ]
       ]
     ],
     "workflows": [
+      [
+        "android-suitest-test",
+        {
+          "primary": {
+            "commands": [
+              // wake screen up
+              ["wakeUp"],
+              // Ensure APp is running (start if not opened)
+              ["ensureActivity", "st.suite.camera", "st.suite.android.suitestcamera.MainActivity"],
+              ["run", "suitest-set-experimental-profile"]
+            ],
+            "policy": [
+              ["constantDelay", "500ms"],
+              ["exponentialBackoff", "500ms"],
+              ["capDelay", "30s"],
+              ["limitRetries", 10]
+            ]
+          }
+        }
+      ],
       [
         "android-chrome-test",
         {

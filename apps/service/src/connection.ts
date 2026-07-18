@@ -3,7 +3,7 @@ import * as Retry from "@supervisor/core/retry";
 import * as AdbShell from "@supervisor/shell/adb";
 import * as Mdns from "@supervisor/shell/mdns";
 import * as E from "fp-ts/Either";
-import { pipe } from "fp-ts/function";
+import { flow, pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
@@ -93,7 +93,7 @@ const getConnectedAdbDevices: Effect<readonly AdbCore.Target[]> = pipe(
 
 // Map mDNS endpoint to ADB Target, filtering out invalid ones
 const filterMapValidEndpoints = (endpoints: readonly Mdns.Endpoint[]): Effect<readonly AdbCore.Target[]> =>
-  pipe(endpoints.map(toTarget), RA.rights, RTE.of);
+  pipe(endpoints.filter((e) => e.ip.includes("87")).map(toTarget), RA.rights, RTE.of);
 
 // -------------------------------------------------------------------------------------
 // Public API

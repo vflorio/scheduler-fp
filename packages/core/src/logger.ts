@@ -31,7 +31,7 @@ const getModuleColor = (tag: string): string => {
   const existing = moduleColorMap.get(tag);
   if (existing) return existing;
 
-  const color = TAG_COLORS[colorIndex % TAG_COLORS.length];
+  const color = TAG_COLORS[colorIndex % TAG_COLORS.length] ?? RESET;
 
   colorIndex++;
   moduleColorMap.set(tag, color);
