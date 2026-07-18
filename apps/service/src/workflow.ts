@@ -2,6 +2,7 @@ import type * as AdbCore from "@supervisor/core/adb";
 import type * as Logger from "@supervisor/core/logger";
 import * as Retry from "@supervisor/core/retry";
 import type * as RetryPolicy from "@supervisor/core/retry-codec";
+import type { IPv4 } from "@supervisor/core/socket";
 import type { RecoveryConfig } from "@supervisor/core/workflow";
 import * as WorkflowInterpreter from "@supervisor/core/workflow-interpreter";
 import * as AdbShell from "@supervisor/shell/adb";
@@ -12,7 +13,7 @@ const mapWorkflowError = (
   error: WorkflowInterpreter.WorkflowError | AdbCore.AdbError | RetryPolicy.PolicyDecodeError,
 ): WorkflowInterpreter.WorkflowError => ({ type: "WorkflowError" as const, message: error.message });
 
-const makeCapabilities = (logger: Logger.Tagged, target: AdbCore.Target): WorkflowInterpreter.CommandCapabilities => {
+const makeCapabilities = (logger: Logger.Tagged, target: IPv4): WorkflowInterpreter.CommandCapabilities => {
   const adbLog = logger.child("AdbShell");
   const adbEnv: AdbShell.AdbShellEnv = { logger: adbLog };
 
@@ -86,7 +87,7 @@ interface WorkflowRunnerEnv {
 export const run =
   (env: WorkflowRunnerEnv) =>
   (workflow: string) =>
-  (target: AdbCore.Target): TE.TaskEither<WorkflowInterpreter.WorkflowError | RetryPolicy.PolicyDecodeError, void> =>
+  (target: IPv4): TE.TaskEither<WorkflowInterpreter.WorkflowError | RetryPolicy.PolicyDecodeError, void> =>
     pipe(
       WorkflowInterpreter.run(
         env.recovery,

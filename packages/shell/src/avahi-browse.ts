@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile as AvahiBrowse } from "node:child_process";
 import type { Logger } from "@supervisor/core/logger";
 import { pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
@@ -65,7 +65,7 @@ const run =
       () =>
         new Promise<string>((resolve, reject) => {
           logger.debug(`${command} ${args.join(" ")}`)();
-          execFile(command, args as string[], { timeout: 10_000 }, (err, stdout, stderr) => {
+          AvahiBrowse(command, args as string[], { timeout: 10_000 }, (err, stdout, stderr) => {
             if (err) {
               reject(new Error(`${command} failed: ${err.message}${stderr ? `\n${stderr}` : ""}`));
             } else {

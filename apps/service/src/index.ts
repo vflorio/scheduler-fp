@@ -3,7 +3,7 @@ import * as Logger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry-codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as WorkSchedule from "@supervisor/core/workSchedule";
-import * as ShellAndroidBridge from "@supervisor/shell/android-bridge";
+import * as AndroidBridge from "@supervisor/shell/adb";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
@@ -64,6 +64,7 @@ export interface ServiceHandle {
 export const createService: Effect<ServiceHandle> = pipe(
   logInfo("Loading config..."),
   RTE.flatMap(() => loadConfig),
+
   RTE.flatMapEither((config) =>
     pipe(
       E.Do,
@@ -72,9 +73,10 @@ export const createService: Effect<ServiceHandle> = pipe(
       E.map(({ activationPolicy, adbReconnectPolicy }) => ({ config, activationPolicy, adbReconnectPolicy })),
     ),
   ),
+
   RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
     const logger = pipe(configuredLogger(config.log), Logger.tagged("Service"));
-    const activationGate = WorkSchedule.toSchedule(config.workSchedule);
+    const activationSchedule = WorkSchedule.toSchedule(config.workSchedule);
 
     logger.info(`Config loaded - schedule: ${WorkSchedule.toString(config.workSchedule)}`)();
     logger.info(`Polling policy: ${RetryPolicy.policyJsonToString(config.monitoring.polling)}`)();
@@ -82,11 +84,11 @@ export const createService: Effect<ServiceHandle> = pipe(
     const slot = Schedule.toTimeSlot(new Date());
 
     pipe(
-      IO.of(activationGate(slot)),
+      IO.of(activationSchedule(slot)),
       IO.flatMap((isActive) =>
         isActive
-          ? logger.info("Service ACTIVE - currently inside work schedule")
-          : logger.info(`Service IDLE - waiting for (${WorkSchedule.toString(config.workSchedule)})`),
+          ? logger.info("ACTIVE - currently inside work schedule")
+          : logger.info(`IDLE - waiting for (${WorkSchedule.toString(config.workSchedule)})`),
       ),
     )();
 
@@ -94,7 +96,7 @@ export const createService: Effect<ServiceHandle> = pipe(
     const discoveryLog = activationLog.child("Discovery");
     const workflowLog = discoveryLog.child("Workflow");
 
-    const activationRunner = ActivationRunner.create(activationLog, activationGate, activationPolicy, {
+    const activationRunner = ActivationRunner.create(activationLog, activationSchedule, activationPolicy, {
       onActive: pipe(
         Connection.discoverAndConnect({ logger: discoveryLog, adbPort: config.adb.port, adbReconnectPolicy }),
         TE.flatMap(
@@ -109,8 +111,6 @@ export const createService: Effect<ServiceHandle> = pipe(
       ),
     });
 
-    // tRPC Server - fuori dall'ActivationRunner perché abbiamo bisogno che la UI sia sempre operativa
-
     const trpcLog = logger.child("tRPC");
 
     const trpcServer = Trpc.startServer({
@@ -118,7 +118,11 @@ export const createService: Effect<ServiceHandle> = pipe(
       hostname: config.trpc.hostname,
       logger: trpcLog,
       services: {
-        android: ShellAndroidBridge.create({ logger: trpcLog.child("HTTP").child("AndroidBridge") }),
+        android: AndroidBridge.create({ logger: trpcLog.child("HTTP").child("AndroidBridge") }),
+        mdns: {},
+        notifications: {},
+        registry: {},
+        logger: trpcLog.child("web"),
       },
     });
 

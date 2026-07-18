@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import * as Adb from "@supervisor/core/adb";
 import type * as Logger from "@supervisor/core/logger";
+import type { AndroidBridge } from "@supervisor/core/services";
+import * as Socket from "@supervisor/core/socket";
 import * as A from "fp-ts/Array";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
@@ -15,7 +17,7 @@ import { match, P } from "ts-pattern";
 // -------------------------------------------------------------------------------------
 
 export interface Device {
-  readonly target: Adb.Target;
+  readonly target: Socket.IPv4;
   readonly status: Adb.DeviceState;
 }
 
@@ -25,12 +27,24 @@ export interface AdbShellEnv {
 
 type Effect<A> = RTE.ReaderTaskEither<AdbShellEnv, Adb.AdbError, A>;
 
+// Android Bridge
+
+export const create = (env: AdbShellEnv): AndroidBridge => ({
+  devices: () =>
+    pipe(
+      devices,
+      RTE.map((devices) => devices.map((device) => device.target)), // todo ritorna device con status adb normalizzato
+    )(env),
+
+  reboot: (target) => reboot(target)(env),
+});
+
 // -------------------------------------------------------------------------------------
 // Shell runner
 // -------------------------------------------------------------------------------------
 
 const run =
-  (args: readonly string[], target?: string): Effect<string> =>
+  (args: readonly string[], target?: Socket.IPv4): Effect<string> =>
   ({ logger }) =>
     TE.tryCatch(
       () =>
@@ -69,7 +83,7 @@ const parseLine = (line: string): O.Option<Device> => {
     O.Do,
     O.bind("target", () =>
       pipe(
-        Adb.Target.decode(parts[0]),
+        Socket.Codec.decode(parts[0]),
         E.fold(() => O.none, O.some),
       ),
     ),
@@ -88,7 +102,7 @@ const parseDevices = (stdout: string): Device[] =>
 // Public API
 // -------------------------------------------------------------------------------------
 
-export const getState = (target: Adb.Target): Effect<Adb.DeviceState> =>
+export const getState = (target: Socket.IPv4): Effect<Adb.DeviceState> =>
   pipe(
     run(["get-state"], target),
     RTE.map((stdout) => stdout.trim()),
@@ -105,58 +119,61 @@ export const getState = (target: Adb.Target): Effect<Adb.DeviceState> =>
 // Pair
 export const pair =
   (pairingCode: string) =>
-  (target: Adb.Target): Effect<void> =>
+  (target: Socket.IPv4): Effect<void> =>
     pipe(run(["pair", target, pairingCode]), RTE.asUnit);
 
 // Connect
-export const connect = (target: Adb.Target): Effect<void> => pipe(run(["connect", target]), RTE.asUnit);
+export const connect = (target: Socket.IPv4): Effect<void> => pipe(run(["connect", target]), RTE.asUnit);
 
 // Disconnect
-export const disconnect = (target: Adb.Target): Effect<void> => pipe(run(["disconnect", target]), RTE.asUnit);
+export const disconnect = (target: Socket.IPv4): Effect<void> => pipe(run(["disconnect", target]), RTE.asUnit);
 
 // TCP-IP protocol set
 export const tcpip =
   (port: number) =>
-  (target: Adb.Target): Effect<void> =>
+  (target: Socket.IPv4): Effect<void> =>
     pipe(run(["tcpip", String(port)], target), RTE.asUnit);
 
 // List connected devices with their status
 export const devices: Effect<Device[]> = pipe(run(["devices"]), RTE.map(parseDevices));
 
 // isConnected
-export const isConnected = (target: Adb.Target): Effect<boolean> =>
-  pipe(devices, RTE.map(RA.some((device) => device.status === "device" && Adb.EqByHost.equals(device.target, target))));
+export const isConnected = (target: Socket.IPv4): Effect<boolean> =>
+  pipe(
+    devices,
+    RTE.map(RA.some((device) => device.status === "device" && Socket.EqByHost.equals(device.target, target))),
+  );
 
 // Wake the screen up (KEYCODE_WAKEUP = 224, does not toggle off if already on)
-export const wakeUp = (target: Adb.Target): Effect<void> =>
+export const wakeUp = (target: Socket.IPv4): Effect<void> =>
   pipe(run(["shell", "input", "keyevent", "KEYCODE_WAKEUP"], target), RTE.asUnit);
 
 // Dismiss keyguard (swipe up gesture for non-secure lockscreen)
-export const dismissKeyguard = (target: Adb.Target): Effect<void> =>
+export const dismissKeyguard = (target: Socket.IPv4): Effect<void> =>
   pipe(run(["shell", "input", "swipe", "540", "1800", "540", "400", "300"], target), RTE.asUnit);
 
 // Tap at screen coordinates (x, y)
 export const inputTap =
   (x: number, y: number) =>
-  (target: Adb.Target): Effect<void> =>
+  (target: Socket.IPv4): Effect<void> =>
     pipe(run(["shell", "input", "tap", String(x), String(y)], target), RTE.asUnit);
 
 // Launch an app by package id (does not force-stop first)
 export const launchApp =
   (packageId: string) =>
-  (target: Adb.Target): Effect<void> =>
+  (target: Socket.IPv4): Effect<void> =>
     pipe(run(["shell", "monkey", "-p", packageId, "-c", "android.intent.category.LAUNCHER", "1"], target), RTE.asUnit);
 
 // Open a URL in the default browser via ACTION_VIEW intent
 export const openUrl =
   (url: string) =>
-  (target: Adb.Target): Effect<void> =>
+  (target: Socket.IPv4): Effect<void> =>
     pipe(run(["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", url], target), RTE.asUnit);
 
 // Force-stop and then restart an app by package id
 export const restartApp =
   (packageId: string) =>
-  (target: Adb.Target): Effect<void> =>
+  (target: Socket.IPv4): Effect<void> =>
     pipe(
       run(["shell", "am", "force-stop", packageId], target),
       RTE.flatMap(() =>
@@ -166,11 +183,11 @@ export const restartApp =
     );
 
 // Reboot the device
-export const reboot = (target: Adb.Target): Effect<void> => pipe(run(["reboot"], target), RTE.asUnit);
+export const reboot = (target: Socket.IPv4): Effect<void> => pipe(run(["reboot"], target), RTE.asUnit);
 
 export const waitForState =
   (state: Adb.DeviceState) =>
-  (target: Adb.Target): Effect<void> =>
+  (target: Socket.IPv4): Effect<void> =>
     pipe(run([`wait-for-${state}`], target), RTE.asUnit);
 
 export const waitForDevice = waitForState("device");
@@ -180,7 +197,7 @@ export const waitForDisconnect = waitForState("disconnect");
 // Uses `dumpsys window` and reads `mFocusedApp` which reports the actual foreground activity
 // even when system UI (NotificationShade, etc.) has window focus.
 // Format: "mFocusedApp=ActivityRecord{hash u0 com.pkg/com.pkg.Activity} ..."
-export const getResumedActivity = (target: Adb.Target): Effect<O.Option<string>> =>
+export const getResumedActivity = (target: Socket.IPv4): Effect<O.Option<string>> =>
   pipe(
     run(["shell", "dumpsys", "window"], target),
     RTE.map((stdout) => {
@@ -194,5 +211,5 @@ export const getResumedActivity = (target: Adb.Target): Effect<O.Option<string>>
 // Check if a specific activity (full component or substring) is currently in foreground
 export const isActivityResumed =
   (activity: string) =>
-  (target: Adb.Target): Effect<boolean> =>
+  (target: Socket.IPv4): Effect<boolean> =>
     pipe(getResumedActivity(target), RTE.map(O.exists((resumed) => resumed.includes(activity))));

@@ -1,10 +1,11 @@
 import type { Logger } from "@supervisor/core/logger";
+import type { Services } from "@supervisor/core/services";
 import type * as Trpc from "@supervisor/trpc/server";
 import { appRouter } from "@supervisor/trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { enhance, type Get, type UniversalHandler } from "@universal-middleware/core";
 
-export const trpcHandler = ((endpoint: string, services: Trpc.Services, logger: Logger) =>
+export const trpcHandler = ((endpoint: string, services: Services, logger: Logger) =>
   enhance(
     (request, _context, _runtime) => {
       const url = new URL(request.url);
@@ -29,4 +30,4 @@ export const trpcHandler = ((endpoint: string, services: Trpc.Services, logger: 
       method: ["GET", "POST"],
       immutable: false,
     },
-  )) satisfies Get<[endpoint: string, services: Trpc.Services, logger: Logger], UniversalHandler>;
+  )) satisfies Get<[endpoint: string, services: Services, logger: Logger], UniversalHandler>;
