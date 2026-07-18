@@ -1,21 +1,21 @@
 import * as AdbCore from "@supervisor/core/adb";
+import type * as Logger from "@supervisor/core/logger";
 import * as Retry from "@supervisor/core/retry";
 import * as AdbShell from "@supervisor/shell/adb";
 import * as Mdns from "@supervisor/shell/mdns";
 import * as E from "fp-ts/Either";
-import { flow, pipe } from "fp-ts/function";
+import { pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
-import type { TaggedLogger } from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Model
 // -------------------------------------------------------------------------------------
 
 export interface Env {
-  readonly logger: TaggedLogger;
+  readonly logger: Logger.Tagged;
   readonly adbPort: number;
   readonly adbReconnectPolicy: Retry.Policy;
 }

@@ -1,39 +1,14 @@
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
-import * as Ord from "fp-ts/Ord";
 import * as t from "io-ts";
-import { DayOfWeek, OrdValidTimeString, TimeString } from "./date-time";
+import { LogLevel } from "./logger";
 import { PolicyJsonCodec } from "./retry-codec";
 import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow-codec";
+import { WorkScheduleCodec } from "./workSchedule";
 
 // -------------------------------------------------------------------------------------
 // Model - Configurazione del servizio
 // -------------------------------------------------------------------------------------
-
-// Schedule di lavoro: giorni attivi e range orario
-const WorkScheduleRaw = t.type({
-  days: t.array(DayOfWeek),
-  from: TimeString,
-  to: TimeString,
-});
-
-const WorkScheduleCodec = new t.Type<t.TypeOf<typeof WorkScheduleRaw>>(
-  "WorkSchedule",
-  WorkScheduleRaw.is,
-  (u, c) =>
-    pipe(
-      WorkScheduleRaw.validate(u, c),
-      E.flatMap((schedule) =>
-        Ord.lt(OrdValidTimeString)(schedule.from, schedule.to)
-          ? t.success(schedule)
-          : t.failure(u, c, `workSchedule.from (${schedule.from}) must be before workSchedule.to (${schedule.to})`),
-      ),
-    ),
-  t.identity,
-);
-
-export const workScheduleToString = (ws: t.TypeOf<typeof WorkScheduleCodec>): string =>
-  `WorkSchedule(days: [${ws.days.join(", ")}], from: ${ws.from}, to: ${ws.to})`;
 
 // Credenziali Suitest
 const SuitestCodec = t.type({
@@ -52,23 +27,10 @@ const MonitoringCodec = t.type({
 });
 
 // Configurazione logging
-const LogLevel = t.keyof({
-  fatal: null,
-  error: null,
-  warn: null,
-  info: null,
-  debug: null,
-  trace: null,
-  silent: null,
-});
-
-export type LogLevel = t.TypeOf<typeof LogLevel>;
-
 const LogCodec = t.intersection([t.type({ level: LogLevel }), t.partial({ path: t.string })]);
 
-export type LogConfig = t.TypeOf<typeof LogCodec>;
+export type LogConfig = t.TypeOf<typeof LogCodec>; // Esportata e rinominato per servizio
 
-// Configurazione completa del servizio
 // Configurazione connessione ADB
 const AdbCodec = t.type({
   port: t.number,
@@ -91,7 +53,6 @@ const ServiceConfigCodec = t.type({
 });
 
 export type ServiceConfig = t.TypeOf<typeof ServiceConfigCodec>;
-export type WorkSchedule = t.TypeOf<typeof WorkScheduleCodec>;
 
 // -------------------------------------------------------------------------------------
 // Validazione

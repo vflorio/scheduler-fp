@@ -1,23 +1,11 @@
 # TODO
-next: 
-- target model - divisione esplicita PersistentTarget & ConnectingTarget (state con: porta random = connecting, porta persistent = connected)
-- aggiungere un comando wait/sleep alla config (per tap-spriting)
-- aggiungere un comando per determinare l'orientamento e avere un validatore ensureOrientation(Landscape)
-- coordinate relative per tap
-- va rivista la logica principale del servizio. bisogna avere un db stabile di [device-name, ip-statico]
-- aggiungere un sistema di predicati per eseguire i comandi 
-- la connessione adb deve essere troncata quando il workflow fallisce
-- correggere il waitForDevice, e se un dispositivo torna online dopo un reboot, il mDNS non lo può catturare finchè il workflow è in esecuzione
-- offline-tracker/availability-check
-- elaborare dove/come eseguire le policy in base ad uno stato centralinizzato e finalizzato (finite state machine) - per esempio, l'intero processo dovrebbe andare in pausa se perde la connettività, in base al connection tracker, etc 
-- servizio deve gestire la ricaduta della sua connnettività 
-- servizio deve inviare i messaggi slack
 
 ## Core
 
 - [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, instanze monoidi
     - [X] Aggiungere unit testing
 - [ ] Device model: tipi per TV, Candybox, AndroidCamera (id, name, owner relations, ecc.)
+- [ ] Target model: divisione esplicita PersistentTarget (porta persistente = connected) & ConnectingTarget (porta random = connecting)
 - [ ] Recovery policy model: offline threshold, grace period, retry count, delay tra tentativi
 - [ ] Notification policy model: immediate vs. after-all-retries-exhausted, config per device type
 - [X] Config model: configurazione completa supervisor (devices, policies, schedule, Slack)
@@ -25,10 +13,9 @@ next:
 ## Monitoring
 
 - [ ] Candybox reachability check
-- [ ] Android camera availability check
-- [ ] Polling loop con intervallo configurabile per device type
+- [ ] Availability check: polling raggiungibilità per device type (Candybox, Android camera), con intervallo configurabile
 - [X] Activation gate: saltare il polling fuori dallo schedule di lavoro configurato
-- [ ] Offline state tracker: tracciare da quanto tempo ogni device e' irraggiungibile
+- [ ] Offline state tracker: tracciamento centralizzato stato device (online/offline/recovering), durata irraggiungibilità, integrato con availability check
 
 ## Recovery Workflows
 
@@ -52,6 +39,12 @@ next:
     - [X] ADB over wifi automation
     - [X] Avvia suitest-camera, imposta profilo experimental-wide, e premi tasto connect (le coordinate considerare orientamento schermo)
 - [ ] Verifica camera stream dopo recovery
+- [ ] Comando wait/sleep nella config workflow (per tap-scripting e timing)
+- [ ] Comando ensureOrientation: determinare orientamento corrente e validare (es. ensureOrientation(Landscape))
+- [ ] Coordinate relative per inputTap: accettare coordinate normalizzate (0.0–1.0) oltre ad assolute
+- [ ] Sistema di predicati/guard per esecuzione condizionale dei comandi nel workflow
+- [ ] Disconnessione ADB al fallimento del workflow (teardown connessione)
+- [ ] Fix waitForDevice: gestire il caso in cui mDNS non rileva un device tornato online durante l'esecuzione del workflow
 
 ### Retry Engine
 - [X] Retry model (constant, exponential, limit, cap)
@@ -69,6 +62,7 @@ next:
 ## Operational Safety
 
 - [ ] Flag maintenance mode manuale: impedire recovery automatico per device spento manualmente
+- [ ] State machine centralizzata per gestione policy: il servizio opera in base a stati finiti (active, paused, recovering) — es. pausa automatica su perdita connettività (connection tracker)
 
 ## Service / Runtime
 
@@ -76,6 +70,9 @@ next:
 - [ ] Docker/PM2 per ambiente production
 - [X] Logging (strutturato, con contesto device)
 - [X] Gestione graceful shutdown/restart
+- [ ] Device registry stabile: database locale [device-name, ip-statico] al posto di discovery puramente mDNS
+- [ ] Gestione ricaduta connettività del servizio: monitoraggio e recovery della propria connessione di rete
+- [ ] Integrazione invio notifiche Slack nel loop principale del servizio
 
 # Nice to have
 

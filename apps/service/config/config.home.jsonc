@@ -1,0 +1,63 @@
+{
+  "suitest": {
+    "tokenId": "dev-suitest-token-id",
+    "tokenPassword": "dev-suitest-token-password"
+  },
+  "slack": {
+    "botToken": "dev-slack-token"
+  },
+  "workSchedule": {
+    "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+    "from": "00:00",
+    "to": "23:59"
+  },
+  "monitoring": {
+    "polling": [["constantDelay", "30s"]] // loop principale
+  },
+  "log": {
+    "level": "debug" // "error" | "warn" | "info" | "debug"
+    //"file": "logs/service.log"
+  },
+  "adb": {
+    "port": 5555,
+    "reconnect": [
+      ["constantDelay", "400ms"],
+      ["exponentialBackoff", "800ms"],
+      ["capDelay", "60s"],
+      ["limitRetries", 10]
+    ]
+  },
+  "recovery": {
+    "scripts": [],
+    "workflows": [
+      [
+        "android-chrome-test",
+        {
+          "primary": {
+            "commands": [
+              // wake screen up
+              ["wakeUp"],
+              // Ensure APp is running (start if not opened)
+              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
+            ],
+            "policy": [
+              ["constantDelay", "500ms"],
+              ["exponentialBackoff", "500ms"],
+              ["capDelay", "30s"],
+              ["limitRetries", 10]
+            ]
+          },
+          "secondary": {
+            "commands": [
+              ["reboot"],
+              // FIXME va rivista, attende sulla 5555, mentre dopo un reboot è necessario il processo di connessione
+              ["waitForDevice"],
+              ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
+            ],
+            "policy": [["constantDelay", "60s"], ["limitRetries", 3]]
+          }
+        }
+      ]
+    ]
+  }
+}

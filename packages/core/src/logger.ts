@@ -1,4 +1,5 @@
 import type * as IO from "fp-ts/IO";
+import * as t from "io-ts";
 
 export interface Logger {
   readonly debug: (message: string) => IO.IO<void>;
@@ -11,7 +12,18 @@ export interface Logger {
 // Log levels
 // -------------------------------------------------------------------------------------
 
-export type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
+// Configurazione logging
+export const LogLevel = t.keyof({
+  fatal: null,
+  error: null,
+  warn: null,
+  info: null,
+  debug: null,
+  trace: null,
+  silent: null,
+});
+
+export type LogLevel = t.TypeOf<typeof LogLevel>;
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = {
   fatal: 60,

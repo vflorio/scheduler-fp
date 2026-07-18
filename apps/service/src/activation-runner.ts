@@ -1,12 +1,16 @@
+import type * as Logger from "@supervisor/core/logger";
 import * as Retry from "@supervisor/core/retry";
 import * as Schedule from "@supervisor/core/schedule";
-import { constVoid } from "fp-ts/lib/function";
-import type * as T from "fp-ts/Task";
+import * as IO from "fp-ts/IO";
+import { constVoid, pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
-import type { TaggedLogger } from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Activation Runner
+// Questo modulo opera a runtime per determinare quando il processo entra nella sua
+// fase di lavoro attiva (per evitare di avvivarsi fuori dall'orario previsto)
+// Utilizza uno Schedule come predicato di attivazione
+// e una Retry.Policy per determinare il delay tra i tick.
 // -------------------------------------------------------------------------------------
 
 export interface StartError {
@@ -18,7 +22,7 @@ export interface StartError {
 // Usa la policy per determinare il delay tra i tick.
 // Ritorna un handle con `abort` per fermare il loop.
 export const create = (
-  log: TaggedLogger,
+  log: Logger.Tagged,
   // Questo schedule contiene il range di operatività
   activationGate: Schedule.Schedule,
   // Policy di polling per determinare il delay tra i tick
@@ -79,10 +83,10 @@ export const create = (
       () => tick(),
       (err) => ({ type: "StartError" as const, message: `Activation runner start error: ${err}` }),
     ),
-    stop: () => {
-      controller.abort();
-      log.info("Scheduled runner stopped")();
-    },
+    stop: pipe(
+      log.info("Scheduled runner stopped"),
+      IO.flatMap(() => () => controller.abort()),
+    ),
   };
 };
 

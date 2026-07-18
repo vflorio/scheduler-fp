@@ -1,4 +1,5 @@
 import type * as AdbCore from "@supervisor/core/adb";
+import type * as Logger from "@supervisor/core/logger";
 import * as Retry from "@supervisor/core/retry";
 import type * as RetryPolicy from "@supervisor/core/retry-codec";
 import type { RecoveryConfig } from "@supervisor/core/workflow";
@@ -6,13 +7,12 @@ import * as WorkflowInterpreter from "@supervisor/core/workflow-interpreter";
 import * as AdbShell from "@supervisor/shell/adb";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
-import type { TaggedLogger } from "./logger";
 
 const mapWorkflowError = (
   error: WorkflowInterpreter.WorkflowError | AdbCore.AdbError | RetryPolicy.PolicyDecodeError,
 ): WorkflowInterpreter.WorkflowError => ({ type: "WorkflowError" as const, message: error.message });
 
-const makeCapabilities = (logger: TaggedLogger, target: AdbCore.Target): WorkflowInterpreter.CommandCapabilities => {
+const makeCapabilities = (logger: Logger.Tagged, target: AdbCore.Target): WorkflowInterpreter.CommandCapabilities => {
   const adbLog = logger.child("AdbShell");
   const adbEnv: AdbShell.AdbShellEnv = { logger: adbLog };
 
@@ -79,7 +79,7 @@ const makeCapabilities = (logger: TaggedLogger, target: AdbCore.Target): Workflo
 };
 
 interface WorkflowRunnerEnv {
-  readonly logger: TaggedLogger;
+  readonly logger: Logger.Tagged;
   readonly recovery: RecoveryConfig;
 }
 

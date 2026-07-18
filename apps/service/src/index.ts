@@ -1,14 +1,15 @@
-import * as ConfigModel from "@supervisor/core/config";
+import type * as ConfigModel from "@supervisor/core/config";
 import * as CoreLogger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry-codec";
 import * as Schedule from "@supervisor/core/schedule";
+import * as WorkSchedule from "@supervisor/core/workSchedule";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
+import * as IO from "fp-ts/IO";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
-import * as Activation from "./activation";
 import * as ActivationRunner from "./activation-runner";
 import * as Args from "./args";
 import * as Config from "./config";
@@ -72,18 +73,21 @@ export const createService: Effect<ServiceHandle> = pipe(
   RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
     const baseLogger = configuredLogger(config.log);
     const logger = CoreLogger.tagged(baseLogger, "Service");
-    const activationGate = Activation.toSchedule(config.workSchedule);
+    const activationGate = WorkSchedule.toSchedule(config.workSchedule);
 
-    logger.info(`Config loaded - schedule: ${ConfigModel.workScheduleToString(config.workSchedule)}`)();
+    logger.info(`Config loaded - schedule: ${WorkSchedule.toString(config.workSchedule)}`)();
     logger.info(`Polling policy: ${RetryPolicy.policyJsonToString(config.monitoring.polling)}`)();
 
     const slot = Schedule.toTimeSlot(new Date());
 
-    if (activationGate(slot)) {
-      logger.info("Service ACTIVE - currently inside work schedule")();
-    } else {
-      logger.info(`Service IDLE - waiting for (${ConfigModel.workScheduleToString(config.workSchedule)})`)();
-    }
+    pipe(
+      IO.of(activationGate(slot)),
+      IO.flatMap((isActive) =>
+        isActive
+          ? logger.info("Service ACTIVE - currently inside work schedule")
+          : logger.info(`Service IDLE - waiting for (${WorkSchedule.toString(config.workSchedule)})`),
+      ),
+    )();
 
     const activationLog = logger.child("ActivationRunner");
     const discoveryLog = activationLog.child("Discovery");
