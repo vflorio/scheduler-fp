@@ -31,14 +31,20 @@
       "policy": "sameRange"
     },
     {
-      "label": "Sync @types/node versions across workspace",
-      "dependencies": ["@types/node"],
+      "label": "Sync @types/bun versions across workspace",
+      "dependencies": ["@types/bun"],
       "dependencyTypes": ["dev"],
       "policy": "sameRange"
     },
     {
       "label": "Sync fp-ts versions across workspace",
       "dependencies": ["fp-ts"],
+      "dependencyTypes": ["dev"],
+      "policy": "sameRange"
+    },
+    {
+      "label": "Sync ts-pattern versions across workspace",
+      "dependencies": ["ts-pattern"],
       "dependencyTypes": ["dev"],
       "policy": "sameRange"
     }

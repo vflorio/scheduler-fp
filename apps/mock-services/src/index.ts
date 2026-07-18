@@ -7,7 +7,7 @@ import { SlackStore } from "./slack/store";
 import { suitestRoutes } from "./suitest/routes";
 import { SuitestStore } from "./suitest/store";
 
-const PORT = Number(import.meta.env.PORT ?? 4400);
+const PORT = Number(import.meta.env.PORT ?? 3008);
 
 const SUITEST_TOKEN_ID = import.meta.env.SUITEST_TOKEN_ID ?? "dev-suitest-token-id";
 const SUITEST_TOKEN_PASSWORD = import.meta.env.SUITEST_TOKEN_PASSWORD ?? "dev-suitest-token-password";
@@ -31,8 +31,7 @@ const routeSlack = slackRoutes(slackStore, { botToken: SLACK_BOT_TOKEN });
 // Server
 // -------------------------------------------------------------------------------------
 
-const startLogger: CoreLogger.Tagged = CoreLogger.tagged(CoreLogger.createConsoleLogger("debug"), "Service");
-const logger = startLogger.child("MockServices");
+const logger = pipe(CoreLogger.createConsoleLogger("debug"), CoreLogger.tagged("Service")).child("MockServices");
 
 const withISE = (router: (request: Request) => Response | Promise<Response> | null) => (request: BunRequest) =>
   router(request) ?? Response.json({ error: "Internal Server Error" }, { status: 500 });

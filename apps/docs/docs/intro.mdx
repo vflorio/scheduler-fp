@@ -51,3 +51,31 @@ graph TD
 | [**mDNS Discovery**](mdns-discovery) | `avahi` (process) | Discover devices on the local network |
 | [**Device Registry**](device-registry) | `suitest` (HTTP) | Fetch registered lab devices, populate the internal Device DB |
 | [**Notification**](notifications) | `slack` (HTTP) | Send alerts and status notifications |
+
+---
+
+```mermaid
+graph TD
+    subgraph "@supervisor/trpc (shared)"
+        Router["AppRouter<br/>(services routers)"]
+        Result["ApiResult"]
+        Context["Services interface"]
+    end
+
+    subgraph "apps/service (Bun)"
+        TRPC_Server["tRPC HTTP Server<br/>(Bun.serve)"]
+        Auth["Auth middleware<br/>(localhost whitelist)"]
+        Log["Logging middleware"]
+        Wire["Service wiring<br/>(ShellAndroidBridge)"]
+    end
+
+    subgraph "apps/web-app"
+        Client["tRPC Client"]
+        Proxy["Vite proxy<br/>(/api/trpc -> service)"]
+    end
+
+    TRPC_Server --> Router
+    Wire --> Context
+    Client -.->|"AppRouter type"| Router
+    Proxy -->|"HTTP"| TRPC_Server
+```

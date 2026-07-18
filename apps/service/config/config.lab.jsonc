@@ -6,6 +6,10 @@
   "slack": {
     "botToken": "dev-slack-token"
   },
+  "trpc": {
+    "port": 3001,
+    "hostname": "127.0.0.1"
+  },
   "workSchedule": {
     "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
     "from": "09:00",

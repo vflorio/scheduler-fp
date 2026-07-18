@@ -1,8 +1,9 @@
 import type * as ConfigModel from "@supervisor/core/config";
-import * as CoreLogger from "@supervisor/core/logger";
+import * as Logger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry-codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as WorkSchedule from "@supervisor/core/workSchedule";
+import * as ShellAndroidBridge from "@supervisor/shell/android-bridge";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
@@ -14,8 +15,9 @@ import * as ActivationRunner from "./activation-runner";
 import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
-import * as Logger from "./logger";
-import { runWorkflow } from "./workflow";
+import * as ServiceLogger from "./logger";
+import * as Trpc from "./trpc";
+import * as Workflow from "./workflow";
 
 // -------------------------------------------------------------------------------------
 // Env
@@ -27,7 +29,7 @@ export interface Process {
 }
 
 export interface Env {
-  readonly logger: CoreLogger.Tagged;
+  readonly logger: Logger.Tagged;
   readonly configFetcher: Config.ConfigFetcher;
   readonly process: Process;
 }
@@ -71,8 +73,7 @@ export const createService: Effect<ServiceHandle> = pipe(
     ),
   ),
   RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
-    const baseLogger = configuredLogger(config.log);
-    const logger = CoreLogger.tagged(baseLogger, "Service");
+    const logger = pipe(configuredLogger(config.log), Logger.tagged("Service"));
     const activationGate = WorkSchedule.toSchedule(config.workSchedule);
 
     logger.info(`Config loaded - schedule: ${WorkSchedule.toString(config.workSchedule)}`)();
@@ -93,12 +94,12 @@ export const createService: Effect<ServiceHandle> = pipe(
     const discoveryLog = activationLog.child("Discovery");
     const workflowLog = discoveryLog.child("Workflow");
 
-    const { start, stop } = ActivationRunner.create(activationLog, activationGate, activationPolicy, {
+    const activationRunner = ActivationRunner.create(activationLog, activationGate, activationPolicy, {
       onActive: pipe(
         Connection.discoverAndConnect({ logger: discoveryLog, adbPort: config.adb.port, adbReconnectPolicy }),
         TE.flatMap(
           RA.traverse(TE.ApplicativeSeq)(
-            runWorkflow({ logger: workflowLog, recovery: config.recovery })("android-chrome-test"),
+            Workflow.run({ logger: workflowLog, recovery: config.recovery })("android-chrome-test"),
           ),
         ),
         // FIXME: Questo deve essere gestito attraverso un recovery workflow, altrimenti
@@ -108,10 +109,30 @@ export const createService: Effect<ServiceHandle> = pipe(
       ),
     });
 
+    // tRPC Server
+
+    const trpcLog = logger.child("tRPC");
+
+    const trpcServer = Trpc.startServer({
+      port: config.trpc.port,
+      hostname: config.trpc.hostname,
+      logger: trpcLog,
+      services: {
+        android: ShellAndroidBridge.create({ logger: trpcLog.child("AndroidBridge") }),
+      },
+    });
+
     return RTE.fromTaskEither(
       pipe(
-        start,
-        TE.map(() => ({ stop })),
+        activationRunner.start,
+        TE.map(() => ({
+          stop: () =>
+            pipe(
+              TE.fromIO(activationRunner.stop),
+              TE.flatMap(() => trpcServer.stop),
+              TE.flatMapIO(() => logger.info("Service stopped")),
+            ),
+        })),
       ),
     );
   }),
@@ -121,9 +142,10 @@ export const createService: Effect<ServiceHandle> = pipe(
 // Env Instances
 // -------------------------------------------------------------------------------------
 
-const startLogger: CoreLogger.Tagged = CoreLogger.tagged(Logger.create({ level: "info" }), "Service");
+const startLogger: Logger.Tagged = //Logger.tagged(ServiceLogger.create({ level: "info" }), "Service");
+  pipe(ServiceLogger.create({ level: "info" }), Logger.tagged("Service"));
 
-const configuredLogger = (config: ConfigModel.LogConfig) => Logger.create(config);
+const configuredLogger = (config: ConfigModel.LogConfig) => ServiceLogger.create(config);
 
 const liveProcess: Process = {
   onSignal: (signal, handler) => process.on(signal, handler),

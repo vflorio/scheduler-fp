@@ -119,22 +119,24 @@ export interface Tagged extends Logger {
   readonly child: (tag: string) => Tagged;
 }
 
-export const tagged = (base: Logger, tag: string, depth = 0): Tagged => {
-  const prefix = formatTagPrefix(tag, depth);
+export const tagged =
+  (tag: string, depth = 0) =>
+  (base: Logger): Tagged => {
+    const prefix = formatTagPrefix(tag, depth);
 
-  const wrap =
-    (log: (message: string) => IO.IO<void>) =>
-    (message: string): IO.IO<void> =>
-      log(`${prefix}${message}`);
+    const wrap =
+      (log: (message: string) => IO.IO<void>) =>
+      (message: string): IO.IO<void> =>
+        log(`${prefix}${message}`);
 
-  return {
-    debug: wrap(base.debug),
-    info: wrap(base.info),
-    warn: wrap(base.warn),
-    error: wrap(base.error),
-    child: (childTag: string) => tagged(base, childTag, depth + 1),
+    return {
+      debug: wrap(base.debug),
+      info: wrap(base.info),
+      warn: wrap(base.warn),
+      error: wrap(base.error),
+      child: (childTag: string) => tagged(childTag, depth + 1)(base),
+    };
   };
-};
 
 // -------------------------------------------------------------------------------------
 // Generic logger factory

@@ -42,6 +42,11 @@ const RecoveryCodec = t.type({
   workflows: t.array(WorkflowJsonCodec),
 });
 
+const TrpcCodec = t.type({
+  port: t.number,
+  hostname: t.string,
+});
+
 const ServiceConfigCodec = t.type({
   workSchedule: WorkScheduleCodec,
   suitest: SuitestCodec,
@@ -50,6 +55,7 @@ const ServiceConfigCodec = t.type({
   adb: AdbCodec,
   log: LogCodec,
   recovery: RecoveryCodec,
+  trpc: TrpcCodec,
 });
 
 export type ServiceConfig = t.TypeOf<typeof ServiceConfigCodec>;

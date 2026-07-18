@@ -83,7 +83,7 @@ interface WorkflowRunnerEnv {
   readonly recovery: RecoveryConfig;
 }
 
-export const runWorkflow =
+export const run =
   (env: WorkflowRunnerEnv) =>
   (workflow: string) =>
   (target: AdbCore.Target): TE.TaskEither<WorkflowInterpreter.WorkflowError | RetryPolicy.PolicyDecodeError, void> =>

@@ -381,10 +381,10 @@ function StepCard({
             <span> ← </span>
           </IconButton>
           <IconButton size="small" disabled={index === total - 1} onClick={onMoveDown} title="Sposta giù">
-            <span>→</span>
+            <span> → </span>
           </IconButton>
           <IconButton size="small" onClick={onRemove} title="Rimuovi" sx={{ color: "error.main" }}>
-            <span>✕</span>
+            <span> ✕ </span>
           </IconButton>
         </Box>
       </Box>

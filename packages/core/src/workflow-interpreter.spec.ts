@@ -11,6 +11,7 @@ const noopEnv = (log: string[] = []): Interpreter.WorkflowEnv => ({
   logger: {
     debug: (msg) => () => log.push(`[DEBUG] ${msg}`),
     info: (msg) => () => log.push(`[INFO] ${msg}`),
+    warn: (msg) => () => log.push(`[WARN] ${msg}`),
     error: (msg) => () => log.push(`[ERROR] ${msg}`),
   },
   capabilities: {
@@ -32,7 +33,7 @@ const failingEnv = (failCount: number): { env: Interpreter.WorkflowEnv; calls: s
     calls,
     env: {
       scripts: [],
-      logger: { debug: () => () => {}, info: () => () => {}, error: () => () => {} },
+      logger: { debug: () => () => {}, info: () => () => {}, warn: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: (pkg) => {
           calls.push(`restartApp:${pkg}`);
@@ -100,7 +101,7 @@ describe("workflow interpreter", () => {
     const calls: string[] = [];
     const env: Interpreter.WorkflowEnv = {
       scripts: [],
-      logger: { debug: () => () => {}, info: () => () => {}, error: () => () => {} },
+      logger: { debug: () => () => {}, info: () => () => {}, warn: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: () => {
           calls.push("restartApp");
@@ -154,7 +155,7 @@ describe("workflow interpreter", () => {
     const tapCalls: Array<{ x: number; y: number }> = [];
     const env: Interpreter.WorkflowEnv = {
       scripts: [{ name: "my-script", commands: [{ type: "inputTap", coords: { x: 0.5, y: 0.5 } }] }],
-      logger: { debug: () => () => {}, info: () => () => {}, error: () => () => {} },
+      logger: { debug: () => () => {}, info: () => () => {}, warn: () => () => {}, error: () => () => {} },
       capabilities: {
         restartApp: () => TE.right(undefined),
         ensureActivity: () => TE.right(undefined),
@@ -191,7 +192,12 @@ describe("workflow interpreter", () => {
   it("fails when all strategies are exhausted", async () => {
     const env: Interpreter.WorkflowEnv = {
       scripts: [],
-      logger: { debug: () => () => {}, info: () => () => {}, error: () => () => {} },
+      logger: {
+        debug: () => () => {},
+        info: () => () => {},
+        warn: () => () => {},
+        error: () => () => {},
+      },
       capabilities: {
         restartApp: () => TE.left({ type: "WorkflowError", message: "nope" }),
         ensureActivity: () => TE.left({ type: "WorkflowError", message: "nope" }),
