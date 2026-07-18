@@ -1,6 +1,7 @@
-import type { Logger } from "@supervisor/core/logger";
+import type * as Logger from "@supervisor/core/logger";
 import type { Services } from "@supervisor/trpc/context";
-import { appRouter, t } from "@supervisor/trpc/server";
+import type * as Trpc from "@supervisor/trpc/server";
+import { appRouter } from "@supervisor/trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
@@ -9,31 +10,30 @@ import * as TE from "fp-ts/TaskEither";
 // Server
 // -------------------------------------------------------------------------------------
 
-export interface ServerConfig {
+export interface Deps {
   readonly services: Services;
-  readonly logger: Logger;
+  readonly logger: Logger.Tagged;
   readonly port: number;
   readonly hostname: string;
 }
 
-export const startServer = (config: ServerConfig) => {
-  const { services, logger, port, hostname } = config;
-
-  // Middleware is available for future use (e.g. authedProcedure)
-  const _loggingMiddleware = createLoggingMiddleware(logger);
+export const startServer = (deps: Deps) => {
+  const { services, logger, port, hostname } = deps;
 
   const server = Bun.serve({
     port,
     hostname,
     fetch(request) {
+      const url = new URL(request.url);
       return fetchRequestHandler({
         endpoint: "/trpc",
         req: request,
         router: appRouter,
-        createContext() {
+        createContext(): Trpc.Context {
           return {
             services,
-            isLocalhost: true, //TODO: determina se è un servizio locale a fare la richiesta
+            logger: logger.child("http"),
+            isLocalhost: url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1",
           };
         },
       });
@@ -51,26 +51,7 @@ export const startServer = (config: ServerConfig) => {
           message: String(reason),
         }),
       ),
-      TE.flatMap(() => TE.fromIO(logger.info("tRPC server stopped"))),
+      TE.flatMapIO(() => logger.info("tRPC server stopped")),
     ),
   };
 };
-
-// -------------------------------------------------------------------------------------
-// Middleware
-// -------------------------------------------------------------------------------------
-
-const createLoggingMiddleware = (logger: Logger) =>
-  t.middleware(async ({ path, type, next }) => {
-    const start = Date.now();
-    const result = await next();
-    const ms = Date.now() - start;
-
-    if (result.ok) {
-      logger.debug(`${type} ${path} - OK (${ms}ms)`)();
-    } else {
-      logger.error(`${type} ${path} - ERROR (${ms}ms)`)();
-    }
-
-    return result;
-  });

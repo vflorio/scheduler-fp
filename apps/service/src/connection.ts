@@ -48,7 +48,13 @@ const delay = (ms: number): Effect<void> => RTE.fromTaskEither(TE.fromTask(T.del
 const liftAdb =
   <A>(effect: RTE.ReaderTaskEither<AdbShell.AdbShellEnv, AdbCore.AdbError, A>): Effect<A> =>
   (env) =>
-    effect({ logger: env.logger });
+    effect({ logger: env.logger.child("AdbShell") });
+
+// Lift Mdns RTE (requires MdnsShellEnv) into our Effect (requires Env)
+const liftMdns =
+  <A>(effect: RTE.ReaderTaskEither<Mdns.MdnsShellEnv, Mdns.DiscoverError, A>): Effect<A> =>
+  (env) =>
+    effect({ logger: env.logger.child("Mdns") });
 
 const connect = (setupTarget: AdbCore.Target): Effect<void> =>
   pipe(
@@ -113,7 +119,7 @@ export const discoverAndConnect: Effect<readonly AdbCore.Target[]> = pipe(
   // Discover new devices via mDNS
   RTE.bind("discovered", () =>
     pipe(
-      RTE.fromTaskEither(Mdns.discoverDefaultAdbTslConnect),
+      liftMdns(Mdns.discoverDefaultAdbTslConnect),
       RTE.tapError((error) => logError(`mDNS discovery failed: ${error.message}`)),
       RTE.flatMap(filterMapValidEndpoints),
     ),

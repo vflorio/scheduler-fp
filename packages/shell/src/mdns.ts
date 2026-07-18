@@ -1,5 +1,7 @@
 import { execFile } from "node:child_process";
+import type { Logger } from "@supervisor/core/logger";
 import { pipe } from "fp-ts/function";
+import * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
 
 // -------------------------------------------------------------------------------------
@@ -15,6 +17,12 @@ export interface DiscoverError {
   readonly type: "DiscoverError";
   readonly message: string;
 }
+
+export interface MdnsShellEnv {
+  readonly logger: Logger;
+}
+
+type Effect<A> = RTE.ReaderTaskEither<MdnsShellEnv, DiscoverError, A>;
 
 // -------------------------------------------------------------------------------------
 // Parser - avahi-browse -prt output
@@ -50,23 +58,27 @@ const parseAvahiBrowse = (stdout: string): Endpoint[] => {
 // Shell runner
 // -------------------------------------------------------------------------------------
 
-const runCommand = (command: string, args: readonly string[]): TE.TaskEither<DiscoverError, string> =>
-  TE.tryCatch(
-    () =>
-      new Promise<string>((resolve, reject) => {
-        execFile(command, args as string[], { timeout: 10_000 }, (err, stdout, stderr) => {
-          if (err) {
-            reject(new Error(`${command} failed: ${err.message}${stderr ? `\n${stderr}` : ""}`));
-          } else {
-            resolve(stdout);
-          }
-        });
+const run =
+  (command: string, args: readonly string[]): Effect<string> =>
+  ({ logger }) =>
+    TE.tryCatch(
+      () =>
+        new Promise<string>((resolve, reject) => {
+          logger.debug(`${command} ${args.join(" ")}`)();
+          execFile(command, args as string[], { timeout: 10_000 }, (err, stdout, stderr) => {
+            if (err) {
+              reject(new Error(`${command} failed: ${err.message}${stderr ? `\n${stderr}` : ""}`));
+            } else {
+              if (stdout.trim()) logger.debug(`  -> ${stdout.trim().split("\n")[0]}`)();
+              resolve(stdout);
+            }
+          });
+        }),
+      (reason) => ({
+        type: "DiscoverError" as const,
+        message: reason instanceof Error ? reason.message : String(reason),
       }),
-    (reason) => ({
-      type: "DiscoverError" as const,
-      message: reason instanceof Error ? reason.message : String(reason),
-    }),
-  );
+    );
 
 // -------------------------------------------------------------------------------------
 // Public API
@@ -78,17 +90,17 @@ const runCommand = (command: string, args: readonly string[]): TE.TaskEither<Dis
  * @param command - The executable (e.g. "avahi-browse" on Linux, "dns-sd" wrapper on macOS)
  * @param args - Arguments to pass (e.g. ["-prt", "_adb-tls-connect._tcp"])
  */
-export const discover = (command: string, args: readonly string[]): TE.TaskEither<DiscoverError, Endpoint[]> =>
-  pipe(runCommand(command, args), TE.map(parseAvahiBrowse));
+export const discover = (command: string, args: readonly string[]): Effect<Endpoint[]> =>
+  pipe(run(command, args), RTE.map(parseAvahiBrowse));
 
 // Default: avahi-browse -prt _adb-tls-connect._tcp
-export const discoverDefaultAdbTslConnect: TE.TaskEither<DiscoverError, Endpoint[]> = discover("avahi-browse", [
+export const discoverDefaultAdbTslConnect: Effect<Endpoint[]> = discover("avahi-browse", [
   "-prt",
   "_adb-tls-connect._tcp",
 ]);
 
 // Default: avahi-browse -prt _adb-tls-pairing._tcp
-export const discoverDefaultAdbTslPairing: TE.TaskEither<DiscoverError, Endpoint[]> = discover("avahi-browse", [
+export const discoverDefaultAdbTslPairing: Effect<Endpoint[]> = discover("avahi-browse", [
   "-prt",
   "_adb-tls-pairing._tcp",
 ]);

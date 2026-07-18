@@ -108,7 +108,7 @@ export const colorizeLevel = (level: string, msg: string): string => {
 export const formatTagPrefix = (tag: string, depth: number): string => {
   const color = getModuleColor(tag);
   const indent = " ".repeat(depth * INDENT_SIZE);
-  return `${indent}${color}[${tag}]${RESET} `;
+  return `${new Date().toLocaleTimeString("it-IT")} | ${indent}${color}[${tag}]${RESET} `;
 };
 
 // -------------------------------------------------------------------------------------

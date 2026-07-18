@@ -1,3 +1,4 @@
+import type { Logger } from "@supervisor/core/logger";
 import type { AndroidBridge } from "@supervisor/core/services/android-bridge";
 
 // -------------------------------------------------------------------------------------
@@ -10,5 +11,6 @@ export interface Services {
 
 export interface Context {
   readonly services: Services;
+  readonly logger: Logger;
   readonly isLocalhost: boolean;
 }

@@ -18,7 +18,25 @@ export const t = initTRPC.context<Context>().create();
  * that can be used throughout the router
  */
 export const router = t.router;
-export const publicProcedure = t.procedure;
+
+const loggedProcedure = t.procedure.use(
+  t.middleware(async ({ path, type, next, ctx }) => {
+    ctx.logger.info(`-> ${type} ${path}`)();
+    const start = Date.now();
+    const result = await next();
+    const ms = Date.now() - start;
+
+    if (result.ok) {
+      ctx.logger.info(`<- ${type} ${path} OK (${ms}ms)`)();
+    } else {
+      ctx.logger.error(`<- ${type} ${path} ERROR (${ms}ms)`)();
+    }
+
+    return result;
+  }),
+);
+
+export const publicProcedure = loggedProcedure;
 
 // -------------------------------------------------------------------------------------
 // Android Bridge router

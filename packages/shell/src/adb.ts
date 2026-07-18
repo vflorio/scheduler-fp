@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import * as Adb from "@supervisor/core/adb";
-import type { Logger } from "@supervisor/core/logger";
+import type * as Logger from "@supervisor/core/logger";
 import * as A from "fp-ts/Array";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
@@ -20,7 +20,7 @@ export interface Device {
 }
 
 export interface AdbShellEnv {
-  readonly logger: Logger;
+  readonly logger: Logger.Tagged;
 }
 
 type Effect<A> = RTE.ReaderTaskEither<AdbShellEnv, Adb.AdbError, A>;

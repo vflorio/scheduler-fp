@@ -109,7 +109,7 @@ export const createService: Effect<ServiceHandle> = pipe(
       ),
     });
 
-    // tRPC Server
+    // tRPC Server - fuori dall'ActivationRunner perché abbiamo bisogno che la UI sia sempre operativa
 
     const trpcLog = logger.child("tRPC");
 
@@ -118,7 +118,7 @@ export const createService: Effect<ServiceHandle> = pipe(
       hostname: config.trpc.hostname,
       logger: trpcLog,
       services: {
-        android: ShellAndroidBridge.create({ logger: trpcLog.child("AndroidBridge") }),
+        android: ShellAndroidBridge.create({ logger: trpcLog.child("HTTP").child("AndroidBridge") }),
       },
     });
 
@@ -130,7 +130,7 @@ export const createService: Effect<ServiceHandle> = pipe(
             pipe(
               TE.fromIO(activationRunner.stop),
               TE.flatMap(() => trpcServer.stop),
-              TE.flatMapIO(() => logger.info("Service stopped")),
+              TE.flatMapIO(() => logger.info("stop completed")),
             ),
         })),
       ),
