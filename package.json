@@ -33,6 +33,10 @@
     "test:unit": "turbo run test"
   },
   "type": "module",
+  "overrides": {
+    "@docusaurus/theme-common": "3.10.2",
+    "@docusaurus/theme-classic": "3.10.2"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

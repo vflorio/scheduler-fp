@@ -1,8 +1,8 @@
-import { authjsHandler, authjsSessionMiddleware } from "./server/authjs-handler";
-import { trpcHandler } from "./server/trpc-handler";
 import vike, { toFetchHandler } from "@vikejs/express";
 import express from "express";
 import type { Server } from "vike/types";
+import { authjsHandler, authjsSessionMiddleware } from "./server/authjs-handler";
+import { trpcHandler } from "./server/trpc-handler";
 
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
