@@ -1,9 +1,9 @@
-import type * as Adb from "@supervisor/core/adb";
+import * as Adb from "@supervisor/core/adb";
+import * as AvahiBrowse from "@supervisor/core/avahi-browse";
 import type * as Logger from "@supervisor/core/logger";
 import * as Retry from "@supervisor/core/retry";
+import type * as Shell from "@supervisor/core/shell";
 import * as Socket from "@supervisor/core/socket";
-import * as AdbShell from "@supervisor/shell/adb";
-import * as AvahiBrowse from "@supervisor/shell/avahi-browse";
 import { pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
@@ -18,9 +18,10 @@ export interface Env {
   readonly logger: Logger.Tagged;
   readonly adbPort: number;
   readonly adbReconnectPolicy: Retry.Policy;
+  readonly spawn: Shell.Spawn;
 }
 
-type Effect<A> = RTE.ReaderTaskEither<Env, Adb.AdbError | AvahiBrowse.DiscoverError, A>;
+type Effect<A> = RTE.ReaderTaskEither<Env, Adb.AdbError | AvahiBrowse.AvahiBrowseError | Shell.Error, A>;
 
 // -------------------------------------------------------------------------------------
 // Internals
@@ -38,17 +39,19 @@ const logError =
 
 const delay = (ms: number): Effect<void> => RTE.fromTaskEither(TE.fromTask(T.delay(ms)(T.of(undefined))));
 
-// Lift AdbShell RTE (requires AdbShellEnv) into our Effect (requires Env)
+// Lift Adb RTE (requires AdbEnv) into our Effect (requires Env)
 const liftAdb =
-  <A>(effect: RTE.ReaderTaskEither<AdbShell.AdbShellEnv, Adb.AdbError, A>): Effect<A> =>
+  <A>(effect: RTE.ReaderTaskEither<Adb.AdbEnv, Adb.AdbError | Shell.Error, A>): Effect<A> =>
   (env) =>
-    effect({ logger: env.logger.child("AdbShell") });
+    effect({ logger: env.logger.child("Adb"), spawn: env.spawn });
 
 // Lift Mdns RTE (requires MdnsShellEnv) into our Effect (requires Env)
 const liftMdns =
-  <A>(effect: RTE.ReaderTaskEither<AvahiBrowse.MdnsShellEnv, AvahiBrowse.DiscoverError, A>): Effect<A> =>
+  <A>(
+    effect: RTE.ReaderTaskEither<AvahiBrowse.AvahiBrowseEnv, AvahiBrowse.AvahiBrowseError | Shell.Error, A>,
+  ): Effect<A> =>
   (env) =>
-    effect({ logger: env.logger.child("Mdns") });
+    effect({ logger: env.logger.child("Mdns"), spawn: env.spawn });
 
 const connect = (setupTarget: Socket.IPv4): Effect<void> =>
   pipe(
@@ -56,29 +59,31 @@ const connect = (setupTarget: Socket.IPv4): Effect<void> =>
     RTE.tap(({ adbPort }) => logInfo(`Connecting to ${setupTarget} with persistent port ${adbPort}`)),
 
     // Step 1: Connessione via porta ADB temporanea (cambia ad ogni reboot)
-    RTE.tap(() => liftAdb(AdbShell.connect(setupTarget))),
+    RTE.tap(() => liftAdb(Adb.connect(setupTarget))),
     RTE.tap(() => logInfo(`Connected to ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to connect to ${setupTarget}: ${error.message}`)),
 
     // Step 2: Imposta una porta statica persistente
-    RTE.tap(({ adbPort }) => liftAdb(AdbShell.tcpip(adbPort)(setupTarget))),
+    RTE.tap(({ adbPort }) => liftAdb(Adb.tcpip(adbPort)(setupTarget))),
     RTE.tap(({ adbPort }) => logInfo(`Set TCP port to ${adbPort} for ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to set TCP port for ${setupTarget}: ${error.message}`)),
 
     // Step 3: Delay per dare tempo ad adbd di riavviarsi, poi connect con retry policy
     RTE.tap(() => delay(1000)),
     RTE.tap(() => logInfo("Waited 1s for adbd restart")),
-    RTE.flatMap(({ adbPort, adbReconnectPolicy, logger }) => {
+    RTE.flatMap(({ adbPort, adbReconnectPolicy, logger, spawn }) => {
       const persistentTarget = Socket.withPort(adbPort)(setupTarget);
       return pipe(
-        RTE.fromTaskEither(Retry.retrying(adbReconnectPolicy, logger)(AdbShell.connect(persistentTarget)({ logger }))),
+        RTE.fromTaskEither(
+          Retry.retrying(adbReconnectPolicy, logger)(Adb.connect(persistentTarget)({ logger, spawn })),
+        ),
         RTE.tap(() => logInfo(`Connected to ${persistentTarget}`)),
         RTE.tapError((error) => logError(`Failed to connect to ${persistentTarget}: ${error.message}`)),
       );
     }),
 
     // Step 4: Disconnessione dalla porta ADB temporanea (non più necessaria)
-    RTE.tap(() => liftAdb(AdbShell.disconnect(setupTarget))),
+    RTE.tap(() => liftAdb(Adb.disconnect(setupTarget))),
     RTE.tap(() => logInfo(`Disconnected temporary connection for ${setupTarget}`)),
     RTE.tapError((error) => logError(`Failed to disconnect temporary connection for ${setupTarget}: ${error.message}`)),
 
@@ -87,17 +92,9 @@ const connect = (setupTarget: Socket.IPv4): Effect<void> =>
 
 // Get the targets that are already connected via ADB
 const getConnectedAdbDevices: Effect<readonly Socket.IPv4[]> = pipe(
-  liftAdb(AdbShell.devices),
+  liftAdb(Adb.devices),
   RTE.map((ds) => ds.filter((d) => d.status === "device").map((d) => d.target)),
 );
-
-// Map mDNS endpoint to ADB Target, filtering out invalid ones
-const filterMapValidEndpoints = (endpoints: readonly AvahiBrowse.Endpoint[]): Effect<readonly Socket.IPv4[]> =>
-  pipe(
-    endpoints.map((e) => Socket.decode(`${e.ip}:${e.port}`)),
-    RA.rights,
-    RTE.of,
-  );
 
 // -------------------------------------------------------------------------------------
 // Public API
@@ -117,9 +114,8 @@ export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
   // Discover new devices via mDNS
   RTE.bind("discovered", () =>
     pipe(
-      liftMdns(AvahiBrowse.discoverDefaultAdbTslConnect),
+      liftMdns(AvahiBrowse.discoverAdbTlsConnect),
       RTE.tapError((error) => logError(`mDNS discovery failed: ${error.message}`)),
-      RTE.flatMap(filterMapValidEndpoints),
     ),
   ),
 

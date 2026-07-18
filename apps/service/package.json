@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "dependencies": {
     "@supervisor/core": "workspace:*",
-    "@supervisor/shell": "workspace:*",
     "@supervisor/trpc": "workspace:*",
     "@trpc/server": "11.18.0",
     "fp-ts": "2.16.11",

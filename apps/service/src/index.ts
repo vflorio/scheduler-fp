@@ -1,9 +1,11 @@
+import { execFile } from "node:child_process";
+import * as Adb from "@supervisor/core/adb";
 import type * as ConfigModel from "@supervisor/core/config";
 import * as Logger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry-codec";
 import * as Schedule from "@supervisor/core/schedule";
+import type * as Shell from "@supervisor/core/shell";
 import * as WorkSchedule from "@supervisor/core/workSchedule";
-import * as AndroidBridge from "@supervisor/shell/adb";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
@@ -61,6 +63,19 @@ export interface ServiceHandle {
   readonly stop: () => void;
 }
 
+const spawn: Shell.Spawn = (command, args) =>
+  pipe(
+    TE.tryCatch(
+      () =>
+        new Promise<string>((resolve, reject) => {
+          execFile(command, args, (error, stdout, stderr) =>
+            error ? reject({ ...error, message: `${error.message} - ${stderr}` }) : resolve(stdout),
+          );
+        }),
+      (error) => ({ type: "CommandError" as const, message: error instanceof Error ? error.message : String(error) }),
+    ),
+  );
+
 export const createService: Effect<ServiceHandle> = pipe(
   logInfo("Loading config..."),
   RTE.flatMap(() => loadConfig),
@@ -98,10 +113,10 @@ export const createService: Effect<ServiceHandle> = pipe(
 
     const activationRunner = ActivationRunner.create(activationLog, activationSchedule, activationPolicy, {
       onActive: pipe(
-        Connection.discoverAndConnect({ logger: discoveryLog, adbPort: config.adb.port, adbReconnectPolicy }),
+        Connection.discoverAndConnect({ logger: discoveryLog, spawn, adbPort: config.adb.port, adbReconnectPolicy }),
         TE.flatMap(
           RA.traverse(TE.ApplicativeSeq)(
-            Workflow.run({ logger: workflowLog, recovery: config.recovery })("android-chrome-test"),
+            Workflow.run({ logger: workflowLog, spawn, recovery: config.recovery })("android-chrome-test"),
           ),
         ),
         // FIXME: Questo deve essere gestito attraverso un recovery workflow, altrimenti
@@ -118,7 +133,7 @@ export const createService: Effect<ServiceHandle> = pipe(
       hostname: config.trpc.hostname,
       logger: trpcLog,
       services: {
-        android: AndroidBridge.create({ logger: trpcLog.child("HTTP").child("AndroidBridge") }),
+        android: Adb.create({ logger: trpcLog.child("HTTP").child("Adb"), spawn }),
         mdns: {},
         notifications: {},
         registry: {},

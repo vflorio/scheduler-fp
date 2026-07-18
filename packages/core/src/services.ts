@@ -1,7 +1,7 @@
 import type * as TE from "fp-ts/TaskEither";
 import type { AdbError } from "./adb";
 import type * as Logger from "./logger";
-import type { IPv4 } from "./socket";
+import type * as Socket from "./socket";
 
 export interface AndroidBridgeError {
   readonly type: "AndroidBridgeError";
@@ -9,8 +9,8 @@ export interface AndroidBridgeError {
 }
 
 export interface AndroidBridge {
-  readonly devices: () => TE.TaskEither<AdbError, readonly IPv4[]>;
-  readonly reboot: (target: IPv4) => TE.TaskEither<AdbError, void>;
+  readonly devices: () => TE.TaskEither<AdbError, readonly { target: string; status: string }[]>;
+  readonly reboot: (target: Socket.IPv4) => TE.TaskEither<AdbError, void>;
 }
 
 // biome-ignore lint/suspicious/noEmptyInterface: <wip>
