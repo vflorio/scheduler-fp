@@ -17,7 +17,7 @@ export interface DiscoverError {
 }
 
 // -------------------------------------------------------------------------------------
-// Parser — avahi-browse -prt output
+// Parser - avahi-browse -prt output
 // -------------------------------------------------------------------------------------
 // Resolved lines (=) have the format:
 //   =;iface;protocol;name;type;domain;hostname;address;port;txt

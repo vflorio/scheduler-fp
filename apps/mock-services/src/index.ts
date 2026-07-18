@@ -34,9 +34,8 @@ const routeSlack = slackRoutes(slackStore, { botToken: SLACK_BOT_TOKEN });
 const startLogger: CoreLogger.Tagged = CoreLogger.tagged(CoreLogger.createConsoleLogger("debug"), "Service");
 const logger = startLogger.child("MockServices");
 
-const orInternalServerError =
-  (router: (request: Request) => Response | Promise<Response> | null) => (request: BunRequest) =>
-    router(request) ?? Response.json({ error: "Internal Server Error" }, { status: 500 });
+const withISE = (router: (request: Request) => Response | Promise<Response> | null) => (request: BunRequest) =>
+  router(request) ?? Response.json({ error: "Internal Server Error" }, { status: 500 });
 
 pipe(
   IO.of(
@@ -44,9 +43,9 @@ pipe(
       port: PORT,
       //fetch: route,
       routes: {
-        "/service/suitest/*": (request: BunRequest<"/service/suitest/*">) =>
-          orInternalServerError(routeSuitest)(request),
-        "/service/slack/*": (request: BunRequest<"/service/slack/*">) => orInternalServerError(routeSlack)(request),
+        "/": () => Response.json(["/v1/suitest/*", "/v1/slack/*"]),
+        "/v1/suitest/*": (request: BunRequest<"/v1/suitest/*">) => withISE(routeSuitest)(request),
+        "/v1/slack/*": (request: BunRequest<"/v1/slack/*">) => withISE(routeSlack)(request),
       },
     }),
   ),

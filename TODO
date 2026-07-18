@@ -62,7 +62,7 @@
 ## Operational Safety
 
 - [ ] Flag maintenance mode manuale: impedire recovery automatico per device spento manualmente
-- [ ] State machine centralizzata per gestione policy: il servizio opera in base a stati finiti (active, paused, recovering) — es. pausa automatica su perdita connettività (connection tracker)
+- [ ] State machine centralizzata per gestione policy: il servizio opera in base a stati finiti (active, paused, recovering) - es. pausa automatica su perdita connettività (connection tracker)
 
 ## Service / Runtime
 

@@ -20,7 +20,7 @@ const makeCapabilities = (logger: Logger.Tagged, target: AdbCore.Target): Workfl
     // Restart Application (AM)
     restartApp: (packageId) => pipe(AdbShell.restartApp(packageId)(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
 
-    // Ensure app is in foreground — launch only if not already resumed
+    // Ensure app is in foreground - launch only if not already resumed
     ensureActivity: (packageId, activity) =>
       pipe(
         AdbShell.isActivityResumed(activity)(target)(adbEnv),

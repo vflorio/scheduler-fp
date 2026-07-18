@@ -145,7 +145,7 @@ export const interpretWorkflow = (workflow: Workflow): Effect<void> => {
       RTE.flatMap(() => interpretStrategy(strategy)),
       RTE.orElse((error) =>
         pipe(
-          logError(`Workflow "${workflow.name}": strategy ${index + 1} failed — ${error.message}`),
+          logError(`Workflow "${workflow.name}": strategy ${index + 1} failed - ${error.message}`),
           RTE.flatMap(() => runStrategies(strategies, index + 1)),
         ),
       ),

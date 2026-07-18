@@ -87,7 +87,7 @@ export const CommandCodec = new t.Type<Command, unknown[], unknown>(
 );
 
 // ----
-// Script — JSON: ["name", [[cmd], [cmd], ...]]
+// Script - JSON: ["name", [[cmd], [cmd], ...]]
 
 const isScript = (u: unknown): u is Script => typeof u === "object" && u !== null && "name" in u;
 
@@ -115,13 +115,13 @@ const encodeScript = (s: Script): unknown => [s.name, s.commands.map((cmd) => Co
 
 export const ScriptJsonCodec = new t.Type<Script, unknown, unknown>("Script", isScript, validateScript, encodeScript);
 
-// WorkflowStrategy — JSON: { commands: [...], policy: [...] }
+// WorkflowStrategy - JSON: { commands: [...], policy: [...] }
 const WorkflowStrategyCodec = t.type({
   commands: t.array(CommandCodec),
   policy: PolicyJsonCodec,
 });
 
-// Workflow — JSON: ["name", { primary: {...}, secondary: {...}, ... }]
+// Workflow - JSON: ["name", { primary: {...}, secondary: {...}, ... }]
 
 const isWorkflow = (u: unknown): u is Workflow => typeof u === "object" && u !== null && "name" in u;
 

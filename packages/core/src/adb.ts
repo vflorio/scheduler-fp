@@ -29,7 +29,7 @@ export interface AdbError {
 }
 
 // -------------------------------------------------------------------------------------
-// Target — validated "host:port" string
+// Target - validated "host:port" string
 // -------------------------------------------------------------------------------------
 
 export type Target = `${string}:${number}`;

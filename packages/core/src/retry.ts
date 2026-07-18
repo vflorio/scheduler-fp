@@ -101,7 +101,7 @@ export const retrying =
         }
 
         logger?.debug(
-          `Retry attempt ${next.iteration}/${exhausted ? "∞" : "?"} — next delay: ${next.previousDelay}ms`,
+          `Retry attempt ${next.iteration}/${exhausted ? "∞" : "?"} - next delay: ${next.previousDelay}ms`,
         )();
 
         return TE.flatMap(() => loop(next))(delay(next.previousDelay!));

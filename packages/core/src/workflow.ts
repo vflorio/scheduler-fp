@@ -2,7 +2,7 @@ import * as E from "fp-ts/Either";
 import type { PolicyJson } from "./retry-codec";
 
 // -------------------------------------------------------------------------------------
-// Model — Recovery Scripts & Workflows
+// Model - Recovery Scripts & Workflows
 // -------------------------------------------------------------------------------------
 
 // Coordinate per tap ADB (valori normalizzati 0-1 o pixel)

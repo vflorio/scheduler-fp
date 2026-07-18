@@ -13,7 +13,7 @@
   },
   "private": true,
   "scripts": {
-    "start": "bun --watch run src/index.ts"
+    "mock-services:start": "bun --watch run src/index.ts"
   },
   "type": "module"
 }

@@ -45,7 +45,7 @@ export async function getSession(req: Request, config: Omit<AuthConfig, "raw">):
   throw new Error(typeof data === "object" && "message" in data ? (data.message as string) : undefined);
 }
 
-// Note: You can directly define a server middleware instead of defining a Universal Middleware. (You can remove @universal-middleware/* — Vike's scaffolder uses it only to simplify its internal logic, see https://github.com/vikejs/vike/discussions/3116)
+// Note: You can directly define a server middleware instead of defining a Universal Middleware. (You can remove @universal-middleware/* - Vike's scaffolder uses it only to simplify its internal logic, see https://github.com/vikejs/vike/discussions/3116)
 /**
  * Add Auth.js session to the context.
  * @link {@see https://authjs.dev/getting-started/session-management/get-session}
@@ -73,7 +73,7 @@ export const authjsSessionMiddleware: UniversalMiddleware = enhance(
   },
 );
 
-// Note: You can directly define a server middleware instead of defining a Universal Middleware. (You can remove @universal-middleware/* — Vike's scaffolder uses it only to simplify its internal logic, see https://github.com/vikejs/vike/discussions/3116)
+// Note: You can directly define a server middleware instead of defining a Universal Middleware. (You can remove @universal-middleware/* - Vike's scaffolder uses it only to simplify its internal logic, see https://github.com/vikejs/vike/discussions/3116)
 /**
  * Auth.js route
  * @link {@see https://authjs.dev/getting-started/installation}

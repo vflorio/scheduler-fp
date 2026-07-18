@@ -46,11 +46,8 @@ const config: Config = {
       {
         docs: {
           routeBasePath: "/", // Serve the docs at the site's root
-
           sidebarPath: "./sidebars.ts",
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl: "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/",
+          editUrl: "https://github.com/vflorio/lab-supervisor/tree/main/apps/docs",
         },
         blog: false,
         theme: {
@@ -77,10 +74,10 @@ const config: Config = {
           type: "docSidebar",
           sidebarId: "tutorialSidebar",
           position: "left",
-          label: "Tutorial",
+          label: "Documentation",
         },
         {
-          href: "https://github.com/facebook/docusaurus",
+          href: "https://github.com/vflorio/lab-supervisor",
           label: "GitHub",
           position: "right",
         },
@@ -93,7 +90,7 @@ const config: Config = {
           title: "Docs",
           items: [
             {
-              label: "Tutorial",
+              label: "Documentation",
               to: "/docs/intro",
             },
           ],

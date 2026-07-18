@@ -94,7 +94,7 @@ function MiniGrid({ schedule, highlight }: { schedule: Schedule; highlight?: boo
           {row.map((mins, h) => (
             <Tooltip
               key={`${d}-${h}`}
-              title={`${DAY_NAMES[d]} ${String(h).padStart(2, "0")}:00 — ${mins}/60 min`}
+              title={`${DAY_NAMES[d]} ${String(h).padStart(2, "0")}:00 - ${mins}/60 min`}
               arrow
             >
               <Box
@@ -175,7 +175,7 @@ function FinalGrid({ steps, composed }: { steps: readonly ScheduleStep[]; compos
           {row.map((mins, h) => {
             const breakdown = computeBreakdown(d, h, steps, composed);
             const title = [
-              `${DAY_NAMES[d]} ${String(h).padStart(2, "0")}:00 — ${mins}/60 min`,
+              `${DAY_NAMES[d]} ${String(h).padStart(2, "0")}:00 - ${mins}/60 min`,
               "─".repeat(30),
               ...breakdown,
             ].join("\n");
