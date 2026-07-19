@@ -10,7 +10,7 @@ Attività oggi:
 
 - [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, instanze monoidi
     - [X] Aggiungere unit testing
-- [ ] Device model: tipi per TV, Candybox, AndroidCamera (id, name, owner relations, ecc.)
+- [X] Device model: tipi per TV, Candybox, AndroidCamera (id, name, owner relations, ecc.)
 - [ ] Target model: divisione esplicita PersistentTarget (porta persistente = connected) & ConnectingTarget (porta random = connecting)
 - [ ] Recovery policy model: offline threshold, grace period, retry count, delay tra tentativi
 - [ ] Notification policy model: immediate vs. after-all-retries-exhausted, config per device type
@@ -76,7 +76,7 @@ Attività oggi:
 - [ ] Docker/PM2 per ambiente production
 - [X] Logging (strutturato, con contesto device)
 - [X] Gestione graceful shutdown/restart
-- [ ] Device registry stabile: database locale [device-name, ip-statico] al posto di discovery puramente mDNS
+- [X] Device registry stabile: database locale [device-name, ip-statico] al posto di discovery puramente mDNS
 - [ ] Gestione ricaduta connettività del servizio: monitoraggio e recovery della propria connessione di rete
 - [ ] Integrazione invio notifiche Slack nel loop principale del servizio
 

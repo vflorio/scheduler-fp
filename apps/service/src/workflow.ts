@@ -8,9 +8,10 @@ import type { RecoveryConfig } from "@supervisor/core/workflow/workflow";
 import * as WorkflowInterpreter from "@supervisor/core/workflow/workflow-interpreter";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
+import type * as DeviceRegistry from "./registry";
 
 const mapWorkflowError = (
-  error: WorkflowInterpreter.WorkflowError | Adb.AdbError | Shell.Error | RetryPolicy.PolicyDecodeError,
+  error: WorkflowInterpreter.WorkflowError | Adb.AdbError | Shell.ShellSpawnError | DeviceRegistry.SyncError,
 ): WorkflowInterpreter.WorkflowError => ({ type: "WorkflowError" as const, message: error.message });
 
 interface WorkflowRunnerEnv {

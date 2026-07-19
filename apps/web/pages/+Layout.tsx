@@ -14,8 +14,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     >
       <Sidebar>
         <Logo />
-        <Link href="/">Welcome</Link>
-        <Link href="/devices">devices</Link>
+        <Link href="/">Home</Link>
+        <Link href="/devices">ADB Devices</Link>
+        <Link href="/registry">Device Registry</Link>
       </Sidebar>
       <Content>{children}</Content>
     </div>

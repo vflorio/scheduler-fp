@@ -1,7 +1,8 @@
+import * as IO from "fp-ts/IO";
 import { pipe } from "fp-ts/lib/function";
 import type * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
-import type { Logger } from "./logger";
+import type * as Logger from "./logger";
 
 export interface CommandError {
   type: "CommandError";
@@ -13,23 +14,31 @@ export interface CommandTimeoutError {
   message: string;
 }
 
-export type Error = CommandError | CommandTimeoutError;
+export type ShellSpawnError = CommandError | CommandTimeoutError;
 
-export type Spawn = (command: string, args: readonly string[]) => TE.TaskEither<Error, string>;
+export type Spawn = (command: string, args: readonly string[]) => TE.TaskEither<ShellSpawnError, string>;
 
 // -------------------------------------------------------------------------------------
 
 export type Env = {
-  readonly logger: Logger;
+  readonly logger: Logger.Tagged;
   readonly spawn: Spawn;
 };
 
 export const run =
-  (command: string, args: readonly string[]): RTE.ReaderTaskEither<Env, Error, string> =>
+  (command: string, args: readonly string[]): RTE.ReaderTaskEither<Env, ShellSpawnError, string> =>
   ({ logger, spawn }) =>
     pipe(
-      TE.fromIO(logger.debug(`${command} ${args.join(" ")}`)),
-      TE.flatMap(() => spawn(command, args)),
-      TE.map((stdout) => stdout.trim()),
-      TE.tapIO((stdout) => logger.debug(`  -> ${stdout}`)),
+      TE.Do,
+      TE.tapIO(() => logger.debug(`Shell: ${command} ${args.join(" ")}`)),
+      TE.bind("spawnLogger", () => TE.fromIO(IO.of(logger.child(`Spawn`)))),
+      TE.tapIO(({ spawnLogger }) => spawnLogger.debug(`Process start: ${command} ${args.join(" ")}`)),
+      TE.bind("stdout", () =>
+        pipe(
+          spawn(command, args),
+          TE.map((stdout) => stdout.trim()),
+        ),
+      ),
+      TE.tapIO(({ spawnLogger }) => spawnLogger.debug(`Process end: ${command} ${args.join(" ")}`)),
+      TE.map(({ stdout }) => stdout),
     );

@@ -4,6 +4,7 @@ import * as t from "io-ts";
 import { ActivationScheduleCodec } from "./activation/schedule";
 import { LogLevel } from "./logger";
 import { PolicyJsonCodec } from "./retry/codec";
+import { DeviceEntryCodec } from "./services/device-registry";
 import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/workflow-codec";
 
 // -------------------------------------------------------------------------------------
@@ -12,12 +13,14 @@ import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/workflow-codec";
 
 // Credenziali Suitest
 const SuitestCodec = t.type({
+  baseUrl: t.string,
   tokenId: t.string,
   tokenPassword: t.string,
 });
 
 // Credenziali Slack
 const SlackCodec = t.type({
+  active: t.boolean,
   botToken: t.string,
 });
 
@@ -47,6 +50,8 @@ const TrpcCodec = t.type({
   hostname: t.string,
 });
 
+const RegistryCodec = t.intersection([t.type({ dbPath: t.string }), t.partial({ devices: t.array(DeviceEntryCodec) })]);
+
 const ServiceConfigCodec = t.type({
   activationSchedule: ActivationScheduleCodec,
   suitest: SuitestCodec,
@@ -56,6 +61,7 @@ const ServiceConfigCodec = t.type({
   log: LogCodec,
   recovery: RecoveryCodec,
   trpc: TrpcCodec,
+  registry: RegistryCodec,
 });
 
 export type ServiceConfig = t.TypeOf<typeof ServiceConfigCodec>;

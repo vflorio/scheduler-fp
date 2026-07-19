@@ -1,8 +1,12 @@
 import type { Logger } from "@supervisor/core/logger";
-import type { Services } from "@supervisor/core/services";
+import { DeviceEntryCodec, UpdateInputCodec } from "@supervisor/core/services/device-registry";
+import type { Services } from "@supervisor/core/services/services";
 import * as Socket from "@supervisor/core/socket";
 import { initTRPC } from "@trpc/server";
+import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
+import * as T from "io-ts";
+import { PathReporter } from "io-ts/PathReporter";
 import * as Result from "./result";
 
 export * from "./result";
@@ -61,10 +65,41 @@ const androidRouter = router({
 });
 
 // -------------------------------------------------------------------------------------
+// Device Registry router
+// -------------------------------------------------------------------------------------
+
+const decodeOrThrow =
+  <A>(codec: { decode: (u: unknown) => E.Either<import("io-ts").Errors, A> }) =>
+  (value: unknown): A =>
+    pipe(
+      codec.decode(value),
+      E.getOrElse<import("io-ts").Errors, A>((errors) => {
+        throw new Error(PathReporter.report(E.left(errors)).join("; "));
+      }),
+    );
+
+const registryRouter = router({
+  getAll: publicProcedure.query(({ ctx }) => pipe(ctx.services.registry.getAll(), Result.fromTaskEither)),
+
+  update: publicProcedure
+    .input(decodeOrThrow(UpdateInputCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.update(input.ip, input), Result.fromTaskEither)),
+
+  add: publicProcedure
+    .input(decodeOrThrow(DeviceEntryCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.add(input), Result.fromTaskEither)),
+
+  remove: publicProcedure
+    .input(decodeOrThrow(T.string))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.remove(input), Result.fromTaskEither)),
+});
+
+// -------------------------------------------------------------------------------------
 // Main App router
 // -------------------------------------------------------------------------------------
 export const appRouter = router({
   android: androidRouter,
+  registry: registryRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -8,7 +8,7 @@ import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as TE from "fp-ts/TaskEither";
 import { match, P } from "ts-pattern";
-import type * as Shell from "../shell";
+import * as Shell from "../shell";
 import type { AndroidBridge } from "./services";
 
 // FIXME WIP service interfaces
@@ -26,7 +26,7 @@ export interface AdbEnv {
   readonly spawn: Shell.Spawn;
 }
 
-export type AdbError = Shell.Error | { type: "AdbError"; message: string };
+export type AdbError = Shell.ShellSpawnError | { type: "AdbError"; message: string };
 
 type Effect<A> = RTE.ReaderTaskEither<AdbEnv, AdbError, A>;
 
@@ -60,13 +60,7 @@ export const matchDeviceState = (raw: string): O.Option<Status> =>
 const run =
   (args: readonly string[], target?: Socket.IPv4): Effect<string> =>
   ({ logger, spawn: shell }) =>
-    pipe(
-      TE.of(target ? ["-s", target, ...args] : [...args]),
-      TE.tapIO((fullArgs) => logger.debug(`adb ${fullArgs.join(" ")}`)),
-      TE.flatMap(() => shell("adb", target ? ["-s", target, ...args] : [...args])),
-      TE.map((stdout) => stdout.trim()),
-      TE.tapIO((stdout) => logger.debug(`  -> ${stdout}`)),
-    );
+    Shell.run("adb", target ? ["-s", target, ...args] : [...args])({ spawn: shell, logger });
 
 // -------------------------------------------------------------------------------------
 // Parser - `adb devices` output

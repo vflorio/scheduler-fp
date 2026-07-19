@@ -6,7 +6,7 @@ import * as TE from "fp-ts/TaskEither";
 
 export type HTTPError = {
   type: "HTTPError";
-  error: string;
+  message: string;
 };
 
 // -------------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ export type HTTPError = {
 
 const toHTTPError = (error: unknown): HTTPError => ({
   type: "HTTPError",
-  error: error instanceof Error ? error.message : `${error}`,
+  message: error instanceof Error ? error.message : `${error}`,
 });
 
 const request = (url: string, init?: RequestInit): TE.TaskEither<HTTPError, unknown> =>

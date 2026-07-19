@@ -2,6 +2,7 @@ import type * as TE from "fp-ts/TaskEither";
 import type * as Logger from "../logger";
 import type * as Socket from "../socket";
 import type { AdbError } from "./adb";
+import type { DeviceEntry, Registry, RegistryError, UpdateInput } from "./device-registry";
 
 export interface AndroidBridgeError {
   readonly type: "AndroidBridgeError";
@@ -19,8 +20,12 @@ export interface MdnsDiscovery {}
 // biome-ignore lint/suspicious/noEmptyInterface: <wip>
 export interface Notifications {}
 
-// biome-ignore lint/suspicious/noEmptyInterface: <wip>
-export interface DeviceRegistry {}
+export interface DeviceRegistry {
+  readonly getAll: () => TE.TaskEither<RegistryError, Registry>;
+  readonly update: (ip: string, update: UpdateInput) => TE.TaskEither<RegistryError, Registry>;
+  readonly add: (entry: DeviceEntry) => TE.TaskEither<RegistryError, Registry>;
+  readonly remove: (ip: string) => TE.TaskEither<RegistryError, Registry>;
+}
 
 export interface Services {
   readonly android: AndroidBridge;

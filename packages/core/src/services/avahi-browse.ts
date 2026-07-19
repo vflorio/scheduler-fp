@@ -1,7 +1,7 @@
 import { pipe } from "fp-ts/function";
 import type * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
-import type { Logger } from "../logger";
+import type * as Logger from "../logger";
 import * as Shell from "../shell";
 import { type IPv4, toTarget } from "../socket";
 
@@ -10,18 +10,18 @@ import { type IPv4, toTarget } from "../socket";
 // -------------------------------------------------------------------------------------
 
 export interface AvahiBrowseEnv {
-  readonly logger: Logger;
+  readonly logger: Logger.Tagged;
   readonly spawn: Shell.Spawn;
 }
 
 export type AvahiBrowseError =
-  | Shell.Error
+  | Shell.ShellSpawnError
   | {
       readonly type: "AvahiBrowseError";
       readonly message: string;
     };
 
-type Effect<A> = RTE.ReaderTaskEither<AvahiBrowseEnv, AvahiBrowseError | Shell.Error, A>;
+type Effect<A> = RTE.ReaderTaskEither<AvahiBrowseEnv, AvahiBrowseError | Shell.ShellSpawnError, A>;
 
 // -------------------------------------------------------------------------------------
 // Parser - avahi-browse -prt output

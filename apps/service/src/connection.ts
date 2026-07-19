@@ -4,7 +4,8 @@ import * as Adb from "@supervisor/core/services/adb";
 import * as AvahiBrowse from "@supervisor/core/services/avahi-browse";
 import type * as Shell from "@supervisor/core/shell";
 import * as Socket from "@supervisor/core/socket";
-import { pipe } from "fp-ts/function";
+import { flow, pipe } from "fp-ts/function";
+import type { Predicate } from "fp-ts/Predicate";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
@@ -19,9 +20,10 @@ export interface Env {
   readonly adbPort: number;
   readonly adbReconnectPolicy: Retry.Policy;
   readonly spawn: Shell.Spawn;
+  readonly isControlled: Predicate<Socket.IPv4>;
 }
 
-type Effect<A> = RTE.ReaderTaskEither<Env, Adb.AdbError | AvahiBrowse.AvahiBrowseError | Shell.Error, A>;
+type Effect<A> = RTE.ReaderTaskEither<Env, Adb.AdbError | AvahiBrowse.AvahiBrowseError | Shell.ShellSpawnError, A>;
 
 // -------------------------------------------------------------------------------------
 // Internals
@@ -41,14 +43,14 @@ const delay = (ms: number): Effect<void> => RTE.fromTaskEither(TE.fromTask(T.del
 
 // Lift Adb RTE (requires AdbEnv) into our Effect (requires Env)
 const liftAdb =
-  <A>(effect: RTE.ReaderTaskEither<Adb.AdbEnv, Adb.AdbError | Shell.Error, A>): Effect<A> =>
+  <A>(effect: RTE.ReaderTaskEither<Adb.AdbEnv, Adb.AdbError | Shell.ShellSpawnError, A>): Effect<A> =>
   (env) =>
     effect({ logger: env.logger.child("Adb"), spawn: env.spawn });
 
 // Lift Mdns RTE (requires MdnsShellEnv) into our Effect (requires Env)
 const liftMdns =
   <A>(
-    effect: RTE.ReaderTaskEither<AvahiBrowse.AvahiBrowseEnv, AvahiBrowse.AvahiBrowseError | Shell.Error, A>,
+    effect: RTE.ReaderTaskEither<AvahiBrowse.AvahiBrowseEnv, AvahiBrowse.AvahiBrowseError | Shell.ShellSpawnError, A>,
   ): Effect<A> =>
   (env) =>
     effect({ logger: env.logger.child("Mdns"), spawn: env.spawn });
@@ -90,11 +92,21 @@ const connect = (setupTarget: Socket.IPv4): Effect<void> =>
     RTE.asUnit,
   );
 
-// Get the targets that are already connected via ADB
 const getConnectedAdbDevices: Effect<readonly Socket.IPv4[]> = pipe(
   liftAdb(Adb.devices),
-  RTE.map((ds) => ds.filter((d) => d.status === "device").map((d) => d.target)),
+  RTE.map(
+    flow(
+      RA.filter((d) => d.status === "device"),
+      RA.map((d) => d.target),
+    ),
+  ),
 );
+
+const filterControlledOnly: (devices: readonly Socket.IPv4[]) => Effect<readonly Socket.IPv4[]> = (devices) =>
+  pipe(
+    RTE.ask<Env>(),
+    RTE.map(({ isControlled }) => devices.filter(isControlled)),
+  );
 
 // -------------------------------------------------------------------------------------
 // Public API
@@ -104,7 +116,7 @@ export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
   logInfo("Starting mDNS discovery"),
 
   // Discovery connected ADB devices
-  RTE.bind("connected", () => getConnectedAdbDevices),
+  RTE.bind("connected", () => pipe(getConnectedAdbDevices, RTE.flatMap(filterControlledOnly))),
   RTE.tap(({ connected }) =>
     connected.length > 0
       ? logInfo(`Already connected hosts: ${connected.map((target) => Socket.from(target).host).join(", ")}`)
@@ -115,6 +127,7 @@ export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
   RTE.bind("discovered", () =>
     pipe(
       liftMdns(AvahiBrowse.discoverAdbTlsConnect),
+      RTE.flatMap(filterControlledOnly),
       RTE.tapError((error) => logError(`mDNS discovery failed: ${error.message}`)),
     ),
   ),

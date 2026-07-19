@@ -28,7 +28,7 @@ export interface SuitestRoutesConfig {
 // Router
 // -------------------------------------------------------------------------------------
 
-const API_PREFIX = "/api/public/v4";
+const API_PREFIX = "/v1/suitest";
 
 export function suitestRoutes(
   store: SuitestStore,

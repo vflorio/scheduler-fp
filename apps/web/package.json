@@ -1,6 +1,10 @@
 {
   "name": "@supervisor/web-app",
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.2.0",
+    "@mui/material": "^9.2.0",
     "@supervisor/trpc": "workspace:*",
     "@trpc/client": "11.18.0",
     "@vikejs/express": "0.2.4",

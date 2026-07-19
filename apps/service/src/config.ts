@@ -11,10 +11,10 @@ import type * as Args from "./args";
 // Config fetcher
 // -------------------------------------------------------------------------------------
 
-export type FetchError = {
+export interface FetchError {
   readonly type: "FetchError";
   readonly message: string;
-};
+}
 
 export type ConfigFetcher = () => TE.TaskEither<FetchError, unknown>;
 
@@ -33,7 +33,7 @@ const fromUrl =
       HTTP.getJson(url),
       TE.mapLeft((httpError) => ({
         type: "FetchError" as const,
-        message: `Cannot fetch config from URL: ${httpError.error}`,
+        message: `Cannot fetch config from URL: ${httpError.message}`,
       })),
     );
 
@@ -44,10 +44,10 @@ export const toFetcher = (source: Args.ConfigSource): ConfigFetcher =>
 // Config loading
 // -------------------------------------------------------------------------------------
 
-export type LoadError = {
+export interface LoadError {
   readonly type: "LoadError";
   readonly message: string;
-};
+}
 
 export const load = (fetcher: ConfigFetcher): TE.TaskEither<LoadError | FetchError, Config.ServiceConfig> =>
   pipe(

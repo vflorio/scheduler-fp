@@ -1,15 +1,17 @@
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
-import { type BasicAuth, getJsonAuth, type HTTPError, postJsonBasic } from "./http";
-import { fetchAllPages, type PaginationError } from "./suitest-paginate";
-import { type ValidationError, validate } from "./validation";
+import { type BasicAuth, getJsonAuth, type HTTPError, postJsonBasic } from "../http";
+import type * as Logger from "../logger";
+import { type ValidationError, validate } from "../validation";
+import { fetchAllPages, type PaginationFetchError } from "./suitest-paginate";
 
-export type SuitestError = HTTPError | ValidationError | PaginationError;
+export type SuitestError = HTTPError | ValidationError | PaginationFetchError;
 
 export interface SuitestConfig {
   readonly auth: BasicAuth;
   readonly baseUrl?: string;
+  readonly logger?: Logger.Tagged;
 }
 
 const BASE_URL = "https://the.suite.st/api/public/v4";
@@ -127,19 +129,45 @@ export type ControlUnit = t.TypeOf<typeof ControlUnitSchema>;
 const ControlUnitsResponseSchema = t.array(ControlUnitSchema);
 
 // -------------------------------------------------------------------------------------
+// Logging helper
+// -------------------------------------------------------------------------------------
+
+const loggedGet = (config: SuitestConfig, path: string): TE.TaskEither<HTTPError, unknown> => {
+  const url = endpoint(config, path);
+  return pipe(
+    config.logger ? TE.fromIO(config.logger.debug(`GET ${url}`)) : TE.right(undefined),
+    TE.flatMap(() => getJsonAuth(url, config.auth)),
+    TE.tapIO((data) =>
+      config.logger ? config.logger.child(url).debug(`\n${JSON.stringify(data, null, 2)}`) : () => {},
+    ),
+    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
+  );
+};
+
+const loggedPost = (config: SuitestConfig, path: string): TE.TaskEither<HTTPError, unknown> => {
+  const url = endpoint(config, path);
+  return pipe(
+    config.logger ? TE.fromIO(config.logger.debug(`POST ${url}`)) : TE.right(undefined),
+    TE.flatMap(() => postJsonBasic(url, config.auth)),
+    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
+  );
+};
+
+// -------------------------------------------------------------------------------------
 // API - Devices
 // -------------------------------------------------------------------------------------
 
 // Tutti i device
 export const getAllDevices = (config: SuitestConfig): TE.TaskEither<SuitestError, readonly Device[]> =>
-  fetchAllPages(endpoint(config, "/devices"), config.auth, DeviceSchema);
+  pipe(
+    fetchAllPages(endpoint(config, "/devices"), config.auth, DeviceSchema, config.logger),
+    TE.tapIO((devices) => (config.logger ? config.logger.debug(`  -> ${devices.length} devices total`) : () => {})),
+    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
+  );
 
 // Dettaglio di un singolo device
 export const getDevice = (config: SuitestConfig, deviceId: string): TE.TaskEither<SuitestError, DeviceDetail> =>
-  pipe(
-    getJsonAuth(endpoint(config, `/devices/${encodeURIComponent(deviceId)}`), config.auth),
-    TE.flatMapEither(validate(DeviceDetailSchema)),
-  );
+  pipe(loggedGet(config, `/devices/${encodeURIComponent(deviceId)}`), TE.flatMapEither(validate(DeviceDetailSchema)));
 
 // -------------------------------------------------------------------------------------
 // API - Control Units
@@ -147,28 +175,16 @@ export const getDevice = (config: SuitestConfig, deviceId: string): TE.TaskEithe
 
 // Lista di tutte le control unit (CandyBox, Raspberry Pi, ecc.)
 export const getControlUnits = (config: SuitestConfig): TE.TaskEither<SuitestError, readonly ControlUnit[]> =>
-  pipe(
-    getJsonAuth(endpoint(config, "/control-units"), config.auth),
-    TE.flatMapEither(validate(ControlUnitsResponseSchema)),
-  );
+  pipe(loggedGet(config, "/control-units"), TE.flatMapEither(validate(ControlUnitsResponseSchema)));
 
 // Riavvia una control unit (CandyBox/Raspberry Pi)
 export const rebootControlUnit = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
-  pipe(
-    postJsonBasic(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/reboot`), config.auth),
-    TE.asUnit,
-  );
+  pipe(loggedPost(config, `/control-units/${encodeURIComponent(controlId)}/reboot`), TE.asUnit);
 
 // Spegni una control unit
 export const powerOffControlUnit = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
-  pipe(
-    postJsonBasic(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/power-off`), config.auth),
-    TE.asUnit,
-  );
+  pipe(loggedPost(config, `/control-units/${encodeURIComponent(controlId)}/power-off`), TE.asUnit);
 
 // Riavvia SuitestDrive su una control unit
 export const restartSuitestDrive = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
-  pipe(
-    postJsonBasic(endpoint(config, `/control-units/${encodeURIComponent(controlId)}/restart-sd`), config.auth),
-    TE.asUnit,
-  );
+  pipe(loggedPost(config, `/control-units/${encodeURIComponent(controlId)}/restart-sd`), TE.asUnit);

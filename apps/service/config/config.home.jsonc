@@ -1,14 +1,28 @@
 {
   "suitest": {
+    "baseUrl": "http://localhost:3008/v1/suitest",
+    //"baseUrl": "https://the.suite.st/api/public/v4",
     "tokenId": "dev-suitest-token-id",
     "tokenPassword": "dev-suitest-token-password"
   },
   "slack": {
+    "active": false,
     "botToken": "dev-slack-token"
   },
   "trpc": {
     "port": 3001,
     "hostname": "127.0.0.1"
+  },
+  "registry": {
+    "dbPath": "data/device-registry.json",
+    "devices": [
+      {
+        "category": "android-camera",
+        "label": "Tablet Casa",
+        "ip": "192.168.1.4",
+        "controlled": true
+      }
+    ]
   },
   "activationSchedule": {
     "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],

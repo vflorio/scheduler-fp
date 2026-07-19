@@ -1,81 +1,98 @@
-import type { ControlUnit, Device, DeviceStatus } from "@supervisor/core/suitest";
+import type { ControlUnit, Device, DeviceStatus } from "@supervisor/core/services/suitest";
 
 // -------------------------------------------------------------------------------------
 // Seed data
 // -------------------------------------------------------------------------------------
 
+// 4 Android Cameras (192.168.1.11 - 192.168.1.14)
+// 2 per control unit, each CU also owns 1 Smart TV
 const seedDevices: Device[] = [
+  // Cameras owned by CU Alpha
   {
-    deviceId: "dev-001",
+    deviceId: "cam-001",
+    manufacturer: "Google",
+    model: "Pixel 6",
+    owner: "team-qa",
+    firmware: "14.0",
+    customName: "Camera Alpha-1",
+    ipAddress: "192.168.1.11",
+    controlUnitIds: ["cu-001"],
+    status: "READY",
+    modelId: "google-pixel-6",
+    platforms: ["android"],
+  },
+  {
+    deviceId: "cam-002",
+    manufacturer: "Google",
+    model: "Pixel 7",
+    owner: "team-qa",
+    firmware: "14.0",
+    customName: "Camera Alpha-2",
+    ipAddress: "192.168.1.12",
+    controlUnitIds: ["cu-001"],
+    status: "READY",
+    modelId: "google-pixel-7",
+    platforms: ["android"],
+  },
+  // Cameras owned by CU Beta
+  {
+    deviceId: "cam-003",
+    manufacturer: "Samsung",
+    model: "Galaxy A54",
+    owner: "team-qa",
+    firmware: "14.0",
+    customName: "Camera Beta-1",
+    ipAddress: "192.168.1.13",
+    controlUnitIds: ["cu-002"],
+    status: "READY",
+    modelId: "samsung-a54",
+    platforms: ["android"],
+  },
+  {
+    deviceId: "cam-004",
+    manufacturer: "Samsung",
+    model: "Galaxy A55",
+    owner: "team-qa",
+    firmware: "14.0",
+    customName: "Camera Beta-2",
+    ipAddress: "192.168.1.14",
+    controlUnitIds: ["cu-002"],
+    status: "OFF",
+    modelId: "samsung-a55",
+    platforms: ["android"],
+  },
+  // Smart TVs (1 per control unit)
+  {
+    deviceId: "tv-001",
     manufacturer: "Samsung",
     model: "Tizen 7.0",
     owner: "team-qa",
     firmware: "7.0.0.1234",
-    customName: "Samsung Living Room",
-    ipAddress: "192.168.1.10",
+    customName: "TV Alpha",
+    ipAddress: "192.168.1.110",
     controlUnitIds: ["cu-001"],
     status: "READY",
     modelId: "samsung-tizen-7",
     platforms: ["tizen"],
   },
   {
-    deviceId: "dev-002",
+    deviceId: "tv-002",
     manufacturer: "LG",
     model: "webOS 23",
     owner: "team-qa",
     firmware: "23.10.5",
-    customName: "LG Kitchen",
-    ipAddress: "192.168.1.11",
-    controlUnitIds: ["cu-001"],
+    customName: "TV Beta",
+    ipAddress: "192.168.1.111",
+    controlUnitIds: ["cu-002"],
     status: "READY",
     modelId: "lg-webos-23",
     platforms: ["webos"],
-  },
-  {
-    deviceId: "dev-003",
-    manufacturer: "Amazon",
-    model: "Fire TV Stick 4K",
-    owner: "team-qa",
-    firmware: "6.2.9.4",
-    customName: "FireTV Lab",
-    ipAddress: "192.168.1.12",
-    controlUnitIds: ["cu-002"],
-    status: "OFF",
-    modelId: "amazon-firetv-4k",
-    platforms: ["android"],
-  },
-  {
-    deviceId: "dev-004",
-    manufacturer: "Google",
-    model: "Chromecast with Google TV",
-    owner: "team-dev",
-    firmware: "12.1",
-    customName: "Chromecast Meeting Room",
-    ipAddress: "192.168.1.13",
-    controlUnitIds: ["cu-002"],
-    status: "TESTING",
-    modelId: "google-chromecast-gtv",
-    platforms: ["android"],
-  },
-  {
-    deviceId: "dev-005",
-    manufacturer: "Sony",
-    model: "Bravia XR",
-    owner: "team-dev",
-    firmware: "11.0.A.0.1",
-    customName: "Sony Showroom",
-    ipAddress: "192.168.1.14",
-    controlUnitIds: ["cu-001"],
-    status: "CANDYBOX_OFFLINE",
-    modelId: "sony-bravia-xr",
-    platforms: ["android"],
   },
 ];
 
 const seedControlUnits: ControlUnit[] = [
   { id: "cu-001", name: "CandyBox Alpha", online: true, type: "candybox" },
   { id: "cu-002", name: "CandyBox Beta", online: true, type: "candybox" },
-  { id: "cu-003", name: "Pi Dev", online: false, type: "personal-pi" },
 ];
 
 // -------------------------------------------------------------------------------------

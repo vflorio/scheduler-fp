@@ -1,13 +1,17 @@
 import { execFile } from "node:child_process";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import * as ActivationRunner from "@supervisor/core/activation/runner";
 import * as ActivationSchedule from "@supervisor/core/activation/schedule";
 import type * as ConfigModel from "@supervisor/core/config";
+import type * as Fs from "@supervisor/core/fs";
 import * as Logger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry/codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as Adb from "@supervisor/core/services/adb";
+import * as DeviceRegistry from "@supervisor/core/services/device-registry";
 import type * as Shell from "@supervisor/core/shell";
-import type * as Socket from "@supervisor/core/socket";
+import * as Socket from "@supervisor/core/socket";
 import * as E from "fp-ts/Either";
 import { flow, pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
@@ -19,6 +23,7 @@ import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
 import * as ServiceLogger from "./logger";
+import { syncRegistry } from "./registry";
 import * as Trpc from "./trpc";
 import * as Workflow from "./workflow";
 
@@ -77,6 +82,24 @@ const spawn: Shell.Spawn = (command, args) =>
     ),
   );
 
+// Node.js filesystem dependency
+export const fsEnv: Fs.Env = {
+  logger: pipe(ServiceLogger.create({ level: "debug" }), Logger.tagged("FS")),
+  readFile: (path) =>
+    TE.tryCatch(
+      () => readFile(path, "utf-8"),
+      (e) => ({ type: "FileSystemError" as const, message: e instanceof Error ? e.message : String(e) }),
+    ),
+  writeFile: (path, content) =>
+    TE.tryCatch(
+      async () => {
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, content, "utf-8");
+      },
+      (e) => ({ type: "FileSystemError" as const, message: e instanceof Error ? e.message : String(e) }),
+    ),
+};
+
 export const createService: Effect<ServiceHandle> = pipe(
   logInfo("Loading config..."),
   RTE.flatMap(() => loadConfig),
@@ -111,20 +134,48 @@ export const createService: Effect<ServiceHandle> = pipe(
     const activationLog = logger.child("ActivationRunner");
     const discoveryLog = activationLog.child("Discovery");
     const workflowLog = discoveryLog.child("Workflow");
+    const registryLog = activationLog.child("Registry");
 
     const runWorkflow: (targets: readonly Socket.IPv4[]) => TE.TaskEither<Workflow.RunError, void> = flow(
       RA.traverse(TE.ApplicativeSeq)(
-        Workflow.run({ logger: workflowLog, spawn, recovery: config.recovery })("android-chrome-test1"),
+        Workflow.run({ logger: workflowLog, spawn, recovery: config.recovery })("android-chrome-test"),
       ),
       TE.asUnit,
     );
 
     const activationRunner = ActivationRunner.create(activationLog, activationSchedule, activationPolicy, {
       onActive: pipe(
-        Connection.discoverAndConnect({ logger: discoveryLog, spawn, adbPort: config.adb.port, adbReconnectPolicy }),
-        TE.flatMap(runWorkflow),
-        // FIXME: Questo deve essere gestito attraverso un recovery workflow, altrimenti
-        // non viene notificato l'irranggiungibilità del device
+        // Sync registry prima di discover
+        syncRegistry({
+          logger: registryLog,
+          suitestConfig: {
+            auth: { tokenId: config.suitest.tokenId, tokenPassword: config.suitest.tokenPassword },
+            baseUrl: config.suitest.baseUrl,
+          },
+          dbPath: config.registry.dbPath,
+          seedDevices: config.registry.devices,
+          fsEnv,
+        }),
+
+        // Utilizza solo i device marcati come controllati
+        TE.flatMap((registry) => {
+          const controlledIps = DeviceRegistry.controlledIpsByCategory("android-camera")(registry);
+
+          const isControlled = (target: Socket.IPv4): boolean => controlledIps.includes(Socket.from(target).host);
+
+          return pipe(
+            // Cerca e connette i device tramite mDNS e ADB
+            Connection.discoverAndConnect({
+              logger: discoveryLog,
+              spawn,
+              adbPort: config.adb.port,
+              adbReconnectPolicy,
+              isControlled,
+            }),
+            TE.map((targets) => targets.filter(isControlled)),
+            TE.flatMap(runWorkflow),
+          );
+        }),
         TE.tapError((error) => TE.fromIO(logger.error(`Activation tick failed: ${error.message}`))),
         T.asUnit,
       ),
@@ -140,7 +191,14 @@ export const createService: Effect<ServiceHandle> = pipe(
         android: Adb.create({ logger: trpcLog.child("HTTP").child("Adb"), spawn }),
         mdns: {},
         notifications: {},
-        registry: {},
+        registry: {
+          getAll: () => DeviceRegistry.read(config.registry.dbPath)(fsEnv),
+          update: (ip: string, update: { label?: string; controlled?: boolean }) =>
+            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateByIp(ip, update))(fsEnv),
+          add: (entry: DeviceRegistry.DeviceEntry) =>
+            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addDevice(entry))(fsEnv),
+          remove: (ip: string) => DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeByIp(ip))(fsEnv),
+        },
         logger: trpcLog.child("web"),
       },
     });

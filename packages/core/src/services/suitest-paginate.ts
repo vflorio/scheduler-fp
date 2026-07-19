@@ -3,6 +3,7 @@ import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
 import { type BasicAuth, getJsonAuth, type HTTPError } from "../http";
+import type * as Logger from "../logger";
 
 // -------------------------------------------------------------------------------------
 // Model - Paginated response
@@ -33,9 +34,14 @@ export interface PaginatedResponse<A> {
 // Errors
 // -------------------------------------------------------------------------------------
 
-export type PaginationError = HTTPError | { type: "PaginationError"; message: string };
+export interface PaginationError {
+  readonly type: "PaginationError";
+  readonly message: string;
+}
 
-const createPaginationError = (errors: t.Errors): PaginationError => ({
+export type PaginationFetchError = HTTPError | PaginationError;
+
+const createPaginationError = (errors: t.Errors): PaginationFetchError => ({
   type: "PaginationError",
   message: `Pagination failed: ${errors.map((e) => e.context.map(({ key }) => key).join(".")).join(", ")}`,
 });
@@ -48,10 +54,18 @@ const fetchPage = <A>(
   url: string,
   auth: BasicAuth,
   itemCodec: t.Type<A, unknown>,
-): TE.TaskEither<PaginationError, PaginatedResponse<A>> =>
+  logger?: Logger.Tagged,
+): TE.TaskEither<PaginationFetchError, PaginatedResponse<A>> =>
   pipe(
-    getJsonAuth(url, auth),
+    logger ? TE.fromIO(logger.debug(`GET ${url}`)) : TE.right(undefined),
+    TE.flatMap(() => getJsonAuth(url, auth)),
     TE.flatMapEither((data) => pipe(PaginatedResponseSchema(itemCodec).decode(data), E.mapLeft(createPaginationError))),
+    TE.tapIO((page) =>
+      logger
+        ? logger.debug(`  -> page ${page.page ?? 1}: ${page.values.length} items (total: ${page.total ?? "?"})`)
+        : () => {},
+    ),
+    TE.tapError((err) => (logger ? TE.fromIO(logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
   );
 
 // -------------------------------------------------------------------------------------
@@ -63,10 +77,11 @@ export const fetchAllPages = <A>(
   initialUrl: string,
   auth: BasicAuth,
   itemCodec: t.Type<A, unknown>,
-): TE.TaskEither<PaginationError, readonly A[]> => {
-  const go = (url: string, acc: readonly A[]): TE.TaskEither<PaginationError, readonly A[]> =>
+  logger?: Logger.Tagged,
+): TE.TaskEither<PaginationFetchError, readonly A[]> => {
+  const go = (url: string, acc: readonly A[]): TE.TaskEither<PaginationFetchError, readonly A[]> =>
     pipe(
-      fetchPage(url, auth, itemCodec),
+      fetchPage(url, auth, itemCodec, logger),
       TE.flatMap((page) => {
         const merged = [...acc, ...page.values];
         return page.next ? go(page.next, merged) : TE.right(merged);
