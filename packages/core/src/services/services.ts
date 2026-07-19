@@ -1,7 +1,7 @@
 import type * as TE from "fp-ts/TaskEither";
+import type * as Logger from "../logger";
+import type * as Socket from "../socket";
 import type { AdbError } from "./adb";
-import type * as Logger from "./logger";
-import type * as Socket from "./socket";
 
 export interface AndroidBridgeError {
   readonly type: "AndroidBridgeError";

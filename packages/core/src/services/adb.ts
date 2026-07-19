@@ -8,8 +8,8 @@ import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as TE from "fp-ts/TaskEither";
 import { match, P } from "ts-pattern";
+import type * as Shell from "../shell";
 import type { AndroidBridge } from "./services";
-import type * as Shell from "./shell";
 
 // FIXME WIP service interfaces
 export const create = (env: { spawn: Shell.Spawn; logger: Logger.Tagged }): AndroidBridge => ({

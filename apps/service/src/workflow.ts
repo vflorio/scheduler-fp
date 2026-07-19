@@ -1,12 +1,11 @@
-import * as Adb from "@supervisor/core/adb";
 import type * as Logger from "@supervisor/core/logger";
-import * as Retry from "@supervisor/core/retry";
-import type * as RetryPolicy from "@supervisor/core/retry-codec";
+import type * as RetryPolicy from "@supervisor/core/retry/codec";
+import * as Retry from "@supervisor/core/retry/retry";
+import * as Adb from "@supervisor/core/services/adb";
 import type * as Shell from "@supervisor/core/shell";
-import type { Spawn } from "@supervisor/core/shell";
 import type { IPv4 } from "@supervisor/core/socket";
-import type { RecoveryConfig } from "@supervisor/core/workflow";
-import * as WorkflowInterpreter from "@supervisor/core/workflow-interpreter";
+import type { RecoveryConfig } from "@supervisor/core/workflow/workflow";
+import * as WorkflowInterpreter from "@supervisor/core/workflow/workflow-interpreter";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 
@@ -17,13 +16,15 @@ const mapWorkflowError = (
 interface WorkflowRunnerEnv {
   readonly logger: Logger.Tagged;
   readonly recovery: RecoveryConfig;
-  readonly spawn: Spawn;
+  readonly spawn: Shell.Spawn;
 }
+
+export type RunError = WorkflowInterpreter.WorkflowError | RetryPolicy.PolicyDecodeError;
 
 export const run =
   (env: WorkflowRunnerEnv) =>
   (workflow: string) =>
-  (target: IPv4): TE.TaskEither<WorkflowInterpreter.WorkflowError | RetryPolicy.PolicyDecodeError, void> =>
+  (target: IPv4): TE.TaskEither<RunError, void> =>
     pipe(
       WorkflowInterpreter.run(
         env.recovery,

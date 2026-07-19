@@ -1,6 +1,6 @@
 import * as E from "fp-ts/Either";
 import * as t from "io-ts";
-import { type DurationString, DurationString as DurationStringCodec, durationToMs } from "./date-time";
+import { type DurationString, DurationString as DurationStringCodec, durationToMs } from "../date-time";
 import { capDelay, concat, constantDelay, exponentialBackoff, limitRetries, type Policy } from "./retry";
 
 // -------------------------------------------------------------------------------------

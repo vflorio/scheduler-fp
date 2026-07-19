@@ -1,7 +1,7 @@
 import * as E from "fp-ts/Either";
 import { describe, expect, it } from "vitest";
+import { decode, type PolicyJson } from "./codec";
 import type { Status } from "./retry";
-import { decode, type PolicyJson } from "./retry-codec";
 
 const status = (iteration: number): Status => ({ iteration, previousDelay: null });
 

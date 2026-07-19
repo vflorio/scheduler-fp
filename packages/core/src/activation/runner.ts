@@ -1,9 +1,9 @@
-import type * as Logger from "@supervisor/core/logger";
-import * as Retry from "@supervisor/core/retry";
-import * as Schedule from "@supervisor/core/schedule";
 import * as IO from "fp-ts/IO";
 import { constVoid, pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
+import type * as Logger from "../logger";
+import * as Retry from "../retry/retry";
+import * as Schedule from "../schedule";
 
 // -------------------------------------------------------------------------------------
 // Activation Runner
@@ -39,7 +39,7 @@ export const create = (
   const controller = new AbortController();
 
   let status: Retry.Status = Retry.initialStatus;
-  let wasInWorkSchedule = false;
+  let wasInActivationSchedule = false;
 
   const tick = async (): Promise<void> => {
     if (controller.signal.aborted) return;
@@ -48,14 +48,14 @@ export const create = (
     const slot = Schedule.toTimeSlot(now);
     const isActive = activationGate(slot);
 
-    if (isActive && !wasInWorkSchedule) {
+    if (isActive && !wasInActivationSchedule) {
       log.info("Service ACTIVE - entering work schedule")();
-      wasInWorkSchedule = true;
+      wasInActivationSchedule = true;
     }
 
-    if (!isActive && wasInWorkSchedule) {
+    if (!isActive && wasInActivationSchedule) {
       log.info("Service IDLE - outside work schedule")();
-      wasInWorkSchedule = false;
+      wasInActivationSchedule = false;
     }
 
     if (isActive) {

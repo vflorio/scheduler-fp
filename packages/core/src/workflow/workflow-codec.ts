@@ -1,7 +1,7 @@
 import * as E from "fp-ts/Either";
 import * as t from "io-ts";
 import { match } from "ts-pattern";
-import { PolicyJsonCodec } from "./retry-codec";
+import { PolicyJsonCodec } from "../retry/codec";
 import type { Command, Script, Workflow, WorkflowStrategy } from "./workflow";
 
 // -------------------------------------------------------------------------------------

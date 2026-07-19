@@ -2,7 +2,7 @@ import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
-import { type BasicAuth, getJsonAuth, type HTTPError } from "./http";
+import { type BasicAuth, getJsonAuth, type HTTPError } from "../http";
 
 // -------------------------------------------------------------------------------------
 // Model - Paginated response

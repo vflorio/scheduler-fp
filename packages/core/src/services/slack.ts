@@ -1,6 +1,6 @@
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
-import { type HTTPError, postJsonBearer } from "./http";
+import { type HTTPError, postJsonBearer } from "../http";
 
 // -------------------------------------------------------------------------------------
 // Configuration

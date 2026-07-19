@@ -2,11 +2,11 @@ import { pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
 import { match } from "ts-pattern";
-import type { Logger } from "./logger";
-import { retrying } from "./retry";
-import { decode as decodePolicy, type PolicyDecodeError } from "./retry-codec";
-import type { Command, RecoveryConfig, Script, TapCoords, Workflow, WorkflowStrategy } from "./workflow";
-import { findScript } from "./workflow";
+import type { Logger } from "../logger";
+import { decode as decodePolicy, type PolicyDecodeError } from "../retry/codec";
+import { retrying } from "../retry/retry";
+import type { Command, RecoveryConfig, Script, TapCoords, Workflow, WorkflowStrategy } from "../workflow/workflow";
+import { findScript } from "../workflow/workflow";
 
 // -------------------------------------------------------------------------------------
 // Model

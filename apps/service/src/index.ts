@@ -1,19 +1,20 @@
 import { execFile } from "node:child_process";
-import * as Adb from "@supervisor/core/adb";
+import * as ActivationRunner from "@supervisor/core/activation/runner";
+import * as ActivationSchedule from "@supervisor/core/activation/schedule";
 import type * as ConfigModel from "@supervisor/core/config";
 import * as Logger from "@supervisor/core/logger";
-import * as RetryPolicy from "@supervisor/core/retry-codec";
+import * as RetryPolicy from "@supervisor/core/retry/codec";
 import * as Schedule from "@supervisor/core/schedule";
+import * as Adb from "@supervisor/core/services/adb";
 import type * as Shell from "@supervisor/core/shell";
-import * as WorkSchedule from "@supervisor/core/workSchedule";
+import type * as Socket from "@supervisor/core/socket";
 import * as E from "fp-ts/Either";
-import { pipe } from "fp-ts/function";
+import { flow, pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import * as TE from "fp-ts/TaskEither";
-import * as ActivationRunner from "./activation-runner";
 import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
@@ -91,9 +92,9 @@ export const createService: Effect<ServiceHandle> = pipe(
 
   RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
     const logger = pipe(configuredLogger(config.log), Logger.tagged("Service"));
-    const activationSchedule = WorkSchedule.toSchedule(config.workSchedule);
+    const activationSchedule = ActivationSchedule.toSchedule(config.activationSchedule);
 
-    logger.info(`Config loaded - schedule: ${WorkSchedule.toString(config.workSchedule)}`)();
+    logger.info(`Config loaded - schedule: ${ActivationSchedule.toString(config.activationSchedule)}`)();
     logger.info(`Polling policy: ${RetryPolicy.policyJsonToString(config.monitoring.polling)}`)();
 
     const slot = Schedule.toTimeSlot(new Date());
@@ -103,7 +104,7 @@ export const createService: Effect<ServiceHandle> = pipe(
       IO.flatMap((isActive) =>
         isActive
           ? logger.info("ACTIVE - currently inside work schedule")
-          : logger.info(`IDLE - waiting for (${WorkSchedule.toString(config.workSchedule)})`),
+          : logger.info(`IDLE - waiting for (${ActivationSchedule.toString(config.activationSchedule)})`),
       ),
     )();
 
@@ -111,14 +112,17 @@ export const createService: Effect<ServiceHandle> = pipe(
     const discoveryLog = activationLog.child("Discovery");
     const workflowLog = discoveryLog.child("Workflow");
 
+    const runWorkflow: (targets: readonly Socket.IPv4[]) => TE.TaskEither<Workflow.RunError, void> = flow(
+      RA.traverse(TE.ApplicativeSeq)(
+        Workflow.run({ logger: workflowLog, spawn, recovery: config.recovery })("android-chrome-test1"),
+      ),
+      TE.asUnit,
+    );
+
     const activationRunner = ActivationRunner.create(activationLog, activationSchedule, activationPolicy, {
       onActive: pipe(
         Connection.discoverAndConnect({ logger: discoveryLog, spawn, adbPort: config.adb.port, adbReconnectPolicy }),
-        TE.flatMap(
-          RA.traverse(TE.ApplicativeSeq)(
-            Workflow.run({ logger: workflowLog, spawn, recovery: config.recovery })("android-chrome-test"),
-          ),
-        ),
+        TE.flatMap(runWorkflow),
         // FIXME: Questo deve essere gestito attraverso un recovery workflow, altrimenti
         // non viene notificato l'irranggiungibilità del device
         TE.tapError((error) => TE.fromIO(logger.error(`Activation tick failed: ${error.message}`))),

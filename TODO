@@ -1,5 +1,11 @@
 # TODO
 
+Attività oggi:
+- Device Registry Service
+- Organizzare AndroidBridge vs adb
+- lista crud frontend devices (trpc) con assegnazioni Workflow per device
+- AndroidBridge ConnectionStateMachine
+
 ## Core
 
 - [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, instanze monoidi

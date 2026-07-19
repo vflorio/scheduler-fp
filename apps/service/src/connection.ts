@@ -1,7 +1,7 @@
-import * as Adb from "@supervisor/core/adb";
-import * as AvahiBrowse from "@supervisor/core/avahi-browse";
 import type * as Logger from "@supervisor/core/logger";
-import * as Retry from "@supervisor/core/retry";
+import * as Retry from "@supervisor/core/retry/retry";
+import * as Adb from "@supervisor/core/services/adb";
+import * as AvahiBrowse from "@supervisor/core/services/avahi-browse";
 import type * as Shell from "@supervisor/core/shell";
 import * as Socket from "@supervisor/core/socket";
 import { pipe } from "fp-ts/function";

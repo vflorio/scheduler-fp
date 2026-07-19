@@ -10,7 +10,7 @@
     "port": 3001,
     "hostname": "127.0.0.1"
   },
-  "workSchedule": {
+  "activationSchedule": {
     "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
     "from": "09:00",
     "to": "18:00"

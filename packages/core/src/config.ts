@@ -1,10 +1,10 @@
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as t from "io-ts";
+import { ActivationScheduleCodec } from "./activation/schedule";
 import { LogLevel } from "./logger";
-import { PolicyJsonCodec } from "./retry-codec";
-import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow-codec";
-import { WorkScheduleCodec } from "./workSchedule";
+import { PolicyJsonCodec } from "./retry/codec";
+import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/workflow-codec";
 
 // -------------------------------------------------------------------------------------
 // Model - Configurazione del servizio
@@ -48,7 +48,7 @@ const TrpcCodec = t.type({
 });
 
 const ServiceConfigCodec = t.type({
-  workSchedule: WorkScheduleCodec,
+  activationSchedule: ActivationScheduleCodec,
   suitest: SuitestCodec,
   slack: SlackCodec,
   monitoring: MonitoringCodec,

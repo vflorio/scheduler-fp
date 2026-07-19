@@ -1,9 +1,9 @@
 import { pipe } from "fp-ts/function";
 import type * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
-import type { Logger } from "./logger";
-import * as Shell from "./shell";
-import { type IPv4, toTarget } from "./socket";
+import type { Logger } from "../logger";
+import * as Shell from "../shell";
+import { type IPv4, toTarget } from "../socket";
 
 // -------------------------------------------------------------------------------------
 // Model
