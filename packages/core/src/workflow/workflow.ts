@@ -1,5 +1,5 @@
 import * as E from "fp-ts/Either";
-import type { PolicyJson } from "./retry-codec";
+import type { PolicyJson } from "../retry/codec";
 
 // -------------------------------------------------------------------------------------
 // Model - Recovery Scripts & Workflows

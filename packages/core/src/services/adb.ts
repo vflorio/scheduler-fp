@@ -6,16 +6,8 @@ import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
-import * as TE from "fp-ts/TaskEither";
 import { match, P } from "ts-pattern";
 import * as Shell from "../shell";
-import type { AndroidBridge } from "./services";
-
-// FIXME WIP service interfaces
-export const create = (env: { spawn: Shell.Spawn; logger: Logger.Tagged }): AndroidBridge => ({
-  devices: () => devices(env),
-  reboot: (target) => reboot(target)(env),
-});
 
 // -------------------------------------------------------------------------------------
 // Model

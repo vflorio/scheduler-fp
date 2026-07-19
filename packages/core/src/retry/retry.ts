@@ -1,5 +1,5 @@
 import * as TE from "fp-ts/TaskEither";
-import type { Logger } from "./logger";
+import type { Logger } from "../logger";
 
 // -------------------------------------------------------------------------------------
 // Model

@@ -25,20 +25,22 @@ export type Env = {
   readonly spawn: Spawn;
 };
 
+const formatCommand = (command: string, args: readonly string[]): string => `${command} ${args.join(" ")}`;
+
 export const run =
   (command: string, args: readonly string[]): RTE.ReaderTaskEither<Env, ShellSpawnError, string> =>
   ({ logger, spawn }) =>
     pipe(
       TE.Do,
-      TE.tapIO(() => logger.debug(`Shell: ${command} ${args.join(" ")}`)),
+      TE.tapIO(() => logger.debug(`Shell: "${formatCommand(command, args)}"`)),
       TE.bind("spawnLogger", () => TE.fromIO(IO.of(logger.child(`Spawn`)))),
-      TE.tapIO(({ spawnLogger }) => spawnLogger.debug(`Process start: ${command} ${args.join(" ")}`)),
+      TE.tapIO(({ spawnLogger }) => spawnLogger.debug(`Process start: "${formatCommand(command, args)}"`)),
       TE.bind("stdout", () =>
         pipe(
           spawn(command, args),
           TE.map((stdout) => stdout.trim()),
         ),
       ),
-      TE.tapIO(({ spawnLogger }) => spawnLogger.debug(`Process end: ${command} ${args.join(" ")}`)),
+      TE.tapIO(({ spawnLogger }) => spawnLogger.debug(`Process end: "${formatCommand(command, args)}"`)),
       TE.map(({ stdout }) => stdout),
     );

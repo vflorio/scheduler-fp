@@ -30,16 +30,19 @@ export const t = initTRPC.context<Context>().create();
 export const router = t.router;
 
 const loggedProcedure = t.procedure.use(
-  t.middleware(async ({ path, type, next, ctx }) => {
-    ctx.logger.info(`-> ${type} ${path}`)();
+  t.middleware(async ({ path, type, input, next, ctx, meta }) => {
+    const endpoint = `${type} ${path} ${input || meta ? JSON.stringify({ input, meta }) : ""}`.trim();
+
+    ctx.logger.info(`-> ${endpoint}`)();
+
     const start = Date.now();
     const result = await next();
     const ms = Date.now() - start;
 
     if (result.ok) {
-      ctx.logger.info(`<- ${type} ${path} OK (${ms}ms)`)();
+      ctx.logger.info(`<- ${endpoint} <- OK (${ms}ms)`)();
     } else {
-      ctx.logger.error(`<- ${type} ${path} ERROR (${ms}ms)`)();
+      ctx.logger.error(`<- ${endpoint} <- ERROR (${ms}ms)`)();
     }
 
     return result;

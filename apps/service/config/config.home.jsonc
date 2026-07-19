@@ -18,7 +18,7 @@
     "devices": [
       {
         "category": "android-camera",
-        "label": "Tablet Casa",
+        "label": "Tablet",
         "ip": "192.168.1.4",
         "controlled": true
       }

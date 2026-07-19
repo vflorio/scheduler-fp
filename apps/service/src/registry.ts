@@ -16,7 +16,7 @@ interface RegistrySyncEnv {
 export type SyncError = DeviceRegistry.RegistryError | Suitest.SuitestError;
 
 // Registry sync: init db -> fetch suitest -> merge -> write
-export const syncRegistry = (env: RegistrySyncEnv): TE.TaskEither<SyncError, DeviceRegistry.Registry> =>
+export const sync = (env: RegistrySyncEnv): TE.TaskEither<SyncError, DeviceRegistry.Registry> =>
   pipe(
     // Init db (crea file JSON se non esiste)
     DeviceRegistry.init(env.dbPath, env.seedDevices)(env.fsEnv),

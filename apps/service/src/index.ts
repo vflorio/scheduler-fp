@@ -1,16 +1,11 @@
-import { execFile } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
 import * as ActivationRunner from "@supervisor/core/activation/runner";
 import * as ActivationSchedule from "@supervisor/core/activation/schedule";
 import type * as ConfigModel from "@supervisor/core/config";
-import type * as Fs from "@supervisor/core/fs";
 import * as Logger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry/codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as Adb from "@supervisor/core/services/adb";
 import * as DeviceRegistry from "@supervisor/core/services/device-registry";
-import type * as Shell from "@supervisor/core/shell";
 import * as Socket from "@supervisor/core/socket";
 import * as E from "fp-ts/Either";
 import { flow, pipe } from "fp-ts/function";
@@ -23,7 +18,8 @@ import * as Args from "./args";
 import * as Config from "./config";
 import * as Connection from "./connection";
 import * as ServiceLogger from "./logger";
-import { syncRegistry } from "./registry";
+import * as Node from "./node";
+import * as Registry from "./registry";
 import * as Trpc from "./trpc";
 import * as Workflow from "./workflow";
 
@@ -31,15 +27,10 @@ import * as Workflow from "./workflow";
 // Env
 // -------------------------------------------------------------------------------------
 
-export interface Process {
-  readonly onSignal: (signal: NodeJS.Signals, handler: () => void) => void;
-  readonly exit: (code: number) => never;
-}
-
 export interface Env {
   readonly logger: Logger.Tagged;
   readonly configFetcher: Config.ConfigFetcher;
-  readonly process: Process;
+  readonly process: Node.Process;
 }
 
 type Effect<A> = RTE.ReaderTaskEither<
@@ -68,37 +59,6 @@ const loadConfig: Effect<ConfigModel.ServiceConfig> = (env) => Config.load(env.c
 export interface ServiceHandle {
   readonly stop: () => void;
 }
-
-const spawn: Shell.Spawn = (command, args) =>
-  pipe(
-    TE.tryCatch(
-      () =>
-        new Promise<string>((resolve, reject) => {
-          execFile(command, args, (error, stdout, stderr) =>
-            error ? reject({ ...error, message: `${error.message} - ${stderr}` }) : resolve(stdout),
-          );
-        }),
-      (error) => ({ type: "CommandError" as const, message: error instanceof Error ? error.message : String(error) }),
-    ),
-  );
-
-// Node.js filesystem dependency
-export const fsEnv: Fs.Env = {
-  logger: pipe(ServiceLogger.create({ level: "debug" }), Logger.tagged("FS")),
-  readFile: (path) =>
-    TE.tryCatch(
-      () => readFile(path, "utf-8"),
-      (e) => ({ type: "FileSystemError" as const, message: e instanceof Error ? e.message : String(e) }),
-    ),
-  writeFile: (path, content) =>
-    TE.tryCatch(
-      async () => {
-        await mkdir(dirname(path), { recursive: true });
-        await writeFile(path, content, "utf-8");
-      },
-      (e) => ({ type: "FileSystemError" as const, message: e instanceof Error ? e.message : String(e) }),
-    ),
-};
 
 export const createService: Effect<ServiceHandle> = pipe(
   logInfo("Loading config..."),
@@ -138,7 +98,7 @@ export const createService: Effect<ServiceHandle> = pipe(
 
     const runWorkflow: (targets: readonly Socket.IPv4[]) => TE.TaskEither<Workflow.RunError, void> = flow(
       RA.traverse(TE.ApplicativeSeq)(
-        Workflow.run({ logger: workflowLog, spawn, recovery: config.recovery })("android-chrome-test"),
+        Workflow.run({ logger: workflowLog, spawn: Node.spawn, recovery: config.recovery })("android-chrome-test"),
       ),
       TE.asUnit,
     );
@@ -146,7 +106,7 @@ export const createService: Effect<ServiceHandle> = pipe(
     const activationRunner = ActivationRunner.create(activationLog, activationSchedule, activationPolicy, {
       onActive: pipe(
         // Sync registry prima di discover
-        syncRegistry({
+        Registry.sync({
           logger: registryLog,
           suitestConfig: {
             auth: { tokenId: config.suitest.tokenId, tokenPassword: config.suitest.tokenPassword },
@@ -154,25 +114,26 @@ export const createService: Effect<ServiceHandle> = pipe(
           },
           dbPath: config.registry.dbPath,
           seedDevices: config.registry.devices,
-          fsEnv,
+          fsEnv: Node.fsEnv,
         }),
 
         // Utilizza solo i device marcati come controllati
         TE.flatMap((registry) => {
           const controlledIps = DeviceRegistry.controlledIpsByCategory("android-camera")(registry);
 
+          // Determina se un determinato IP è marcato come controllabile dal DB
           const isControlled = (target: Socket.IPv4): boolean => controlledIps.includes(Socket.from(target).host);
 
           return pipe(
-            // Cerca e connette i device tramite mDNS e ADB
+            // Cerca e connette i device tramite mDNS e ADB (Target Machine, 1 device alla volta)
             Connection.discoverAndConnect({
               logger: discoveryLog,
-              spawn,
               adbPort: config.adb.port,
               adbReconnectPolicy,
+              spawn: Node.spawn,
               isControlled,
             }),
-            TE.map((targets) => targets.filter(isControlled)),
+            //TE.map((targets) => targets.filter(isControlled)),
             TE.flatMap(runWorkflow),
           );
         }),
@@ -188,18 +149,41 @@ export const createService: Effect<ServiceHandle> = pipe(
       hostname: config.trpc.hostname,
       logger: trpcLog,
       services: {
-        android: Adb.create({ logger: trpcLog.child("HTTP").child("Adb"), spawn }),
-        mdns: {},
-        notifications: {},
-        registry: {
-          getAll: () => DeviceRegistry.read(config.registry.dbPath)(fsEnv),
-          update: (ip: string, update: { label?: string; controlled?: boolean }) =>
-            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateByIp(ip, update))(fsEnv),
-          add: (entry: DeviceRegistry.DeviceEntry) =>
-            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addDevice(entry))(fsEnv),
-          remove: (ip: string) => DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeByIp(ip))(fsEnv),
-        },
+        // Servizio di logging persistente per web-app
         logger: trpcLog.child("web"),
+
+        // TODO: Servizi di gestione delle dispositivi android
+        android: {
+          // Recupera la lista dei device connessi tramite ADB
+          devices: () => Adb.devices({ logger: trpcLog, spawn: Node.spawn }),
+
+          // Riavvia un device tramite ADB
+          reboot: (target) => Adb.reboot(target)({ logger: trpcLog, spawn: Node.spawn }),
+        },
+
+        // TODO: Servizio di DNS-SD (Service Discovery)
+        mdns: {},
+
+        // TODO: Servizio di notifiche
+        notifications: {},
+
+        // Servizio di gestione del registry dei device
+        registry: {
+          // Recupera tutti i device dal registry
+          getAll: () => DeviceRegistry.read(config.registry.dbPath)(Node.fsEnv),
+
+          // Aggiorna un device nel registry
+          update: (ip: string, update: { label?: string; controlled?: boolean }) =>
+            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateByIp(ip, update))(Node.fsEnv),
+
+          // Aggiunge un nuovo device al registry
+          add: (entry: DeviceRegistry.DeviceEntry) =>
+            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addDevice(entry))(Node.fsEnv),
+
+          // Rimuove un device dal registry
+          remove: (ip: string) =>
+            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeByIp(ip))(Node.fsEnv),
+        },
       },
     });
 
@@ -228,7 +212,7 @@ const startLogger: Logger.Tagged = //Logger.tagged(ServiceLogger.create({ level:
 
 const configuredLogger = (config: ConfigModel.LogConfig) => ServiceLogger.create(config);
 
-const liveProcess: Process = {
+const liveProcess: Node.Process = {
   onSignal: (signal, handler) => process.on(signal, handler),
   exit: (code) => process.exit(code),
 };

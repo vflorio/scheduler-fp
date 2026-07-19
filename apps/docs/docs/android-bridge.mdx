@@ -82,7 +82,7 @@ stateDiagram-v2
     [*] --> Idle
 
     Idle --> Processing : command received
-    Processing --> Finished : command completed
+    Processing --> Finished : command completed 
     Finished --> Idle : output consumed / <br/> next command dequeued
 ```
 
