@@ -5,6 +5,7 @@ import { androidRouter } from "./routers/android";
 import { registryRouter } from "./routers/device-registry";
 import { logsRouter } from "./routers/logs";
 
+export * from "./instance";
 export * from "./result";
 
 // -------------------------------------------------------------------------------------

@@ -1,74 +1,122 @@
-import "./Layout.css";
-
+import { Devices, FiberManualRecord, Home, PhoneAndroid, Terminal } from "@mui/icons-material";
+import {
+  Box,
+  CssBaseline,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Stack,
+  ThemeProvider,
+  Typography,
+} from "@mui/material";
+import { match } from "ts-pattern";
+import { usePageContext } from "vike-react/usePageContext";
 import logoUrl from "../assets/logo.svg";
-import { Link } from "../components/Link";
+import { LogFeedProvider, useLogFeed } from "../hooks/useLogFeed";
+import "./Layout.css";
+import { theme } from "../theme";
+
+const NAV_ITEMS = [
+  { href: "/", label: "Home", icon: <Home fontSize="small" /> },
+  { href: "/devices", label: "ADB Devices", icon: <PhoneAndroid fontSize="small" /> },
+  { href: "/registry", label: "Device Registry", icon: <Devices fontSize="small" /> },
+  { href: "/service-logs", label: "Service Logs", icon: <Terminal fontSize="small" /> },
+];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        maxWidth: 900,
-        margin: "auto",
-      }}
-    >
-      <Sidebar>
-        <Logo />
-        <Link href="/">Home</Link>
-        <Link href="/devices">ADB Devices</Link>
-        <Link href="/registry">Device Registry</Link>
-      </Sidebar>
-      <Content>{children}</Content>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <LogFeedProvider>
+        <Box sx={{ display: "flex", minHeight: "100vh", width: "100%" }}>
+          <Sidebar />
+          <Box
+            id="page-content"
+            component="main"
+            sx={{ flexGrow: 1, minWidth: 0, minHeight: "100vh", p: { xs: 2, md: 4 } }}
+          >
+            {children}
+          </Box>
+        </Box>
+      </LogFeedProvider>
+    </ThemeProvider>
   );
 }
 
-function Sidebar({ children }: { children: React.ReactNode }) {
+function Sidebar() {
+  const pageContext = usePageContext();
+  const { urlPathname } = pageContext;
+
   return (
-    <div
-      id="sidebar"
-      style={{
-        padding: 20,
+    <Box
+      component="nav"
+      sx={{
+        width: 240,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
-        lineHeight: "1.8em",
-        borderRight: "2px solid #eee",
+        gap: 1,
+        p: 2,
+        borderRight: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
       }}
     >
-      {children}
-    </div>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1, py: 2 }}>
+        <a href="/" style={{ display: "flex" }}>
+          <img src={logoUrl} height={36} width={36} alt="logo" />
+        </a>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          Lab Supervisor
+        </Typography>
+      </Box>
+      <List sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        {NAV_ITEMS.map((item) => {
+          const isActive = item.href === "/" ? urlPathname === item.href : urlPathname.startsWith(item.href);
+          return (
+            <ListItemButton
+              key={item.href}
+              component="a"
+              href={item.href}
+              selected={isActive}
+              sx={{
+                "&.Mui-selected": {
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                  "&:hover": { bgcolor: "primary.main" },
+                  "& .MuiListItemIcon-root": { color: "inherit" },
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          );
+        })}
+      </List>
+      <Box sx={{ mt: "auto" }}>
+        <ServiceStatusIndicator />
+      </Box>
+    </Box>
   );
 }
 
-function Content({ children }: { children: React.ReactNode }) {
-  return (
-    <div id="page-container">
-      <div
-        id="page-content"
-        style={{
-          padding: 20,
-          paddingBottom: 50,
-          minHeight: "100vh",
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
+function ServiceStatusIndicator() {
+  const { status } = useLogFeed();
 
-function Logo() {
+  const { color, label } = match(status)
+    .with("online", () => ({ color: "success.main" as const, label: "Service online" }))
+    .with("reconnecting", () => ({ color: "error.main" as const, label: "Service unreachable" }))
+    .with("connecting", () => ({ color: "warning.main" as const, label: "Connecting…" }))
+    .exhaustive();
+
   return (
-    <div
-      style={{
-        marginTop: 20,
-        marginBottom: 10,
-      }}
-    >
-      <a href="/">
-        <img src={logoUrl} height={64} width={64} alt="logo" />
-      </a>
-    </div>
+    <Stack direction="row" spacing={1} sx={{ px: 1, alignItems: "center" }}>
+      <FiberManualRecord sx={{ fontSize: 10, color }} />
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+    </Stack>
   );
 }

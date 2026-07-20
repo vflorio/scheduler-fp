@@ -1,7 +1,6 @@
 import type * as Logger from "@supervisor/core/logger";
 import type { Services } from "@supervisor/core/services/services";
-import type * as Trpc from "@supervisor/trpc/server";
-import { appRouter } from "@supervisor/trpc/server";
+import * as Trpc from "@supervisor/trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
@@ -28,7 +27,7 @@ export const startServer = (deps: Deps) => {
       return fetchRequestHandler({
         endpoint: "/trpc",
         req: request,
-        router: appRouter,
+        router: Trpc.appRouter,
         createContext(): Trpc.Context {
           return {
             services,
