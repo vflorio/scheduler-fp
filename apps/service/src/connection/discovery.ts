@@ -24,6 +24,9 @@ export const machine: Machine.Machine<ConnectionEnv, never, TargetState, Connect
 
 export interface Env extends ConnectionEnv {
   readonly isControlled: Predicate<Socket.IPv4>;
+  // Un host è "noto" se presente in registry (come camera), indipendentemente da `controlled` -
+  // distingue un device nostro ma non controllato da uno completamente esterno al registry
+  readonly isKnown: Predicate<Socket.IPv4>;
 }
 
 export type DiscoveryError = Adb.AdbError | AvahiBrowse.AvahiBrowseError | Shell.ShellSpawnError;
@@ -58,6 +61,26 @@ const filterControlledOnly =
   ({ isControlled }) =>
     TE.right(devices.filter(isControlled));
 
+// Noti al registry ma non (più) controllati: vanno disconnessi. Un device sconosciuto al
+// registry viene invece ignorato (potrebbe essere un device esterno, non nostro).
+const filterKnownButUncontrolled =
+  (devices: readonly Socket.IPv4[]): Effect<readonly Socket.IPv4[]> =>
+  ({ isControlled, isKnown }) =>
+    TE.right(devices.filter((target) => isKnown(target) && !isControlled(target)));
+
+// Best-effort: un fallimento in disconnessione non deve far fallire l'intero ciclo di discovery,
+// si logga soltanto (verrà ritentato al prossimo ciclo).
+const disconnectStray =
+  (target: Socket.IPv4): Effect<void> =>
+  (env) =>
+    pipe(
+      Adb.disconnect(target)({ logger: env.logger.child("ADB"), spawn: env.spawn }),
+      TE.orElse((error) => {
+        env.logger.error(`Failed to disconnect uncontrolled host ${target}: ${error.message}`)();
+        return TE.right<Adb.AdbError, void>(undefined);
+      }),
+    );
+
 // Applica un singolo device (già scoperto via mDNS) alla Target Machine, partendo da
 // Unknown, e ne ritorna lo stato finale (Persistent se la connessione ha avuto successo,
 // Unknown se ha fallito - vedi `reduce`/`handle`, che catchano i propri errori).
@@ -67,7 +90,21 @@ const connect = (target: Socket.IPv4): Effect<TargetState> =>
 export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
   logInfo("Starting mDNS discovery"),
 
-  RTE.bind("connected", () => pipe(getConnectedAdbDevices, RTE.flatMap(filterControlledOnly))),
+  RTE.bind("allConnected", () => getConnectedAdbDevices),
+
+  // Stato iniziale: un host noto al registry ma non controllato viene disconnesso subito -
+  // un host sconosciuto al registry (device completamente esterno) viene invece ignorato.
+  RTE.bind("stray", ({ allConnected }) => filterKnownButUncontrolled(allConnected)),
+  RTE.tap(({ stray }) =>
+    stray.length > 0
+      ? logInfo(
+          `Disconnecting known-but-uncontrolled hosts: ${stray.map((target) => Socket.from(target).host).join(", ")}`,
+        )
+      : logInfo("No known-but-uncontrolled hosts to disconnect"),
+  ),
+  RTE.tap(({ stray }) => RTE.sequenceSeqArray(stray.map(disconnectStray))),
+
+  RTE.bind("connected", ({ allConnected }) => filterControlledOnly(allConnected)),
   RTE.tap(({ connected }) =>
     connected.length > 0
       ? logInfo(`Already connected hosts: ${connected.map((target) => Socket.from(target).host).join(", ")}`)

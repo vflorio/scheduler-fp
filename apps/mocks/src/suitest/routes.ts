@@ -59,12 +59,16 @@ export function suitestRoutes(
     const method = req.method;
 
     if (method === "GET" && apiPath === "/devices") {
-      return handleGetDevices(store, url);
+      return Response.json(paginate(store.devices, url));
     }
 
     const deviceMatch = apiPath.match(/^\/devices\/([^/]+)$/);
     if (method === "GET" && deviceMatch) {
       return handleGetDevice(store, deviceMatch[1]);
+    }
+
+    if (method === "GET" && apiPath === "/video-capture-devices") {
+      return Response.json(paginate(store.videoCaptureDevices, url));
     }
 
     if (method === "GET" && apiPath === "/control-units") {
@@ -100,14 +104,14 @@ export function suitestRoutes(
 // Handlers
 // -------------------------------------------------------------------------------------
 
-function handleGetDevices(store: SuitestStore, url: URL): Response {
+function paginate<T>(items: readonly T[], url: URL): Record<string, unknown> {
   const page = Number(url.searchParams.get("page") ?? "1");
   const pagelen = Number(url.searchParams.get("pagelen") ?? "10");
 
   const start = (page - 1) * pagelen;
   const end = start + pagelen;
-  const values = store.devices.slice(start, end);
-  const total = store.devices.length;
+  const values = items.slice(start, end);
+  const total = items.length;
 
   const body: Record<string, unknown> = { values, total, page, pagelen };
 
@@ -117,7 +121,7 @@ function handleGetDevices(store: SuitestStore, url: URL): Response {
     body.next = nextUrl.toString();
   }
 
-  return Response.json(body);
+  return body;
 }
 
 function handleGetDevice(store: SuitestStore, id: string): Response {

@@ -24,8 +24,8 @@ const pinoTransport = (config: LogConfig): Transport => {
   };
 };
 
-export const create = (config: LogConfig): Logger => {
-  const transports: Transport[] = [consoleTransport];
+export const create = (config: LogConfig, extraTransports: readonly Transport[] = []): Logger => {
+  const transports: Transport[] = [consoleTransport, ...extraTransports];
 
   if (config.path) {
     transports.push(pinoTransport(config));

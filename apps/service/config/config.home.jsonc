@@ -1,6 +1,7 @@
 {
   "suitest": {
     "baseUrl": "http://localhost:3008/v1/suitest",
+    //"baseUrl": "https://the.suite.st/api/public/v4",
     "tokenId": "dev-suitest-token-id",
     "tokenPassword": "dev-suitest-token-password"
   },
@@ -16,11 +17,18 @@
     "dbPath": "data/device-registry.json",
     "devices": {
       "cameras": [
-        {
-          "label": "Tablet",
-          "ip": "192.168.1.4",
-          "controlled": true
-        }
+        { "id": "tablet", "label": "Tablet", "adbTarget": "192.168.1.4:5555", "controlled": true },
+        // Camere Suitest (video-capture-device) già collegate ai mock TV - riconciliate a mano per test
+        { "id": "camera-tv-1", "label": "Camera_TV_1", "controlled": false, "suitestId": "vcd-001" },
+        { "id": "camera-tv-2", "label": "Camera_TV_2", "controlled": false, "suitestId": "vcd-002" },
+        { "id": "camera-tv-3", "label": "Camera_TV_3", "controlled": false, "suitestId": "vcd-003" },
+        { "id": "camera-tv-4", "label": "Camera_TV_4", "controlled": false, "suitestId": "vcd-004" }
+      ],
+      "tvs": [
+        { "ip": "192.168.2.1", "label": "TV_1", "controlled": false, "suitestId": "tv-001" },
+        { "ip": "192.168.2.2", "label": "TV_2", "controlled": false, "suitestId": "tv-002" },
+        { "ip": "192.168.2.3", "label": "TV_3", "controlled": false, "suitestId": "tv-003" },
+        { "ip": "192.168.2.4", "label": "TV_4", "controlled": false, "suitestId": "tv-004" }
       ]
     }
   },

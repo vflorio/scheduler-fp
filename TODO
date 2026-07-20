@@ -1,7 +1,6 @@
 # TODO
 
 Attività oggi:
-- Organizzare AndroidBridge vs adb
 - AndroidBridge ConnectionStateMachine
 
 ## Core
@@ -9,7 +8,7 @@ Attività oggi:
 - [x] Schedule model: TimeSlot, Schedule type, primitives, combinators, instanze monoidi
     - [X] Aggiungere unit testing
 - [X] Device model: tipi per TV, Candybox, AndroidCamera (id, name, owner relations, ecc.)
-- [ ] Target model: divisione esplicita PersistentTarget (porta persistente = connected) & ConnectingTarget (porta random = connecting)
+- [X] Target model: divisione esplicita PersistentTarget (porta persistente = connected) & ConnectingTarget (porta random = connecting)
 - [ ] Recovery policy model: offline threshold, grace period, retry count, delay tra tentativi
 - [ ] Notification policy model: immediate vs. after-all-retries-exhausted, config per device type
 - [X] Config model: configurazione completa supervisor (devices, policies, schedule, Slack)

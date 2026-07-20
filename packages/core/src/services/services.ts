@@ -1,8 +1,9 @@
 import type * as TE from "fp-ts/TaskEither";
+import type { LogFeed } from "../log-stream";
 import type * as Logger from "../logger";
 import type * as Socket from "../socket";
 import type { AdbError } from "./adb";
-import type * as Registry from "./device-registry/device-registry";
+import type * as Db from "./db";
 
 export interface AndroidBridgeError {
   readonly type: "AndroidBridgeError";
@@ -21,33 +22,24 @@ export interface MdnsDiscovery {}
 export interface Notifications {}
 
 export interface DeviceRegistry {
-  readonly getAll: () => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+  readonly getAll: () => TE.TaskEither<Db.DbError, Db.Db>;
 
   readonly controlUnits: {
-    readonly update: (
-      id: string,
-      update: Partial<Pick<Registry.ControlUnitEntry, "label" | "controlled">>,
-    ) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
-    readonly add: (entry: Registry.ControlUnitEntry) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
-    readonly remove: (id: string) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly update: (input: Db.ControlUnitUpdateInput) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly add: (entry: Db.ControlUnitEntry) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly remove: (id: string) => TE.TaskEither<Db.DbError, Db.Db>;
   };
 
   readonly cameras: {
-    readonly update: (
-      ip: string,
-      update: Partial<Pick<Registry.CameraEntry, "label" | "controlled">>,
-    ) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
-    readonly add: (entry: Registry.CameraEntry) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
-    readonly remove: (ip: string) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly update: (input: Db.CameraUpdateInput) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly add: (entry: Db.CameraEntry) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly remove: (id: string) => TE.TaskEither<Db.DbError, Db.Db>;
   };
 
   readonly tvs: {
-    readonly update: (
-      ip: string,
-      update: Partial<Pick<Registry.TvEntry, "label" | "controlled">>,
-    ) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
-    readonly add: (entry: Registry.TvEntry) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
-    readonly remove: (ip: string) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly update: (input: Db.TvUpdateInput) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly add: (entry: Db.TvEntry) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly remove: (ip: string) => TE.TaskEither<Db.DbError, Db.Db>;
   };
 }
 
@@ -57,5 +49,7 @@ export interface Services {
   readonly registry: DeviceRegistry;
   readonly notifications: Notifications;
   // Questo serve per permettere di avere in logger transportato in HTTP (per loggare errori critici delle web-app)
-  readonly logger: Logger.Tagged;
+  readonly logger: Logger.Tagged; // Web -> Service
+  // Feed live dei log di servizio (formattati come su console) per la subscription tRPC verso la web-app
+  readonly logs: LogFeed; // Service -> Web
 }

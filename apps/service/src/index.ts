@@ -1,11 +1,12 @@
 import * as ActivationRunner from "@supervisor/core/activation/runner";
 import * as ActivationSchedule from "@supervisor/core/activation/schedule";
 import type * as ConfigModel from "@supervisor/core/config";
+import * as LogStream from "@supervisor/core/log-stream";
 import * as Logger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry/codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as Adb from "@supervisor/core/services/adb";
-import * as DeviceRegistry from "@supervisor/core/services/device-registry/device-registry";
+import * as Db from "@supervisor/core/services/db";
 import * as Socket from "@supervisor/core/socket";
 import * as E from "fp-ts/Either";
 import { flow, pipe } from "fp-ts/function";
@@ -74,7 +75,8 @@ export const createService: Effect<ServiceHandle> = pipe(
   ),
 
   RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
-    const logger = pipe(configuredLogger(config.log), Logger.tagged("Service"));
+    const logStream = LogStream.createLogStream();
+    const logger = pipe(configuredLogger(config.log, [logStream.transport]), Logger.tagged("Service"));
     const activationSchedule = ActivationSchedule.toSchedule(config.activationSchedule);
 
     logger.info(`Config loaded - schedule: ${ActivationSchedule.toString(config.activationSchedule)}`)();
@@ -117,14 +119,25 @@ export const createService: Effect<ServiceHandle> = pipe(
           fsEnv: Node.fsEnv,
         }),
 
-        // Utilizza solo i device marcati come controllati
-        TE.flatMap((registry) => {
-          const controlledIps = DeviceRegistry.controlledCameraIps(registry);
+        // Costruisci i predicati per determinare se ci connettiamo al device
+        TE.flatMap((db) =>
+          pipe(
+            TE.Do,
+            TE.bind("knownHosts", () => TE.right(Connection.cameraHosts(db.lab))),
+            TE.bind("controlledHosts", () => TE.right(Connection.controlledCameraHosts(db.lab))),
+            TE.map(({ controlledHosts, knownHosts }) => ({
+              // Determina se un determinato IP è noto al registry (controllato o meno)
+              // un device completamente esterno al registry non va toccato, viene solo ignorato
+              isKnown: (target: Socket.IPv4): boolean => knownHosts.includes(Socket.from(target).host),
+              // Determina se un determinato IP è marcato come controllabile dal DB
+              isControlled: (target: Socket.IPv4): boolean => controlledHosts.includes(Socket.from(target).host),
+            })),
+          ),
+        ),
 
-          // Determina se un determinato IP è marcato come controllabile dal DB
-          const isControlled = (target: Socket.IPv4): boolean => controlledIps.includes(Socket.from(target).host);
-
-          return pipe(
+        // Cerca e connette i device che rispettano i predicati
+        TE.flatMap(({ isControlled, isKnown }) =>
+          pipe(
             // Cerca e connette i device tramite mDNS e ADB (Target Machine, 1 device alla volta)
             Connection.discoverAndConnect({
               logger: discoveryLog,
@@ -132,11 +145,11 @@ export const createService: Effect<ServiceHandle> = pipe(
               adbReconnectPolicy,
               spawn: Node.spawn,
               isControlled,
+              isKnown,
             }),
-            //TE.map((targets) => targets.filter(isControlled)),
             TE.flatMap(runWorkflow),
-          );
-        }),
+          ),
+        ),
         TE.tapError((error) => TE.fromIO(logger.error(`Activation tick failed: ${error.message}`))),
         T.asUnit,
       ),
@@ -151,6 +164,9 @@ export const createService: Effect<ServiceHandle> = pipe(
       services: {
         // Servizio di logging persistente per web-app
         logger: trpcLog.child("web"),
+
+        // Feed live dei log di servizio, consumato dalla subscription tRPC per la web-app
+        logs: logStream,
 
         // TODO: Servizi di gestione delle dispositivi android
         android: {
@@ -169,42 +185,35 @@ export const createService: Effect<ServiceHandle> = pipe(
 
         // Servizio di gestione del registry dei device
         registry: {
-          // Recupera tutti i device dal registry
-          getAll: () => DeviceRegistry.read(config.registry.dbPath)(Node.fsEnv),
+          // Recupera l'intero db (mirror Suitest + dominio applicativo)
+          getAll: () => Db.read(config.registry.dbPath)(Node.fsEnv),
 
           controlUnits: {
-            update: (id: string, update: { label?: string; controlled?: boolean }) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateControlUnitById(id, update))(
-                Node.fsEnv,
-              ),
+            update: ({ id, ...update }: Db.ControlUnitUpdateInput) =>
+              Db.modifyLab(config.registry.dbPath)(Db.updateControlUnitById(id, update))(Node.fsEnv),
 
-            add: (entry: DeviceRegistry.ControlUnitEntry) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addControlUnit(entry))(Node.fsEnv),
+            add: (entry: Db.ControlUnitEntry) =>
+              Db.modifyLab(config.registry.dbPath)(Db.addControlUnit(entry))(Node.fsEnv),
 
-            remove: (id: string) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeControlUnitById(id))(Node.fsEnv),
+            remove: (id: string) => Db.modifyLab(config.registry.dbPath)(Db.removeControlUnitById(id))(Node.fsEnv),
           },
 
           cameras: {
-            update: (ip: string, update: { label?: string; controlled?: boolean }) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateCameraByIp(ip, update))(Node.fsEnv),
+            update: ({ id, ...update }: Db.CameraUpdateInput) =>
+              Db.modifyLab(config.registry.dbPath)(Db.updateCameraById(id, update))(Node.fsEnv),
 
-            add: (entry: DeviceRegistry.CameraEntry) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addCamera(entry))(Node.fsEnv),
+            add: (entry: Db.CameraEntry) => Db.modifyLab(config.registry.dbPath)(Db.addCamera(entry))(Node.fsEnv),
 
-            remove: (ip: string) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeCameraByIp(ip))(Node.fsEnv),
+            remove: (id: string) => Db.modifyLab(config.registry.dbPath)(Db.removeCameraById(id))(Node.fsEnv),
           },
 
           tvs: {
-            update: (ip: string, update: { label?: string; controlled?: boolean }) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateTvByIp(ip, update))(Node.fsEnv),
+            update: ({ ip, ...update }: Db.TvUpdateInput) =>
+              Db.modifyLab(config.registry.dbPath)(Db.updateTvByIp(ip, update))(Node.fsEnv),
 
-            add: (entry: DeviceRegistry.TvEntry) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addTv(entry))(Node.fsEnv),
+            add: (entry: Db.TvEntry) => Db.modifyLab(config.registry.dbPath)(Db.addTv(entry))(Node.fsEnv),
 
-            remove: (ip: string) =>
-              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeTvByIp(ip))(Node.fsEnv),
+            remove: (ip: string) => Db.modifyLab(config.registry.dbPath)(Db.removeTvByIp(ip))(Node.fsEnv),
           },
         },
       },
@@ -230,10 +239,10 @@ export const createService: Effect<ServiceHandle> = pipe(
 // Env Instances
 // -------------------------------------------------------------------------------------
 
-const startLogger: Logger.Tagged = //Logger.tagged(ServiceLogger.create({ level: "info" }), "Service");
-  pipe(ServiceLogger.create({ level: "info" }), Logger.tagged("Service"));
+const startLogger: Logger.Tagged = pipe(ServiceLogger.create({ level: "debug" }), Logger.tagged("Service"));
 
-const configuredLogger = (config: ConfigModel.LogConfig) => ServiceLogger.create(config);
+const configuredLogger = (config: ConfigModel.LogConfig, extraTransports: readonly Logger.Transport[] = []) =>
+  ServiceLogger.create(config, extraTransports);
 
 const liveProcess: Node.Process = {
   onSignal: (signal, handler) => process.on(signal, handler),

@@ -4,7 +4,7 @@ import * as t from "io-ts";
 import { ActivationScheduleCodec } from "./activation/schedule";
 import { LogLevel } from "./logger";
 import { PolicyJsonCodec } from "./retry/codec";
-import { CameraEntryCodec, ControlUnitEntryCodec, TvEntryCodec } from "./services/device-registry/device-registry";
+import { CameraEntryCodec, ControlUnitEntryCodec, TvEntryCodec } from "./services/db";
 import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/codec";
 
 // -------------------------------------------------------------------------------------
