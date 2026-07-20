@@ -4,96 +4,74 @@ import type { ControlUnit, Device, DeviceStatus } from "@supervisor/core/service
 // Seed data
 // -------------------------------------------------------------------------------------
 
-// 4 Android Cameras (192.168.1.11 - 192.168.1.14)
-// 2 per control unit, each CU also owns 1 Smart TV
-const seedDevices: Device[] = [
-  // Cameras owned by CU Alpha
-  {
-    deviceId: "cam-001",
-    manufacturer: "Google",
-    model: "Pixel 6",
-    owner: "team-qa",
-    firmware: "14.0",
-    customName: "Camera Alpha-1",
-    ipAddress: "192.168.1.11",
-    controlUnitIds: ["cu-001"],
-    status: "READY",
-    modelId: "google-pixel-6",
-    platforms: ["android"],
-  },
-  {
-    deviceId: "cam-002",
-    manufacturer: "Google",
-    model: "Pixel 7",
-    owner: "team-qa",
-    firmware: "14.0",
-    customName: "Camera Alpha-2",
-    ipAddress: "192.168.1.12",
-    controlUnitIds: ["cu-001"],
-    status: "READY",
-    modelId: "google-pixel-7",
-    platforms: ["android"],
-  },
-  // Cameras owned by CU Beta
-  {
-    deviceId: "cam-003",
-    manufacturer: "Samsung",
-    model: "Galaxy A54",
-    owner: "team-qa",
-    firmware: "14.0",
-    customName: "Camera Beta-1",
-    ipAddress: "192.168.1.13",
-    controlUnitIds: ["cu-002"],
-    status: "READY",
-    modelId: "samsung-a54",
-    platforms: ["android"],
-  },
-  {
-    deviceId: "cam-004",
-    manufacturer: "Samsung",
-    model: "Galaxy A55",
-    owner: "team-qa",
-    firmware: "14.0",
-    customName: "Camera Beta-2",
-    ipAddress: "192.168.1.14",
-    controlUnitIds: ["cu-002"],
-    status: "OFF",
-    modelId: "samsung-a55",
-    platforms: ["android"],
-  },
-  // Smart TVs (1 per control unit)
-  {
-    deviceId: "tv-001",
+const device = (overrides: Partial<Device>): Device => ({
+  deviceId: crypto.randomUUID(),
+  customName: "",
+  ipAddress: "",
+  controlUnitIds: [],
+  status: "READY",
+  manufacturer: "Generic",
+  model: "Generic Model",
+  modelId: "generic-model",
+  owner: "lab",
+  firmware: "1.0.0",
+  platforms: ["generic"],
+  ...overrides,
+});
+
+const formatCuIds = (ids: number[], prefix: string, pad = 3) =>
+  ids.map((id) => `${prefix}-${id.toString().padStart(pad, "0")}`);
+const formatDeviceId = (index: number, prefix: string, pad = 3) => `${prefix}-${index.toString().padStart(pad, "0")}`;
+
+const tv = (index: number, cuIds: number[]) =>
+  device({
+    deviceId: formatDeviceId(index, "tv"),
+    customName: `TV_${index}`,
+    controlUnitIds: formatCuIds(cuIds, "cu"),
+    ipAddress: `192.168.2.${index}`,
+
     manufacturer: "Samsung",
     model: "Tizen 7.0",
-    owner: "team-qa",
-    firmware: "7.0.0.1234",
-    customName: "TV Alpha",
-    ipAddress: "192.168.1.110",
-    controlUnitIds: ["cu-001"],
-    status: "READY",
     modelId: "samsung-tizen-7",
     platforms: ["tizen"],
-  },
-  {
-    deviceId: "tv-002",
-    manufacturer: "LG",
-    model: "webOS 23",
-    owner: "team-qa",
-    firmware: "23.10.5",
-    customName: "TV Beta",
-    ipAddress: "192.168.1.111",
-    controlUnitIds: ["cu-002"],
-    status: "READY",
-    modelId: "lg-webos-23",
-    platforms: ["webos"],
-  },
+  });
+
+const camera = (index: number, cuIds: number[]) =>
+  device({
+    deviceId: formatDeviceId(index, "camera"),
+    customName: `Camera_TV_${index}`,
+    controlUnitIds: formatCuIds(cuIds, "cu"),
+    ipAddress: `192.168.3.${index}`,
+    manufacturer: "Google",
+    model: "Pixel 6",
+    modelId: "google-pixel-6",
+    platforms: ["android"],
+  });
+
+const controlUnit = (index: number): ControlUnit => ({
+  id: formatDeviceId(index, "cu"),
+  name: `CandyBox_${index}`,
+  online: true,
+  type: "candybox",
+});
+
+const seedDevices: Device[] = [
+  // CU 1
+  tv(1, [1]),
+  camera(1, [1]),
+
+  tv(2, [1]),
+  camera(2, [1]),
+
+  // CU 2
+  tv(3, [2]),
+  camera(3, [2]),
+
+  tv(4, [2]),
+  camera(4, [2]),
 ];
 
-const seedControlUnits: ControlUnit[] = [
-  { id: "cu-001", name: "CandyBox Alpha", online: true, type: "candybox" },
-  { id: "cu-002", name: "CandyBox Beta", online: true, type: "candybox" },
-];
+const seedControlUnits: ControlUnit[] = [controlUnit(1), controlUnit(2)];
 
 // -------------------------------------------------------------------------------------
 // Store

@@ -1,6 +1,6 @@
 import type * as Fs from "@supervisor/core/fs";
 import type * as Logger from "@supervisor/core/logger";
-import * as DeviceRegistry from "@supervisor/core/services/device-registry";
+import * as DeviceRegistry from "@supervisor/core/services/device-registry/device-registry";
 import * as Suitest from "@supervisor/core/services/suitest";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
@@ -9,7 +9,7 @@ interface RegistrySyncEnv {
   readonly logger: Logger.Tagged;
   readonly fsEnv: Fs.Env;
   readonly dbPath: string;
-  readonly seedDevices?: readonly DeviceRegistry.DeviceEntry[];
+  readonly seedDevices?: DeviceRegistry.RegistrySeed;
   readonly suitestConfig: Suitest.SuitestConfig;
 }
 
@@ -44,23 +44,25 @@ export const sync = (env: RegistrySyncEnv): TE.TaskEither<SyncError, DeviceRegis
       );
     }),
 
-    // Map Suitest devices -> registry entries per category
-    TE.map(({ suitestDevices }) => {
-      const cameras = suitestDevices.filter((d) => d.platforms.includes("android"));
-      const tvs = suitestDevices.filter((d) => !d.platforms.includes("android"));
+    // Split Suitest devices per categoria (control unit, camere, tv)
+    TE.map(({ suitestDevices, suitestControlUnits }) => ({
+      controlUnits: suitestControlUnits,
+      cameras: suitestDevices.filter((d) => d.platforms.includes("android")),
+      tvs: suitestDevices.filter((d) => !d.platforms.includes("android")),
+    })),
 
-      return [
-        ...DeviceRegistry.fromSuitestDevices(cameras, "android-camera"),
-        ...DeviceRegistry.fromSuitestDevices(tvs, "smart-tv"),
-      ];
+    // Merge con stato locale (preserva `controlled`)
+    TE.flatMap((incoming) => DeviceRegistry.syncFromSuitest(env.dbPath)(incoming)(env.fsEnv)),
+
+    TE.tapIO((registry) => {
+      const total =
+        registry.devices.controlUnits.length + registry.devices.cameras.length + registry.devices.tvs.length;
+
+      const controlled =
+        DeviceRegistry.controlledControlUnitIds(registry).length +
+        DeviceRegistry.controlledCameraIps(registry).length +
+        DeviceRegistry.controlledTvIps(registry).length;
+
+      return env.logger.info(`Registry synced: ${total} devices (${controlled} controlled)`);
     }),
-
-    // Merge con stato locale
-    TE.flatMap((incoming) => DeviceRegistry.modify(env.dbPath)(DeviceRegistry.mergeWithSuitest(incoming))(env.fsEnv)),
-
-    TE.tapIO((registry) =>
-      env.logger.info(
-        `Registry synced: ${registry.devices.length} devices (${registry.devices.filter((d) => d.controlled).length} controlled)`,
-      ),
-    ),
   );

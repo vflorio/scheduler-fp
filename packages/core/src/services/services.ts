@@ -2,7 +2,7 @@ import type * as TE from "fp-ts/TaskEither";
 import type * as Logger from "../logger";
 import type * as Socket from "../socket";
 import type { AdbError } from "./adb";
-import type { DeviceEntry, Registry, RegistryError, UpdateInput } from "./device-registry";
+import type * as Registry from "./device-registry/device-registry";
 
 export interface AndroidBridgeError {
   readonly type: "AndroidBridgeError";
@@ -21,10 +21,34 @@ export interface MdnsDiscovery {}
 export interface Notifications {}
 
 export interface DeviceRegistry {
-  readonly getAll: () => TE.TaskEither<RegistryError, Registry>;
-  readonly update: (ip: string, update: UpdateInput) => TE.TaskEither<RegistryError, Registry>;
-  readonly add: (entry: DeviceEntry) => TE.TaskEither<RegistryError, Registry>;
-  readonly remove: (ip: string) => TE.TaskEither<RegistryError, Registry>;
+  readonly getAll: () => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+
+  readonly controlUnits: {
+    readonly update: (
+      id: string,
+      update: Partial<Pick<Registry.ControlUnitEntry, "label" | "controlled">>,
+    ) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly add: (entry: Registry.ControlUnitEntry) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly remove: (id: string) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+  };
+
+  readonly cameras: {
+    readonly update: (
+      ip: string,
+      update: Partial<Pick<Registry.CameraEntry, "label" | "controlled">>,
+    ) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly add: (entry: Registry.CameraEntry) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly remove: (ip: string) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+  };
+
+  readonly tvs: {
+    readonly update: (
+      ip: string,
+      update: Partial<Pick<Registry.TvEntry, "label" | "controlled">>,
+    ) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly add: (entry: Registry.TvEntry) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+    readonly remove: (ip: string) => TE.TaskEither<Registry.RegistryError, Registry.Registry>;
+  };
 }
 
 export interface Services {

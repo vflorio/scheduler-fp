@@ -1,11 +1,10 @@
-import { Add, Delete, Dns, Edit, ExpandLess, ExpandMore, Tv, Videocam } from "@mui/icons-material";
+import { Add, Delete, Dns, Edit, Tv, Videocam } from "@mui/icons-material";
 import {
   Alert,
   Box,
   Button,
   Checkbox,
   Chip,
-  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -23,6 +22,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { match } from "ts-pattern";
 import { reload } from "vike/client/router";
@@ -31,59 +31,67 @@ import { trpc } from "../../trpc/client";
 import type { Data } from "./+data";
 
 // -------------------------------------------------------------------------------------
-// Types (mirrored from core)
+// Types (mirrored from core - modelli distinti per categoria, non un unico DeviceEntry)
 // -------------------------------------------------------------------------------------
 
-type DeviceCategory = "control-unit" | "android-camera" | "smart-tv";
+type DeviceKind = "control-unit" | "camera" | "tv";
 
-interface DeviceEntry {
+interface ControlUnitEntry {
+  id: string;
+  label: string;
+  online: boolean;
+  controlled: boolean;
+}
+
+interface CameraEntry {
   label: string;
   ip: string;
-  category: DeviceCategory;
   controlled: boolean;
+}
+
+interface TvEntry {
+  label: string;
+  ip: string;
+  controlled: boolean;
+}
+
+interface RegistryData {
+  devices: {
+    controlUnits: ControlUnitEntry[];
+    cameras: CameraEntry[];
+    tvs: TvEntry[];
+  };
 }
 
 // -------------------------------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------------------------------
 
-const categoryIcon = (cat: DeviceCategory) => {
-  switch (cat) {
-    case "control-unit":
-      return <Dns fontSize="small" />;
-    case "android-camera":
-      return <Videocam fontSize="small" />;
-    case "smart-tv":
-      return <Tv fontSize="small" />;
-  }
-};
+const kindIcon = (kind: DeviceKind) =>
+  match(kind)
+    .with("control-unit", () => <Dns fontSize="small" />)
+    .with("camera", () => <Videocam fontSize="small" />)
+    .with("tv", () => <Tv fontSize="small" />)
+    .exhaustive();
 
-const categoryLabel = (cat: DeviceCategory) => {
-  switch (cat) {
-    case "control-unit":
-      return "Control Unit";
-    case "android-camera":
-      return "Camera";
-    case "smart-tv":
-      return "Smart TV";
-  }
-};
+const kindLabel = (kind: DeviceKind) =>
+  match(kind)
+    .with("control-unit", () => "Control Unit")
+    .with("camera", () => "Camera")
+    .with("tv", () => "Smart TV")
+    .exhaustive();
 
-function groupDevices(devices: DeviceEntry[]) {
-  const controlUnits = devices.filter((d) => d.category === "control-unit");
-  const others = devices.filter((d) => d.category !== "control-unit");
+const identifierLabel = (kind: DeviceKind) => (kind === "control-unit" ? "Control Unit ID" : "IP Address");
 
-  const cuWithChildren = controlUnits.map((cu) => {
-    const cuPrefix = cu.ip.split(".").slice(0, 3).join(".");
-    const children = others.filter((d) => d.ip.startsWith(`${cuPrefix}.`));
-    return { cu, children };
-  });
+// -------------------------------------------------------------------------------------
+// tRPC dispatch (per-kind, identità diversa: `id` per le control unit, `ip` per il resto)
+// -------------------------------------------------------------------------------------
 
-  const assignedIps = new Set(cuWithChildren.flatMap((g) => g.children.map((d) => d.ip)));
-  const freeDevices = others.filter((d) => !assignedIps.has(d.ip));
-
-  return { groups: cuWithChildren, freeDevices };
-}
+const mutations = {
+  "control-unit": trpc.registry.controlUnits,
+  camera: trpc.registry.cameras,
+  tv: trpc.registry.tvs,
+} as const;
 
 // -------------------------------------------------------------------------------------
 // Mutate + reload helpers
@@ -115,56 +123,106 @@ export function RegistryView() {
     .exhaustive();
 }
 
-function RegistryList({ registry }: { registry: { devices: DeviceEntry[] } }) {
+interface NewDeviceForm {
+  kind: DeviceKind;
+  label: string;
+  identifier: string;
+  controlled: boolean;
+}
+
+const emptyNewDevice: NewDeviceForm = { kind: "camera", label: "", identifier: "", controlled: true };
+
+function RegistryList({ registry }: { registry: RegistryData }) {
   const [error, setError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [editingIp, setEditingIp] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ kind: DeviceKind; id: string } | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [addOpen, setAddOpen] = useState(false);
-  const [newDevice, setNewDevice] = useState<DeviceEntry>({
-    label: "",
-    ip: "",
-    category: "android-camera",
-    controlled: true,
-  });
+  const [newDevice, setNewDevice] = useState<NewDeviceForm>(emptyNewDevice);
 
-  const handleToggle = (device: DeviceEntry) =>
-    mutate(() => trpc.registry.update.mutate({ ip: device.ip, controlled: !device.controlled }), setError);
+  const handleToggle = (kind: DeviceKind, id: string, controlled: boolean) =>
+    mutate(
+      () =>
+        match(kind)
+          .with("control-unit", () => mutations["control-unit"].update.mutate({ id, controlled: !controlled }))
+          .with("camera", () => mutations.camera.update.mutate({ ip: id, controlled: !controlled }))
+          .with("tv", () => mutations.tv.update.mutate({ ip: id, controlled: !controlled }))
+          .exhaustive(),
+      setError,
+    );
 
-  const handleSaveLabel = (ip: string) =>
+  const handleSaveLabel = (kind: DeviceKind, id: string) =>
     mutate(async () => {
-      const result = await trpc.registry.update.mutate({ ip, label: editLabel });
-      if (result.ok) setEditingIp(null);
+      const result = await match(kind)
+        .with("control-unit", () => mutations["control-unit"].update.mutate({ id, label: editLabel }))
+        .with("camera", () => mutations.camera.update.mutate({ ip: id, label: editLabel }))
+        .with("tv", () => mutations.tv.update.mutate({ ip: id, label: editLabel }))
+        .exhaustive();
+      if (result.ok) setEditing(null);
       return result;
     }, setError);
 
-  const handleDelete = (ip: string) => mutate(() => trpc.registry.remove.mutate(ip), setError);
+  const handleDelete = (kind: DeviceKind, id: string) =>
+    mutate(
+      () =>
+        match(kind)
+          .with("control-unit", () => mutations["control-unit"].remove.mutate(id))
+          .with("camera", () => mutations.camera.remove.mutate(id))
+          .with("tv", () => mutations.tv.remove.mutate(id))
+          .exhaustive(),
+      setError,
+    );
 
   const handleAdd = () =>
     mutate(async () => {
-      if (!newDevice.label || !newDevice.ip)
-        return { ok: false as const, error: { type: "ValidationError", message: "Label and IP required" } };
-      const result = await trpc.registry.add.mutate(newDevice);
+      if (!newDevice.label || !newDevice.identifier)
+        return {
+          ok: false as const,
+          error: { type: "ValidationError", message: `Label and ${identifierLabel(newDevice.kind)} required` },
+        };
+
+      const result = await match(newDevice.kind)
+        .with("control-unit", () =>
+          mutations["control-unit"].add.mutate({
+            id: newDevice.identifier,
+            label: newDevice.label,
+            controlled: newDevice.controlled,
+            online: false,
+          }),
+        )
+        .with("camera", () =>
+          mutations.camera.add.mutate({
+            ip: newDevice.identifier,
+            label: newDevice.label,
+            controlled: newDevice.controlled,
+          }),
+        )
+        .with("tv", () =>
+          mutations.tv.add.mutate({
+            ip: newDevice.identifier,
+            label: newDevice.label,
+            controlled: newDevice.controlled,
+          }),
+        )
+        .exhaustive();
+
       if (result.ok) {
         setAddOpen(false);
-        setNewDevice({ label: "", ip: "", category: "android-camera", controlled: true });
+        setNewDevice(emptyNewDevice);
       }
       return result;
     }, setError);
 
-  const toggleExpand = (ip: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(ip) ? next.delete(ip) : next.add(ip);
-      return next;
-    });
-
-  const startEdit = (d: DeviceEntry) => {
-    setEditingIp(d.ip);
-    setEditLabel(d.label);
+  const startEdit = (kind: DeviceKind, id: string, label: string) => {
+    setEditing({ kind, id });
+    setEditLabel(label);
   };
 
-  const { groups, freeDevices } = groupDevices(registry.devices);
+  const totalDevices =
+    registry.devices.controlUnits.length + registry.devices.cameras.length + registry.devices.tvs.length;
+  const totalControlled =
+    registry.devices.controlUnits.filter((d) => d.controlled).length +
+    registry.devices.cameras.filter((d) => d.controlled).length +
+    registry.devices.tvs.filter((d) => d.controlled).length;
 
   return (
     <Box>
@@ -172,12 +230,8 @@ function RegistryList({ registry }: { registry: { devices: DeviceEntry[] } }) {
         <Typography variant="h5" sx={{ flexGrow: 1 }}>
           Device Registry
         </Typography>
-        <Chip label={`${registry.devices.length} devices`} size="small" />
-        <Chip
-          label={`${registry.devices.filter((d) => d.controlled).length} controlled`}
-          size="small"
-          color="primary"
-        />
+        <Chip label={`${totalDevices} devices`} size="small" />
+        <Chip label={`${totalControlled} controlled`} size="small" color="primary" />
         <IconButton onClick={() => setAddOpen(true)} color="primary" title="Add device">
           <Add />
         </IconButton>
@@ -189,60 +243,45 @@ function RegistryList({ registry }: { registry: { devices: DeviceEntry[] } }) {
         </Alert>
       )}
 
-      <List dense>
-        {groups.map(({ cu, children }) => (
-          <Box key={cu.ip}>
-            <DeviceListItem
-              device={cu}
-              onToggle={handleToggle}
-              onEdit={startEdit}
-              onDelete={handleDelete}
-              secondary={
-                children.length > 0 ? (
-                  <IconButton size="small" onClick={() => toggleExpand(cu.ip)}>
-                    {expanded.has(cu.ip) ? <ExpandLess /> : <ExpandMore />}
-                  </IconButton>
-                ) : undefined
-              }
-            />
-            {children.length > 0 && (
-              <Collapse in={expanded.has(cu.ip)} unmountOnExit>
-                <List dense sx={{ pl: 4 }}>
-                  {children.map((child) => (
-                    <DeviceListItem
-                      key={child.ip}
-                      device={child}
-                      onToggle={handleToggle}
-                      onEdit={startEdit}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </List>
-              </Collapse>
-            )}
-          </Box>
-        ))}
-
-        {freeDevices.length > 0 && (
-          <>
-            <Typography variant="overline" sx={{ pl: 2, pt: 1, display: "block", color: "text.secondary" }}>
-              Unassigned
-            </Typography>
-            {freeDevices.map((device) => (
-              <DeviceListItem
-                key={device.ip}
-                device={device}
-                onToggle={handleToggle}
-                onEdit={startEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </>
-        )}
-      </List>
+      <DeviceSection
+        kind="control-unit"
+        devices={registry.devices.controlUnits.map((d) => ({
+          id: d.id,
+          label: d.label,
+          controlled: d.controlled,
+          secondary: `${d.id} · ${d.online ? "online" : "offline"}`,
+        }))}
+        onToggle={handleToggle}
+        onEdit={startEdit}
+        onDelete={handleDelete}
+      />
+      <DeviceSection
+        kind="camera"
+        devices={registry.devices.cameras.map((d) => ({
+          id: d.ip,
+          label: d.label,
+          controlled: d.controlled,
+          secondary: d.ip,
+        }))}
+        onToggle={handleToggle}
+        onEdit={startEdit}
+        onDelete={handleDelete}
+      />
+      <DeviceSection
+        kind="tv"
+        devices={registry.devices.tvs.map((d) => ({
+          id: d.ip,
+          label: d.label,
+          controlled: d.controlled,
+          secondary: d.ip,
+        }))}
+        onToggle={handleToggle}
+        onEdit={startEdit}
+        onDelete={handleDelete}
+      />
 
       {/* Edit label dialog */}
-      <Dialog open={editingIp !== null} onClose={() => setEditingIp(null)}>
+      <Dialog open={editing !== null} onClose={() => setEditing(null)}>
         <DialogTitle>Edit Label</DialogTitle>
         <DialogContent>
           <TextField
@@ -250,13 +289,13 @@ function RegistryList({ registry }: { registry: { devices: DeviceEntry[] } }) {
             fullWidth
             value={editLabel}
             onChange={(e) => setEditLabel(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && editingIp && handleSaveLabel(editingIp)}
+            onKeyDown={(e) => e.key === "Enter" && editing && handleSaveLabel(editing.kind, editing.id)}
             sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditingIp(null)}>Cancel</Button>
-          <Button onClick={() => editingIp && handleSaveLabel(editingIp)} variant="contained">
+          <Button onClick={() => setEditing(null)}>Cancel</Button>
+          <Button onClick={() => editing && handleSaveLabel(editing.kind, editing.id)} variant="contained">
             Save
           </Button>
         </DialogActions>
@@ -278,40 +317,82 @@ function RegistryList({ registry }: { registry: { devices: DeviceEntry[] } }) {
 // Sub-components
 // -------------------------------------------------------------------------------------
 
+interface SectionDevice {
+  id: string;
+  label: string;
+  controlled: boolean;
+  secondary: string;
+}
+
+function DeviceSection({
+  kind,
+  devices,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  kind: DeviceKind;
+  devices: SectionDevice[];
+  onToggle: (kind: DeviceKind, id: string, controlled: boolean) => void;
+  onEdit: (kind: DeviceKind, id: string, label: string) => void;
+  onDelete: (kind: DeviceKind, id: string) => void;
+}) {
+  if (devices.length === 0) return null;
+
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="overline" sx={{ pl: 2, display: "block", color: "text.secondary" }}>
+        {kindLabel(kind)}s
+      </Typography>
+      <List dense>
+        {devices.map((device) => (
+          <DeviceListItem
+            key={device.id}
+            icon={kindIcon(kind)}
+            device={device}
+            onToggle={() => onToggle(kind, device.id, device.controlled)}
+            onEdit={() => onEdit(kind, device.id, device.label)}
+            onDelete={() => onDelete(kind, device.id)}
+          />
+        ))}
+      </List>
+    </Box>
+  );
+}
+
 function DeviceListItem({
+  icon,
   device,
   onToggle,
   onEdit,
   onDelete,
-  secondary,
 }: {
-  device: DeviceEntry;
-  onToggle: (d: DeviceEntry) => void;
-  onEdit: (d: DeviceEntry) => void;
-  onDelete: (ip: string) => void;
-  secondary?: React.ReactNode;
+  icon: ReactNode;
+  device: SectionDevice;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   return (
     <ListItem
       disablePadding
       secondaryAction={
         <Box sx={{ display: "flex", gap: 0.5 }}>
-          {secondary}
-          <IconButton size="small" onClick={() => onEdit(device)} title="Edit label">
+          <IconButton size="small" onClick={onEdit} title="Edit label">
             <Edit fontSize="small" />
           </IconButton>
-          <IconButton size="small" onClick={() => onDelete(device.ip)} title="Remove">
+          <IconButton size="small" onClick={onDelete} title="Remove">
             <Delete fontSize="small" />
           </IconButton>
         </Box>
       }
     >
-      <ListItemButton onClick={() => onToggle(device)} dense>
+      <ListItemButton onClick={onToggle} dense>
         <ListItemIcon sx={{ minWidth: 36 }}>
           <Checkbox edge="start" checked={device.controlled} tabIndex={-1} disableRipple size="small" />
         </ListItemIcon>
-        <ListItemIcon sx={{ minWidth: 32 }}>{categoryIcon(device.category)}</ListItemIcon>
-        <ListItemText primary={device.label} secondary={`${device.ip} · ${categoryLabel(device.category)}`} />
+        <ListItemIcon sx={{ minWidth: 32 }}>{icon}</ListItemIcon>
+        <ListItemText primary={device.label} secondary={device.secondary} />
       </ListItemButton>
     </ListItem>
   );
@@ -325,8 +406,8 @@ function AddDeviceDialog({
   onClose,
 }: {
   open: boolean;
-  device: DeviceEntry;
-  onChange: (d: DeviceEntry) => void;
+  device: NewDeviceForm;
+  onChange: (d: NewDeviceForm) => void;
   onAdd: () => void;
   onClose: () => void;
 }) {
@@ -334,6 +415,18 @@ function AddDeviceDialog({
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>Add Device</DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "8px !important" }}>
+        <FormControl fullWidth>
+          <InputLabel>Kind</InputLabel>
+          <Select
+            value={device.kind}
+            label="Kind"
+            onChange={(e) => onChange({ ...device, kind: e.target.value as DeviceKind })}
+          >
+            <MenuItem value="control-unit">Control Unit</MenuItem>
+            <MenuItem value="camera">Android Camera</MenuItem>
+            <MenuItem value="tv">Smart TV</MenuItem>
+          </Select>
+        </FormControl>
         <TextField
           label="Label"
           value={device.label}
@@ -341,28 +434,16 @@ function AddDeviceDialog({
           fullWidth
         />
         <TextField
-          label="IP Address"
-          placeholder="192.168.1.100"
-          value={device.ip}
-          onChange={(e) => onChange({ ...device, ip: e.target.value })}
+          label={identifierLabel(device.kind)}
+          placeholder={device.kind === "control-unit" ? "cu-001" : "192.168.1.100"}
+          value={device.identifier}
+          onChange={(e) => onChange({ ...device, identifier: e.target.value })}
           fullWidth
         />
-        <FormControl fullWidth>
-          <InputLabel>Category</InputLabel>
-          <Select
-            value={device.category}
-            label="Category"
-            onChange={(e) => onChange({ ...device, category: e.target.value as DeviceCategory })}
-          >
-            <MenuItem value="control-unit">Control Unit</MenuItem>
-            <MenuItem value="android-camera">Android Camera</MenuItem>
-            <MenuItem value="smart-tv">Smart TV</MenuItem>
-          </Select>
-        </FormControl>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={onAdd} variant="contained" disabled={!device.label || !device.ip}>
+        <Button onClick={onAdd} variant="contained" disabled={!device.label || !device.identifier}>
           Add
         </Button>
       </DialogActions>

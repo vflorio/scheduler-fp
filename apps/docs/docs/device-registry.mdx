@@ -62,13 +62,19 @@ Used for:
 
 ## Device Model
 
-Each registry entry is intentionally minimal:
+The registry is split into three buckets (`devices.controlUnits`, `devices.cameras`, `devices.tvs`) instead of a
+single flat list with a `category` field. Control units and downstream devices come from **different Suitest
+entities** with different identities - a control unit has no IP address in the Suitest API, it's identified by
+`id` - so forcing them into one shared shape was the root cause of control units silently failing to sync.
 
-| Field | Type | Description |
+| Bucket | Identity | Fields |
 |---|---|---|
-| `label` | `string` | Human-readable name |
-| `ip` | `string` | Static IP address |
-| `category` | `control-unit` · `android-camera` · `smart-tv` | Device category |
+| `controlUnits` | `id` | `id`, `label`, `online`, `controlled` |
+| `cameras` | `ip` | `label`, `ip`, `controlled` |
+| `tvs` | `ip` | `label`, `ip`, `controlled` |
+
+Cameras and TVs are kept as separate types (not a shared `Device` model) since their fields are expected to
+diverge as camera- and TV-specific features are built out.
 
 ## Role in the System
 
@@ -84,7 +90,7 @@ config:
 graph TD
     Registry["Device Registry"]
 
-    Registry -- "control-unit IPs" --> CUPipeline["Control Unit Pipeline <br/> (Suitest API workflows)"]
+    Registry -- "control-unit IDs" --> CUPipeline["Control Unit Pipeline <br/> (Suitest API workflows)"]
     Registry -- "android-camera IPs" --> ACPipeline["Android Camera Pipeline <br/> (ADB workflows)"]
     Registry -- "smart-tv IPs" --> TVPipeline["TV Pipeline <br/> (planned)"]
 

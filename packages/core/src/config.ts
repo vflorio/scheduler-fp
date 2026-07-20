@@ -4,7 +4,7 @@ import * as t from "io-ts";
 import { ActivationScheduleCodec } from "./activation/schedule";
 import { LogLevel } from "./logger";
 import { PolicyJsonCodec } from "./retry/codec";
-import { DeviceEntryCodec } from "./services/device-registry";
+import { CameraEntryCodec, ControlUnitEntryCodec, TvEntryCodec } from "./services/device-registry/device-registry";
 import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/codec";
 
 // -------------------------------------------------------------------------------------
@@ -50,7 +50,16 @@ const TrpcCodec = t.type({
   hostname: t.string,
 });
 
-const RegistryCodec = t.intersection([t.type({ dbPath: t.string }), t.partial({ devices: t.array(DeviceEntryCodec) })]);
+const RegistryCodec = t.intersection([
+  t.type({ dbPath: t.string }),
+  t.partial({
+    devices: t.partial({
+      controlUnits: t.array(ControlUnitEntryCodec),
+      cameras: t.array(CameraEntryCodec),
+      tvs: t.array(TvEntryCodec),
+    }),
+  }),
+]);
 
 const ServiceConfigCodec = t.type({
   activationSchedule: ActivationScheduleCodec,

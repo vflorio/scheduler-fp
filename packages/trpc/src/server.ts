@@ -1,5 +1,12 @@
 import type { Logger } from "@supervisor/core/logger";
-import { DeviceEntryCodec, UpdateInputCodec } from "@supervisor/core/services/device-registry";
+import {
+  CameraEntryCodec,
+  CameraUpdateInputCodec,
+  ControlUnitEntryCodec,
+  ControlUnitUpdateInputCodec,
+  TvEntryCodec,
+  TvUpdateInputCodec,
+} from "@supervisor/core/services/device-registry/device-registry";
 import type { Services } from "@supervisor/core/services/services";
 import * as Socket from "@supervisor/core/socket";
 import { initTRPC } from "@trpc/server";
@@ -81,25 +88,61 @@ const decodeOrThrow =
       }),
     );
 
-const registryRouter = router({
-  getAll: publicProcedure.query(({ ctx }) => pipe(ctx.services.registry.getAll(), Result.fromTaskEither)),
-
+const controlUnitsRouter = router({
   update: publicProcedure
-    .input(decodeOrThrow(UpdateInputCodec))
-    .mutation(({ ctx, input }) => pipe(ctx.services.registry.update(input.ip, input), Result.fromTaskEither)),
+    .input(decodeOrThrow(ControlUnitUpdateInputCodec))
+    .mutation(({ ctx, input }) =>
+      pipe(ctx.services.registry.controlUnits.update(input.id, input), Result.fromTaskEither),
+    ),
 
   add: publicProcedure
-    .input(decodeOrThrow(DeviceEntryCodec))
-    .mutation(({ ctx, input }) => pipe(ctx.services.registry.add(input), Result.fromTaskEither)),
+    .input(decodeOrThrow(ControlUnitEntryCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.controlUnits.add(input), Result.fromTaskEither)),
 
   remove: publicProcedure
     .input(decodeOrThrow(T.string))
-    .mutation(({ ctx, input }) => pipe(ctx.services.registry.remove(input), Result.fromTaskEither)),
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.controlUnits.remove(input), Result.fromTaskEither)),
+});
+
+const camerasRouter = router({
+  update: publicProcedure
+    .input(decodeOrThrow(CameraUpdateInputCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.cameras.update(input.ip, input), Result.fromTaskEither)),
+
+  add: publicProcedure
+    .input(decodeOrThrow(CameraEntryCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.cameras.add(input), Result.fromTaskEither)),
+
+  remove: publicProcedure
+    .input(decodeOrThrow(T.string))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.cameras.remove(input), Result.fromTaskEither)),
+});
+
+const tvsRouter = router({
+  update: publicProcedure
+    .input(decodeOrThrow(TvUpdateInputCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.tvs.update(input.ip, input), Result.fromTaskEither)),
+
+  add: publicProcedure
+    .input(decodeOrThrow(TvEntryCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.tvs.add(input), Result.fromTaskEither)),
+
+  remove: publicProcedure
+    .input(decodeOrThrow(T.string))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.tvs.remove(input), Result.fromTaskEither)),
+});
+
+const registryRouter = router({
+  getAll: publicProcedure.query(({ ctx }) => pipe(ctx.services.registry.getAll(), Result.fromTaskEither)),
+  controlUnits: controlUnitsRouter,
+  cameras: camerasRouter,
+  tvs: tvsRouter,
 });
 
 // -------------------------------------------------------------------------------------
-// Main App router
+// Main App Router
 // -------------------------------------------------------------------------------------
+
 export const appRouter = router({
   android: androidRouter,
   registry: registryRouter,

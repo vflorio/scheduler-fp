@@ -5,7 +5,7 @@ import * as Logger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry/codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as Adb from "@supervisor/core/services/adb";
-import * as DeviceRegistry from "@supervisor/core/services/device-registry";
+import * as DeviceRegistry from "@supervisor/core/services/device-registry/device-registry";
 import * as Socket from "@supervisor/core/socket";
 import * as E from "fp-ts/Either";
 import { flow, pipe } from "fp-ts/function";
@@ -119,7 +119,7 @@ export const createService: Effect<ServiceHandle> = pipe(
 
         // Utilizza solo i device marcati come controllati
         TE.flatMap((registry) => {
-          const controlledIps = DeviceRegistry.controlledIpsByCategory("android-camera")(registry);
+          const controlledIps = DeviceRegistry.controlledCameraIps(registry);
 
           // Determina se un determinato IP è marcato come controllabile dal DB
           const isControlled = (target: Socket.IPv4): boolean => controlledIps.includes(Socket.from(target).host);
@@ -172,17 +172,40 @@ export const createService: Effect<ServiceHandle> = pipe(
           // Recupera tutti i device dal registry
           getAll: () => DeviceRegistry.read(config.registry.dbPath)(Node.fsEnv),
 
-          // Aggiorna un device nel registry
-          update: (ip: string, update: { label?: string; controlled?: boolean }) =>
-            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateByIp(ip, update))(Node.fsEnv),
+          controlUnits: {
+            update: (id: string, update: { label?: string; controlled?: boolean }) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateControlUnitById(id, update))(
+                Node.fsEnv,
+              ),
 
-          // Aggiunge un nuovo device al registry
-          add: (entry: DeviceRegistry.DeviceEntry) =>
-            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addDevice(entry))(Node.fsEnv),
+            add: (entry: DeviceRegistry.ControlUnitEntry) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addControlUnit(entry))(Node.fsEnv),
 
-          // Rimuove un device dal registry
-          remove: (ip: string) =>
-            DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeByIp(ip))(Node.fsEnv),
+            remove: (id: string) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeControlUnitById(id))(Node.fsEnv),
+          },
+
+          cameras: {
+            update: (ip: string, update: { label?: string; controlled?: boolean }) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateCameraByIp(ip, update))(Node.fsEnv),
+
+            add: (entry: DeviceRegistry.CameraEntry) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addCamera(entry))(Node.fsEnv),
+
+            remove: (ip: string) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeCameraByIp(ip))(Node.fsEnv),
+          },
+
+          tvs: {
+            update: (ip: string, update: { label?: string; controlled?: boolean }) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.updateTvByIp(ip, update))(Node.fsEnv),
+
+            add: (entry: DeviceRegistry.TvEntry) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.addTv(entry))(Node.fsEnv),
+
+            remove: (ip: string) =>
+              DeviceRegistry.modify(config.registry.dbPath)(DeviceRegistry.removeTvByIp(ip))(Node.fsEnv),
+          },
         },
       },
     });
@@ -214,6 +237,7 @@ const configuredLogger = (config: ConfigModel.LogConfig) => ServiceLogger.create
 
 const liveProcess: Node.Process = {
   onSignal: (signal, handler) => process.on(signal, handler),
+
   exit: (code) => process.exit(code),
 };
 
