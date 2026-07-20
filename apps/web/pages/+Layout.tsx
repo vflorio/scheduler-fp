@@ -1,4 +1,4 @@
-import { Devices, FiberManualRecord, Home, PhoneAndroid, Terminal } from "@mui/icons-material";
+import { Devices, FiberManualRecord, Home, PhoneAndroid } from "@mui/icons-material";
 import {
   Box,
   CssBaseline,
@@ -21,7 +21,6 @@ const NAV_ITEMS = [
   { href: "/", label: "Home", icon: <Home fontSize="small" /> },
   { href: "/devices", label: "ADB Devices", icon: <PhoneAndroid fontSize="small" /> },
   { href: "/registry", label: "Device Registry", icon: <Devices fontSize="small" /> },
-  { href: "/service-logs", label: "Service Logs", icon: <Terminal fontSize="small" /> },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

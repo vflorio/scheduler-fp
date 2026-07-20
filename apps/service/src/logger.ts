@@ -1,15 +1,8 @@
 import type { LogConfig } from "@supervisor/core/config";
-import {
-  consoleTransport,
-  createLogger,
-  type Logger,
-  type LogLevel,
-  stripAnsi,
-  type Transport,
-} from "@supervisor/core/logger";
+import * as Logger from "@supervisor/core/logger";
 import pino from "pino";
 
-const pinoTransport = (config: LogConfig): Transport => {
+const pinoTransport = (config: LogConfig): Logger.Transport => {
   const targets: pino.TransportTargetOptions[] = [];
 
   if (config.path) {
@@ -18,18 +11,18 @@ const pinoTransport = (config: LogConfig): Transport => {
 
   const logger = pino({ level: config.level }, config.path ? pino.transport({ targets }) : pino.destination(1));
 
-  return (level, message) => {
-    const clean = stripAnsi(message);
-    (logger[level as "debug" | "info" | "warn" | "error"] as pino.LogFn)?.(clean);
+  return (record) => {
+    const fn = logger[record.level as "debug" | "info" | "warn" | "error"] as pino.LogFn;
+    fn?.(record.tag ? { tag: record.tag, depth: record.depth } : {}, record.message);
   };
 };
 
-export const create = (config: LogConfig, extraTransports: readonly Transport[] = []): Logger => {
-  const transports: Transport[] = [consoleTransport, ...extraTransports];
+export const create = (config: LogConfig, extraTransports: readonly Logger.Transport[] = []): Logger.Tagged => {
+  const transports: Logger.Transport[] = [Logger.consoleTransport, ...extraTransports];
 
   if (config.path) {
     transports.push(pinoTransport(config));
   }
 
-  return createLogger(config.level as LogLevel, transports);
+  return Logger.create(config.level as Logger.LogLevel, transports);
 };

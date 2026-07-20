@@ -1,14 +1,11 @@
-import { type LogLevel, stripAnsi, type Transport } from "./logger";
+import type { LogRecord, Transport } from "./logger";
 
 // -------------------------------------------------------------------------------------
-// In-memory log broadcast (console-formatted lines -> live subscribers)
+// In-memory log broadcast (structured records -> live subscribers)
 // -------------------------------------------------------------------------------------
 
-export interface LogEntry {
+export interface LogEntry extends LogRecord {
   readonly id: number;
-  readonly timestamp: number;
-  readonly level: LogLevel;
-  readonly message: string;
 }
 
 export interface LogFeed {
@@ -20,13 +17,13 @@ export interface LogStream extends LogFeed {
   readonly transport: Transport;
 }
 
-export const createLogStream = (bufferSize = 500): LogStream => {
+export const createLogStream = (bufferSize = 1000): LogStream => {
   const buffer: LogEntry[] = [];
   const listeners = new Set<(entry: LogEntry) => void>();
   let nextId = 0;
 
-  const transport: Transport = (level, message) => {
-    const entry: LogEntry = { id: nextId++, timestamp: Date.now(), level, message: stripAnsi(message) };
+  const transport: Transport = (record) => {
+    const entry: LogEntry = { ...record, id: nextId++ };
 
     buffer.push(entry);
     if (buffer.length > bufferSize) buffer.shift();

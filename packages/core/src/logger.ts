@@ -1,5 +1,6 @@
 import type * as IO from "fp-ts/IO";
 import * as t from "io-ts";
+import { ANSI_RESET, LEVEL_PALETTE, TAG_PALETTE } from "./log-palette";
 
 export interface Logger {
   readonly debug: (message: string) => IO.IO<void>;
@@ -39,76 +40,40 @@ export const isLevelEnabled = (configured: LogLevel, target: LogLevel): boolean 
   (LEVEL_PRIORITY[target] ?? 0) >= LEVEL_PRIORITY[configured];
 
 // -------------------------------------------------------------------------------------
-// ANSI utilities
+// Structured log records
+//
+// `color` is an intrinsic value (an index into TAG_PALETTE), not a rendering
+// instruction. `message` is always plain text - no ANSI is ever baked into it.
+// Each transport decides how (or whether) to render tag/color/depth.
 // -------------------------------------------------------------------------------------
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escape sequences
-const ANSI_REGEX = /\x1b\[[0-9;]*m/g;
+export interface LogRecord {
+  readonly level: LogLevel;
+  readonly timestamp: number;
+  readonly tag?: string;
+  readonly depth: number;
+  readonly color?: number;
+  readonly message: string;
+}
 
-export const stripAnsi = (str: string): string => str.replace(ANSI_REGEX, "");
-
-// -------------------------------------------------------------------------------------
-// Level colors
-// -------------------------------------------------------------------------------------
-
-const LEVEL_COLORS: Record<string, string> = {
-  fatal: "\x1b[41m\x1b[37m",
-  error: "\x1b[31m",
-  warn: "\x1b[33m",
-  info: "\x1b[36m",
-  debug: "\x1b[90m",
-  trace: "\x1b[90m",
-};
+export type Transport = (record: LogRecord) => void;
 
 // -------------------------------------------------------------------------------------
 // Tag colors (per-module coloring)
 // -------------------------------------------------------------------------------------
 
-const TAG_COLORS = [
-  "\x1b[32m", // green
-  "\x1b[33m", // yellow
-  "\x1b[34m", // blue
-  "\x1b[35m", // magenta
-  "\x1b[36m", // cyan
-  "\x1b[91m", // bright red
-  "\x1b[92m", // bright green
-  "\x1b[93m", // bright yellow
-  "\x1b[94m", // bright blue
-  "\x1b[95m", // bright magenta
-  "\x1b[96m", // bright cyan
-] as const;
-
-const RESET = "\x1b[0m";
-const INDENT_SIZE = 2;
-
 let colorIndex = 0;
-const moduleColorMap = new Map<string, string>();
+const moduleColorMap = new Map<string, number>();
 
-const getModuleColor = (tag: string): string => {
+const getModuleColor = (tag: string): number => {
   const existing = moduleColorMap.get(tag);
-  if (existing) return existing;
+  if (existing !== undefined) return existing;
 
-  const color = TAG_COLORS[colorIndex % TAG_COLORS.length] ?? RESET;
-
+  const index = colorIndex % TAG_PALETTE.length;
   colorIndex++;
-  moduleColorMap.set(tag, color);
+  moduleColorMap.set(tag, index);
 
-  return color;
-};
-
-// -------------------------------------------------------------------------------------
-// Formatting utilities
-// -------------------------------------------------------------------------------------
-
-export const colorizeLevel = (level: string, msg: string): string => {
-  const color = LEVEL_COLORS[level] ?? "";
-  return `${color}${msg}${RESET}`;
-};
-
-export const formatTagPrefix = (tag: string, depth: number): string => {
-  const color = getModuleColor(tag);
-  const indent = " ".repeat(depth * INDENT_SIZE);
-  return `${new Date().toLocaleTimeString("it-IT")} | ${indent}${color}[${tag}]${RESET} `;
+  return index;
 };
 
 // -------------------------------------------------------------------------------------
@@ -119,64 +84,81 @@ export interface Tagged extends Logger {
   readonly child: (tag: string) => Tagged;
 }
 
-export const tagged =
-  (tag: string, depth = 0) =>
-  (base: Logger): Tagged => {
-    const prefix = formatTagPrefix(tag, depth);
+interface LoggerContext {
+  readonly configuredLevel: LogLevel;
+  readonly transports: readonly Transport[];
+  readonly tag?: string;
+  readonly depth: number;
+}
 
-    const wrap =
-      (log: (message: string) => IO.IO<void>) =>
-      (message: string): IO.IO<void> =>
-        log(`${prefix}${message}`);
+const emit =
+  (ctx: LoggerContext, level: LogLevel) =>
+  (message: string): IO.IO<void> =>
+  () => {
+    if (!isLevelEnabled(ctx.configuredLevel, level)) return;
 
-    return {
-      debug: wrap(base.debug),
-      info: wrap(base.info),
-      warn: wrap(base.warn),
-      error: wrap(base.error),
-      child: (childTag: string) => tagged(childTag, depth + 1)(base),
+    const record: LogRecord = {
+      level,
+      timestamp: Date.now(),
+      tag: ctx.tag,
+      depth: ctx.depth,
+      color: ctx.tag ? getModuleColor(ctx.tag) : undefined,
+      message,
     };
+
+    for (const transport of ctx.transports) transport(record);
   };
+
+const build = (ctx: LoggerContext): Tagged => ({
+  debug: emit(ctx, "debug"),
+  info: emit(ctx, "info"),
+  warn: emit(ctx, "warn"),
+  error: emit(ctx, "error"),
+  child: (tag: string) => build({ ...ctx, tag, depth: ctx.tag ? ctx.depth + 1 : ctx.depth }),
+});
+
+export const tagged =
+  (tag: string) =>
+  (base: Tagged): Tagged =>
+    base.child(tag);
 
 // -------------------------------------------------------------------------------------
 // Generic logger factory
 // -------------------------------------------------------------------------------------
 
-export type Transport = (level: LogLevel, message: string) => void;
+export const create = (level: LogLevel, transports: readonly Transport[]): Tagged =>
+  build({ configuredLevel: level, transports, depth: 0 });
 
-export const createLogger = (level: LogLevel, transports: readonly Transport[]): Logger => {
-  const write =
-    (lvl: LogLevel) =>
-    (message: string): IO.IO<void> =>
-    () => {
-      if (isLevelEnabled(level, lvl)) {
-        for (const t of transports) t(lvl, message);
-      }
-    };
+// -------------------------------------------------------------------------------------
+// ANSI rendering (terminal transports only)
+// -------------------------------------------------------------------------------------
 
-  return {
-    debug: write("debug"),
-    info: write("info"),
-    warn: write("warn"),
-    error: write("error"),
-  };
+const INDENT_SIZE = 2;
+
+export const renderAnsi = (record: LogRecord): string => {
+  const time = new Date(record.timestamp).toLocaleTimeString("it-IT");
+  const indent = " ".repeat(record.depth * INDENT_SIZE);
+  const tagAnsi = record.tag ? `${TAG_PALETTE[record.color ?? 0]?.ansi ?? ""}[${record.tag}]${ANSI_RESET} ` : "";
+  const levelAnsi = LEVEL_PALETTE[record.level]?.ansi ?? "";
+
+  return `${time} | ${indent}${tagAnsi}${levelAnsi}${record.message}${ANSI_RESET}`;
 };
 
 // -------------------------------------------------------------------------------------
 // Built-in transports
 // -------------------------------------------------------------------------------------
 
-export const consoleTransport: Transport = (level, message) => {
-  console.log(colorizeLevel(level, message));
+export const consoleTransport: Transport = (record) => {
+  console.log(renderAnsi(record));
 };
 
-export const stdoutTransport: Transport = (level, message) => {
-  (globalThis as any).process?.stdout?.write(`${colorizeLevel(level, message)}\n`);
+export const stdoutTransport: Transport = (record) => {
+  (globalThis as any).process?.stdout?.write(`${renderAnsi(record)}\n`);
 };
 
 // -------------------------------------------------------------------------------------
 // Console logger (convenience, no dependencies)
 // -------------------------------------------------------------------------------------
 
-export const createConsoleLogger = (level: LogLevel = "info"): Logger => createLogger(level, [consoleTransport]);
-export const createStdoutLogger = (level: LogLevel = "info"): Logger => createLogger(level, [stdoutTransport]);
+export const createConsoleLogger = (level: LogLevel = "info"): Tagged => create(level, [consoleTransport]);
+export const createStdoutLogger = (level: LogLevel = "info"): Tagged => create(level, [stdoutTransport]);
