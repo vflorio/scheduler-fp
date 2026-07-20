@@ -5,7 +5,7 @@ import { ActivationScheduleCodec } from "./activation/schedule";
 import { LogLevel } from "./logger";
 import { PolicyJsonCodec } from "./retry/codec";
 import { DeviceEntryCodec } from "./services/device-registry";
-import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/workflow-codec";
+import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/codec";
 
 // -------------------------------------------------------------------------------------
 // Model - Configurazione del servizio

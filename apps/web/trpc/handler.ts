@@ -1,5 +1,5 @@
 import type { Logger } from "@supervisor/core/logger";
-import type { Services } from "@supervisor/core/services";
+import type { Services } from "@supervisor/core/services/services";
 import type * as Trpc from "@supervisor/trpc/server";
 import { appRouter } from "@supervisor/trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";

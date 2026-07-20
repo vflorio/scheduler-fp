@@ -1,8 +1,8 @@
 import * as E from "fp-ts/Either";
 import * as TE from "fp-ts/TaskEither";
 import { describe, expect, it } from "vitest";
-import type * as Workflow from "../workflow";
-import * as Interpreter from "../workflow-interpreter";
+import * as Interpreter from "./interpreter";
+import type * as Workflow from "./workflow";
 
 //  fixtures
 
