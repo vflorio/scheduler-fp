@@ -2,6 +2,7 @@ import { pipe } from "fp-ts/function";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
 import { match } from "ts-pattern";
+import { type AppError, format, of } from "../errors";
 import type { Logger } from "../logger";
 import { decode as decodePolicy, type PolicyDecodeError } from "../retry/codec";
 import { retrying } from "../retry/retry";
@@ -33,12 +34,9 @@ export interface CommandCapabilities {
 // Error
 // -------------------------------------------------------------------------------------
 
-export interface WorkflowError {
-  readonly type: "WorkflowError";
-  readonly message: string;
-}
+export interface WorkflowError extends AppError<"WorkflowError"> {}
 
-const workflowError = (message: string): WorkflowError => ({ type: "WorkflowError", message });
+export const workflowError = of("WorkflowError");
 
 // -------------------------------------------------------------------------------------
 // Effect type
@@ -107,7 +105,7 @@ const interpretCommand = (cmd: Command): Effect<void> =>
         )
         .exhaustive(),
     ),
-    RTE.tapError((error) => logError(`  X ${commandToString(cmd)} failed: ${error.message}`)),
+    RTE.tapError((error) => logError(`  X ${commandToString(cmd)} failed: ${format(error)}`)),
   );
 
 // Interpreta una sequenza di comandi in ordine
@@ -145,7 +143,7 @@ export const interpretWorkflow = (workflow: Workflow): Effect<void> => {
       RTE.flatMap(() => interpretStrategy(strategy)),
       RTE.orElse((error) =>
         pipe(
-          logError(`Workflow "${workflow.name}": strategy ${index + 1} failed - ${error.message}`),
+          logError(`Workflow "${workflow.name}": strategy ${index + 1} failed - ${format(error)}`),
           RTE.flatMap(() => runStrategies(strategies, index + 1)),
         ),
       ),

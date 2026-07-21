@@ -1,6 +1,7 @@
 import * as ActivationRunner from "@supervisor/core/activation/runner";
 import * as ActivationSchedule from "@supervisor/core/activation/schedule";
 import type * as ConfigModel from "@supervisor/core/config";
+import * as Errors from "@supervisor/core/errors";
 import * as LogStream from "@supervisor/core/log-stream";
 import * as Logger from "@supervisor/core/logger";
 import * as RetryPolicy from "@supervisor/core/retry/codec";
@@ -8,6 +9,7 @@ import * as Schedule from "@supervisor/core/schedule";
 import * as Adb from "@supervisor/core/services/adb";
 import * as Db from "@supervisor/core/services/db";
 import * as Socket from "@supervisor/core/socket";
+import type { ValidationError } from "@supervisor/core/validation";
 import * as E from "fp-ts/Either";
 import { flow, pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
@@ -35,7 +37,7 @@ export interface Env {
 
 type Effect<A> = RTE.ReaderTaskEither<
   Env,
-  Config.LoadError | Config.FetchError | RetryPolicy.PolicyDecodeError | ActivationRunner.StartError,
+  ValidationError | Config.FetchError | RetryPolicy.PolicyDecodeError | ActivationRunner.StartError,
   A
 >;
 
@@ -148,7 +150,7 @@ export const create: Effect<ServiceHandle> = pipe(
             TE.flatMap(runWorkflow),
           ),
         ),
-        TE.tapError((error) => TE.fromIO(logger.error(`Activation tick failed: ${error.message}`))),
+        TE.tapError((error) => TE.fromIO(logger.error(`Activation tick failed: ${Errors.format(error)}`))),
         T.asUnit,
       ),
     });

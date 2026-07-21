@@ -1,5 +1,6 @@
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
+import { type AppError, of } from "../errors";
 import { type HTTPError, postJsonBearer } from "../http";
 
 // -------------------------------------------------------------------------------------
@@ -32,10 +33,7 @@ export interface SlackBlock {
 // Validation
 // -------------------------------------------------------------------------------------
 
-export type SlackAPIError = {
-  type: "SlackAPIError";
-  code: string;
-};
+export interface SlackAPIError extends AppError<"SlackAPIError"> {}
 
 export type SlackError = HTTPError | SlackAPIError;
 
@@ -63,10 +61,8 @@ export const postMessage = (config: SlackConfig, message: SlackMessage): TE.Task
     postJsonBearer(`${config.baseUrl ?? DEFAULT_BASE_URL}/chat.postMessage`, { token: config.botToken }, message),
     TE.flatMap((response) => {
       if (!isValidResponse(response)) {
-        return TE.left<SlackAPIError>({ type: "SlackAPIError", code: "invalid_response" });
+        return TE.left(of("SlackAPIError")("invalid_response"));
       }
-      return response.ok
-        ? TE.right(undefined)
-        : TE.left<SlackAPIError>({ type: "SlackAPIError", code: response.error });
+      return response.ok ? TE.right(undefined) : TE.left(of("SlackAPIError")(response.error));
     }),
   );

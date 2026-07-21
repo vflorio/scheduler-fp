@@ -1,6 +1,7 @@
 import * as E from "fp-ts/Either";
 import * as t from "io-ts";
 import { type DurationString, DurationString as DurationStringCodec, durationToMs } from "../date-time";
+import { type AppError, of } from "../errors";
 import { capDelay, concat, constantDelay, exponentialBackoff, limitRetries, type Policy } from "./retry";
 
 // -------------------------------------------------------------------------------------
@@ -66,10 +67,7 @@ export const policyJsonToString = (json: PolicyJson): string => `[PolicyJson: ${
 // Decodifica - da JSON a Policy
 // -------------------------------------------------------------------------------------
 
-export type PolicyDecodeError = {
-  type: "PolicyDecodeError";
-  message: string;
-};
+export interface PolicyDecodeError extends AppError<"PolicyDecodeError"> {}
 
 // Registro delle primitive supportate
 const PRIMITIVES: Record<string, ((...args: number[]) => Policy) | undefined> = {
@@ -86,6 +84,8 @@ const MODIFIERS: Record<string, ((arg: number) => (policy: Policy) => Policy) | 
 // Risolve un argomento: DurationString -> ms, number -> passthrough
 const resolveArg = (arg: PolicyStepArg): number => (typeof arg === "string" ? durationToMs(arg) : arg);
 
+const policyDecodeError = of("PolicyDecodeError");
+
 // Decodifica un singolo step
 const decodeStep = (step: PolicyStepJson, acc: Policy | null): E.Either<PolicyDecodeError, Policy> => {
   const [name, ...rawArgs] = step;
@@ -95,11 +95,11 @@ const decodeStep = (step: PolicyStepJson, acc: Policy | null): E.Either<PolicyDe
   const modifier = MODIFIERS[name];
   if (modifier) {
     if (acc === null) {
-      return E.left({ type: "PolicyDecodeError", message: `Modifier "${name}" no previous policy` });
+      return E.left(policyDecodeError(`Modifier "${name}" no previous policy`));
     }
     const arg = args[0];
     if (arg === undefined) {
-      return E.left({ type: "PolicyDecodeError", message: `Modifier "${name}" requires an argument` });
+      return E.left(policyDecodeError(`Modifier "${name}" requires an argument`));
     }
     return E.right(modifier(arg)(acc));
   }
@@ -107,7 +107,7 @@ const decodeStep = (step: PolicyStepJson, acc: Policy | null): E.Either<PolicyDe
   // Prova come primitiva
   const primitive = PRIMITIVES[name];
   if (!primitive) {
-    return E.left({ type: "PolicyDecodeError", message: `Policy sconosciuta: "${name}"` });
+    return E.left(policyDecodeError(`Policy sconosciuta: "${name}"`));
   }
 
   const policy = primitive(...args);
@@ -119,7 +119,7 @@ const decodeStep = (step: PolicyStepJson, acc: Policy | null): E.Either<PolicyDe
 // Decodifica un array di step JSON in una Policy composta
 export const decode = (json: PolicyJson): E.Either<PolicyDecodeError, Policy> => {
   if (json.length === 0) {
-    return E.left({ type: "PolicyDecodeError", message: "Empty policy: at least one step is required" });
+    return E.left(policyDecodeError("Empty policy: at least one step is required"));
   }
 
   let acc: Policy | null = null;

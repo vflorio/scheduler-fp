@@ -2,8 +2,10 @@ import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
+import { format } from "../errors";
 import { type BasicAuth, getJsonAuth, type HTTPError } from "../http";
 import type * as Logger from "../logger";
+import { createValidationError, type ValidationError } from "../validation";
 
 // -------------------------------------------------------------------------------------
 // Model - Paginated response
@@ -34,17 +36,7 @@ export interface PaginatedResponse<A> {
 // Errors
 // -------------------------------------------------------------------------------------
 
-export interface PaginationError {
-  readonly type: "PaginationError";
-  readonly message: string;
-}
-
-export type PaginationFetchError = HTTPError | PaginationError;
-
-const createPaginationError = (errors: t.Errors): PaginationFetchError => ({
-  type: "PaginationError",
-  message: `Pagination failed: ${errors.map((e) => e.context.map(({ key }) => key).join(".")).join(", ")}`,
-});
+export type PaginationFetchError = HTTPError | ValidationError;
 
 // -------------------------------------------------------------------------------------
 // Single page - fetch and validate by URL
@@ -59,13 +51,13 @@ const fetchPage = <A>(
   pipe(
     logger ? TE.fromIO(logger.debug(`GET ${url}`)) : TE.right(undefined),
     TE.flatMap(() => getJsonAuth(url, auth)),
-    TE.flatMapEither((data) => pipe(PaginatedResponseSchema(itemCodec).decode(data), E.mapLeft(createPaginationError))),
+    TE.flatMapEither((data) => pipe(PaginatedResponseSchema(itemCodec).decode(data), E.mapLeft(createValidationError))),
     TE.tapIO((page) =>
       logger
         ? logger.debug(`  -> page ${page.page ?? 1}: ${page.values.length} items (total: ${page.total ?? "?"})`)
         : () => {},
     ),
-    TE.tapError((err) => (logger ? TE.fromIO(logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
+    TE.tapError((err) => (logger ? TE.fromIO(logger.error(`  ✗ ${format(err)}`)) : TE.right(undefined))),
   );
 
 // -------------------------------------------------------------------------------------

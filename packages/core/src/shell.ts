@@ -2,17 +2,12 @@ import * as IO from "fp-ts/IO";
 import { pipe } from "fp-ts/lib/function";
 import type * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
+import type { AppError } from "./errors";
 import type * as Logger from "./logger";
 
-export interface CommandError {
-  type: "CommandError";
-  message: string;
-}
+export interface CommandError extends AppError<"CommandError"> {}
 
-export interface CommandTimeoutError {
-  type: "CommandTimeout";
-  message: string;
-}
+export interface CommandTimeoutError extends AppError<"CommandTimeout"> {}
 
 export type ShellSpawnError = CommandError | CommandTimeoutError;
 

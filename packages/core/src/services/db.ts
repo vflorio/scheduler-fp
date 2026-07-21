@@ -3,6 +3,7 @@ import type { Endomorphism } from "fp-ts/Endomorphism";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
+import { type AppError, fromUnknown } from "../errors";
 import type * as Fs from "../fs";
 import { type ValidationError, validate } from "../validation";
 import * as Lab from "./lab-registry";
@@ -31,20 +32,14 @@ export const empty: Db = { suitest: SuitestStoreDomain.empty, lab: Lab.empty };
 
 export type DbError = Fs.FileSystemError | ValidationError | ParseError;
 
-export interface ParseError {
-  readonly type: "ParseError";
-  readonly message: string;
-}
+export interface ParseError extends AppError<"ParseError"> {}
 
 // -------------------------------------------------------------------------------------
 // Persistence: read(mutate(write))
 // -------------------------------------------------------------------------------------
 
 const parseJson = (raw: string): E.Either<ParseError, unknown> =>
-  E.tryCatch(
-    () => JSON.parse(raw),
-    (e) => ({ type: "ParseError" as const, message: e instanceof Error ? e.message : String(e) }),
-  );
+  E.tryCatch(() => JSON.parse(raw), fromUnknown("ParseError"));
 
 export const read =
   (path: string): ((env: Fs.Env) => TE.TaskEither<DbError, Db>) =>

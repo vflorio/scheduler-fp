@@ -1,3 +1,4 @@
+import * as Errors from "@supervisor/core/errors";
 import type * as Logger from "@supervisor/core/logger";
 import type * as RetryPolicy from "@supervisor/core/retry/codec";
 import * as Retry from "@supervisor/core/retry/retry";
@@ -12,7 +13,7 @@ import type * as DeviceRegistry from "./registry";
 
 const mapWorkflowError = (
   error: WorkflowInterpreter.WorkflowError | Adb.AdbError | Shell.ShellSpawnError | DeviceRegistry.SyncError,
-): WorkflowInterpreter.WorkflowError => ({ type: "WorkflowError" as const, message: error.message });
+): WorkflowInterpreter.WorkflowError => WorkflowInterpreter.workflowError(error.message);
 
 interface WorkflowRunnerEnv {
   readonly logger: Logger.Tagged;
@@ -37,7 +38,7 @@ export const run =
       }),
 
       TE.tapIO(() => env.logger.info(`Workflow "${workflow}" completed on ${target}`)),
-      TE.tapError((error) => TE.fromIO(env.logger.error(`Workflow failed on ${target}: ${error.message}`))),
+      TE.tapError((error) => TE.fromIO(env.logger.error(`Workflow failed on ${target}: ${Errors.format(error)}`))),
     );
 
 const makeCapabilities = (env: WorkflowRunnerEnv, target: IPv4): WorkflowInterpreter.CommandCapabilities => {
@@ -93,12 +94,7 @@ const makeCapabilities = (env: WorkflowRunnerEnv, target: IPv4): WorkflowInterpr
             TE.flatMap((active) =>
               active
                 ? TE.right(undefined)
-                : TE.left(
-                    mapWorkflowError({
-                      type: "WorkflowError" as const,
-                      message: `Activity "${activity}" not yet resumed`,
-                    }),
-                  ),
+                : TE.left(WorkflowInterpreter.workflowError(`Activity "${activity}" not yet resumed`)),
             ),
           ),
         ),

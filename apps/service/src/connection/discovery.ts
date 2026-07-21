@@ -1,3 +1,4 @@
+import * as Errors from "@supervisor/core/errors";
 import * as Adb from "@supervisor/core/services/adb";
 import * as AvahiBrowse from "@supervisor/core/services/avahi-browse";
 import type * as Shell from "@supervisor/core/shell";
@@ -76,7 +77,7 @@ const disconnectStray =
     pipe(
       Adb.disconnect(target)({ logger: env.logger.child("ADB"), spawn: env.spawn }),
       TE.orElse((error) => {
-        env.logger.error(`Failed to disconnect uncontrolled host ${target}: ${error.message}`)();
+        env.logger.error(`Failed to disconnect uncontrolled host ${target}: ${Errors.format(error)}`)();
         return TE.right<Adb.AdbError, void>(undefined);
       }),
     );
@@ -115,7 +116,7 @@ export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
     pipe(
       liftMdns(AvahiBrowse.discoverAdbTlsConnect),
       RTE.flatMap(filterControlledOnly),
-      RTE.tapError((error) => logError(`mDNS discovery failed: ${error.message}`)),
+      RTE.tapError((error) => logError(`mDNS discovery failed: ${Errors.format(error)}`)),
     ),
   ),
 

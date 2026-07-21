@@ -1,6 +1,7 @@
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
+import { format } from "../errors";
 import { type BasicAuth, getJsonAuth, type HTTPError, postJsonBasic } from "../http";
 import type * as Logger from "../logger";
 import { type ValidationError, validate } from "../validation";
@@ -215,7 +216,7 @@ const loggedGet = (config: SuitestConfig, path: string): TE.TaskEither<HTTPError
     TE.tapIO((data) =>
       config.logger ? config.logger.child(url).debug(`\n${JSON.stringify(data, null, 2)}`) : () => {},
     ),
-    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
+    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${format(err)}`)) : TE.right(undefined))),
   );
 };
 
@@ -224,7 +225,7 @@ const loggedPost = (config: SuitestConfig, path: string): TE.TaskEither<HTTPErro
   return pipe(
     config.logger ? TE.fromIO(config.logger.debug(`POST ${url}`)) : TE.right(undefined),
     TE.flatMap(() => postJsonBasic(url, config.auth)),
-    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
+    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${format(err)}`)) : TE.right(undefined))),
   );
 };
 
@@ -237,7 +238,7 @@ export const getAllDevices = (config: SuitestConfig): TE.TaskEither<SuitestError
   pipe(
     fetchAllPages(endpoint(config, "/devices"), config.auth, DeviceCodec, config.logger),
     TE.tapIO((devices) => (config.logger ? config.logger.debug(`  -> ${devices.length} devices total`) : () => {})),
-    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
+    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${format(err)}`)) : TE.right(undefined))),
   );
 
 // Dettaglio di un singolo device
@@ -264,7 +265,7 @@ export const getVideoCaptureDevices = (
     TE.tapIO((devices) =>
       config.logger ? config.logger.debug(`  -> ${devices.length} video capture devices total`) : () => {},
     ),
-    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${err.message}`)) : TE.right(undefined))),
+    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  ✗ ${format(err)}`)) : TE.right(undefined))),
   );
 
 // Riavvia una control unit (CandyBox/Raspberry Pi)

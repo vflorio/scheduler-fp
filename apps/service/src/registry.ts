@@ -1,9 +1,9 @@
+import * as Errors from "@supervisor/core/errors";
 import type * as Fs from "@supervisor/core/fs";
 import type * as Logger from "@supervisor/core/logger";
 import * as Db from "@supervisor/core/services/db";
 import * as Suitest from "@supervisor/core/services/suitest";
 import { pipe } from "fp-ts/function";
-import * as IO from "fp-ts/IO";
 import * as TE from "fp-ts/TaskEither";
 
 interface RegistrySyncEnv {
@@ -15,8 +15,6 @@ interface RegistrySyncEnv {
 }
 
 export type SyncError = Db.DbError;
-
-const errorMessage = (err: { message: string }): string => err.message;
 
 // Fetch dei tre endpoint Suitest, in parallelo
 // /devices ritorna TV e smart plug
@@ -61,7 +59,7 @@ export const sync = (env: RegistrySyncEnv): TE.TaskEither<SyncError, Db.Db> =>
         TE.flatMap((incoming) => Db.syncFromSuitest(env.dbPath)(incoming)(env.fsEnv)),
         TE.orElse((err) =>
           pipe(
-            TE.fromIO(env.logger.warn(`Suitest sync skipped, continuing without it: ${errorMessage(err)}`)),
+            TE.fromIO(env.logger.warn(`Suitest sync skipped, continuing without it: ${Errors.format(err)}`)),
             TE.map(() => currentDb),
           ),
         ),

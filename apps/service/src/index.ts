@@ -1,3 +1,4 @@
+import * as Errors from "@supervisor/core/errors";
 import * as Logger from "@supervisor/core/logger";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
@@ -42,7 +43,7 @@ const main = () => {
     const result = await SupervisorService.create(env)();
 
     if (E.isLeft(result)) {
-      env.logger.error(JSON.stringify(result.left))();
+      env.logger.error(Errors.format(result.left))();
       env.process.exit(1);
     }
 

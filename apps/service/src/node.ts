@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import * as Errors from "@supervisor/core/errors";
 import type * as Fs from "@supervisor/core/fs";
 import * as Logger from "@supervisor/core/logger";
 import type * as Shell from "@supervisor/core/shell";
@@ -22,24 +23,17 @@ export const spawn: Shell.Spawn = (command, args) =>
             error ? reject({ ...error, message: `${error.message} - ${stderr}` }) : resolve(stdout),
           );
         }),
-      (error) => ({ type: "CommandError" as const, message: error instanceof Error ? error.message : String(error) }),
+      Errors.fromUnknown("CommandError"),
     ),
   );
 
 export const fsEnv: Fs.Env = {
   logger: pipe(ServiceLogger.create({ level: "debug" }), Logger.tagged("FS")),
 
-  readFile: (path) =>
-    TE.tryCatch(
-      () => readFile(path, "utf-8"),
-      (e) => ({ type: "FileSystemError" as const, message: e instanceof Error ? e.message : String(e) }),
-    ),
+  readFile: (path) => TE.tryCatch(() => readFile(path, "utf-8"), Errors.fromUnknown("FileSystemError")),
   writeFile: (path, content) =>
-    TE.tryCatch(
-      async () => {
-        await mkdir(dirname(path), { recursive: true });
-        await writeFile(path, content, "utf-8");
-      },
-      (e) => ({ type: "FileSystemError" as const, message: e instanceof Error ? e.message : String(e) }),
-    ),
+    TE.tryCatch(async () => {
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, content, "utf-8");
+    }, Errors.fromUnknown("FileSystemError")),
 };

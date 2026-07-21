@@ -1,22 +1,17 @@
 import * as TE from "fp-ts/TaskEither";
+import { type AppError, fromUnknown } from "./errors";
 
 // -------------------------------------------------------------------------------------
 // Model
 // -------------------------------------------------------------------------------------
 
-export type HTTPError = {
-  type: "HTTPError";
-  message: string;
-};
+export interface HTTPError extends AppError<"HTTPError"> {}
 
 // -------------------------------------------------------------------------------------
 // Constructors
 // -------------------------------------------------------------------------------------
 
-const toHTTPError = (error: unknown): HTTPError => ({
-  type: "HTTPError",
-  message: error instanceof Error ? error.message : `${error}`,
-});
+const toHTTPError = fromUnknown("HTTPError");
 
 const request = (url: string, init?: RequestInit): TE.TaskEither<HTTPError, unknown> =>
   TE.tryCatch(async () => {

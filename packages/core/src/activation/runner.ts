@@ -1,6 +1,7 @@
 import * as IO from "fp-ts/IO";
 import { constVoid, pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
+import { type AppError, fromUnknown } from "../errors";
 import type * as Logger from "../logger";
 import * as Retry from "../retry/retry";
 import * as Schedule from "../schedule";
@@ -13,10 +14,7 @@ import * as Schedule from "../schedule";
 // e una Retry.Policy per determinare il delay tra i tick.
 // -------------------------------------------------------------------------------------
 
-export interface StartError {
-  readonly type: "StartError";
-  readonly message: string;
-}
+export interface StartError extends AppError<"StartError"> {}
 
 // Esegue `onActive` quando lo schedule e' attivo, `onInactive` quando non lo e'.
 // Usa la policy per determinare il delay tra i tick.
@@ -79,10 +77,7 @@ export const create = (
   };
 
   return {
-    start: TE.tryCatch(
-      () => tick(),
-      (err) => ({ type: "StartError" as const, message: `Activation runner start error: ${err}` }),
-    ),
+    start: TE.tryCatch(() => tick(), fromUnknown("StartError")),
     stop: pipe(
       log.info("Scheduled runner stopped"),
       IO.flatMap(() => () => controller.abort()),

@@ -1,16 +1,14 @@
 import { pipe } from "fp-ts/lib/function";
 import type * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
+import type { AppError } from "./errors";
 import type { Logger } from "./logger";
 
 // -------------------------------------------------------------------------------------
 // Model
 // -------------------------------------------------------------------------------------
 
-export interface FileSystemError {
-  type: "FileSystemError";
-  message: string;
-}
+export interface FileSystemError extends AppError<"FileSystemError"> {}
 
 // -------------------------------------------------------------------------------------
 // Dependencies

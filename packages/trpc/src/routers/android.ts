@@ -1,3 +1,4 @@
+import * as Errors from "@supervisor/core/errors";
 import * as Socket from "@supervisor/core/socket";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
@@ -43,7 +44,7 @@ export const androidRouter = router({
           yield result.right;
         }
       } else {
-        ctx.logger.error(`android.devicesTail poll failed: ${result.left.message}`)();
+        ctx.logger.error(`android.devicesTail poll failed: ${Errors.format(result.left)}`)();
       }
 
       await new Promise<void>((resolve) => {

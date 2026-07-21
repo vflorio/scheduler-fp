@@ -2,9 +2,11 @@ import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as t from "io-ts";
 import { ActivationScheduleCodec } from "./activation/schedule";
+import { of } from "./errors";
 import { LogLevel } from "./logger";
 import { PolicyJsonCodec } from "./retry/codec";
 import { CameraEntryCodec, ControlUnitEntryCodec, TvEntryCodec } from "./services/db";
+import type { ValidationError } from "./validation";
 import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/codec";
 
 // -------------------------------------------------------------------------------------
@@ -79,11 +81,6 @@ export type ServiceConfig = t.TypeOf<typeof ServiceConfigCodec>;
 // Validazione
 // -------------------------------------------------------------------------------------
 
-export interface ConfigDecodeError {
-  readonly type: "ConfigDecodeError";
-  readonly message: string;
-}
-
 const formatErrors = (errors: t.Errors): string =>
   errors
     .map(
@@ -96,12 +93,9 @@ const formatErrors = (errors: t.Errors): string =>
     .join("\n");
 
 // Valida e decodifica un oggetto JSON in ServiceConfig
-export const decode = (raw: unknown): E.Either<ConfigDecodeError, ServiceConfig> =>
+export const decode = (raw: unknown): E.Either<ValidationError, ServiceConfig> =>
   pipe(
     raw,
     ServiceConfigCodec.decode,
-    E.mapLeft((errors) => ({
-      type: "ConfigDecodeError" as const,
-      message: `Invalid configuration:\n${formatErrors(errors)}`,
-    })),
+    E.mapLeft((errors) => of("ValidationError")(`Invalid configuration:\n${formatErrors(errors)}`)),
   );
