@@ -11,7 +11,6 @@ export function ControlUnitCard({
   onEdit,
   onDelete,
   onAssignCamera,
-  onLinkTv,
   onLinkCamera,
 }: { group: CuGroup } & RowActions) {
   return (
@@ -38,14 +37,13 @@ export function ControlUnitCard({
         <Stack spacing={1} sx={{ mt: 1.5, pl: 3, borderLeft: "2px solid", borderColor: "divider" }}>
           {group.tvs.map((tvGroup) => (
             <TvRow
-              key={tvGroup.tv.ip}
+              key={tvGroup.tv.deviceId}
               group={tvGroup}
               adbDevices={adbDevices}
               onToggle={onToggle}
               onEdit={onEdit}
               onDelete={onDelete}
               onAssignCamera={onAssignCamera}
-              onLinkTv={onLinkTv}
               onLinkCamera={onLinkCamera}
             />
           ))}

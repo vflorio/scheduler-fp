@@ -1,8 +1,8 @@
-import type { CameraEntry, CandyboxEntry, Db, TvEntry } from "@supervisor/core/services/db";
+import type { AdbEntry, CameraEntry, CandyboxEntry, Db, TvEntry } from "@supervisor/core/services/db";
 import type { InUseBy } from "@supervisor/core/services/suitest";
 import type { AdbDevice } from "../../hooks/useAdbDevices";
 
-export type { Db };
+export type { AdbEntry, Db };
 
 export type DeviceKind = "candybox" | "camera" | "tv";
 
@@ -18,6 +18,8 @@ export interface CameraView extends CameraEntry {
     recordingActive: boolean;
     streamActive: boolean;
   };
+  // Risolto da `adbId` tramite `db.lab.adb` - vedi hierarchy.ts
+  adb?: AdbEntry;
 }
 
 export interface TvView extends TvEntry {
@@ -41,17 +43,17 @@ export interface Hierarchy {
   orphanCameras: CameraView[];
 }
 
-export interface NewDeviceForm {
-  kind: DeviceKind;
+// Candybox/Camera/TV derivano da config seed / Suitest sync: l'unico device registrabile
+// manualmente dalla UI è un target ADB (es. un tablet), poi assegnabile a una camera.
+export interface NewAdbTargetForm {
   label: string;
-  identifier: string;
-  controlled: boolean;
+  target: string; // "ip:port", validato a runtime con NetworkTarget.decode
 }
 
+// Riconciliazione manuale camera <-> video-capture-device Suitest
 export interface LinkingTarget {
-  kind: "tv" | "camera";
-  id: string; // ip per tv, id per camera
-  currentSuitestId?: string;
+  id: string; // id camera
+  currentVideoCaptureDeviceId?: string;
 }
 
 // Props condivise dalle righe della gerarchia (control unit / tv / camera)
@@ -61,6 +63,5 @@ export interface RowActions {
   onEdit: (kind: DeviceKind, id: string, label: string) => void;
   onDelete: (kind: DeviceKind, id: string) => void;
   onAssignCamera: (camera: CameraView) => void;
-  onLinkTv: (tv: TvView) => void;
   onLinkCamera: (camera: CameraView) => void;
 }

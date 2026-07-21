@@ -9,14 +9,14 @@ export function LinkSuitestDialog({
 }: {
   target: LinkingTarget | null;
   candidates: readonly { id: string; primary: string; secondary?: string }[];
-  onLink: (suitestId: string) => void;
+  onLink: (videoCaptureDeviceId: string) => void;
   onClose: () => void;
 }) {
   return (
     <SelectDialog
       open={target !== null}
-      title={`Link Suitest ${target?.kind === "tv" ? "device" : "video capture device"}`}
-      selectedId={target?.currentSuitestId}
+      title="Link Suitest video capture device"
+      selectedId={target?.currentVideoCaptureDeviceId}
       options={candidates}
       emptyMessage={
         <>

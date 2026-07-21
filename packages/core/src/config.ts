@@ -6,7 +6,7 @@ import { of } from "./errors";
 import { LogLevel } from "./logger";
 import * as NetworkTarget from "./network-target";
 import { PolicyJsonCodec } from "./retry/codec";
-import { CameraEntryCodec, CandyboxEntryCodec, TvEntryCodec } from "./services/db";
+import { AdbEntryCodec, CameraEntryCodec, CandyboxEntryCodec, TvEntryCodec } from "./services/db";
 import type { ValidationError } from "./validation";
 import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/codec";
 
@@ -60,6 +60,7 @@ const RegistryCodec = t.intersection([
       candyboxes: t.array(CandyboxEntryCodec),
       cameras: t.array(CameraEntryCodec),
       tvs: t.array(TvEntryCodec),
+      adb: t.array(AdbEntryCodec),
     }),
   }),
 ]);

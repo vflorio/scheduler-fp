@@ -17,7 +17,7 @@ export function AssignCameraDialog({
   onAssign: (target: string) => void;
   onClose: () => void;
 }) {
-  const selectedTarget = camera?.adbTarget ? NetworkTarget.format(camera.adbTarget) : undefined;
+  const selectedTarget = camera?.adb ? NetworkTarget.format(camera.adb.target) : undefined;
   const candidates = adbDevices.filter((d) => d.target === selectedTarget || !usedTargets.has(d.target));
 
   return (

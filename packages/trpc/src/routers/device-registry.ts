@@ -1,4 +1,6 @@
 import {
+  AdbEntryCodec,
+  AdbUpdateInputCodec,
   CameraEntryCodec,
   CameraUpdateInputCodec,
   CandyboxEntryCodec,
@@ -71,9 +73,24 @@ const tvsRouter = router({
     .mutation(({ ctx, input }) => pipe(ctx.services.registry.tvs.remove(input), ApiResult.fromTaskEither)),
 });
 
+const adbRouter = router({
+  update: publicProcedure
+    .input(decodeOrThrow(AdbUpdateInputCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.adb.update(input), ApiResult.fromTaskEither)),
+
+  add: publicProcedure
+    .input(decodeOrThrow(AdbEntryCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.adb.add(input), ApiResult.fromTaskEither)),
+
+  remove: publicProcedure
+    .input(decodeOrThrow(T.string))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.adb.remove(input), ApiResult.fromTaskEither)),
+});
+
 export const registryRouter = router({
   getAll: publicProcedure.query(({ ctx }) => pipe(ctx.services.registry.getAll(), ApiResult.fromTaskEither)),
   candyboxes: candyboxesRouter,
   cameras: camerasRouter,
   tvs: tvsRouter,
+  adb: adbRouter,
 });

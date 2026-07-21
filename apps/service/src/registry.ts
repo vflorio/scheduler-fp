@@ -4,6 +4,7 @@ import type * as Logger from "@supervisor/core/logger";
 import * as Db from "@supervisor/core/services/db";
 import * as Suitest from "@supervisor/core/services/suitest";
 import { pipe } from "fp-ts/function";
+import * as O from "fp-ts/Option";
 import * as TE from "fp-ts/TaskEither";
 
 interface RegistrySyncEnv {
@@ -39,14 +40,29 @@ const fetchSuitestLists = (
   );
 };
 
+// Se Suitest non è raggiungibile, non blocca la sync: ritorna None (warning, non un errore
+// fatale), dato che il dominio applicativo (lab) è preconfigurabile e operabile offline
+// indipendentemente da Suitest.
+const fetchSuitestListsOrSkip = (
+  logger: Logger.Tagged,
+  suitestConfig: Suitest.SuitestConfig,
+): TE.TaskEither<never, O.Option<Db.SuitestLists>> =>
+  pipe(
+    fetchSuitestLists(logger, suitestConfig),
+    TE.map(O.some),
+    TE.orElse((err) =>
+      pipe(
+        TE.fromIO(logger.warn(`Suitest fetch failed, sync skipped: ${Errors.format(err)}`)),
+        TE.map((): O.Option<Db.SuitestLists> => O.none),
+      ),
+    ),
+  );
+
 // Registry sync:
 //  init db
-//    |> fetch suitest
+//    |> fetch suitest (skippato se irraggiungibile, vedi sopra)
 //    |> replace mirror + auto-import control unit
 //    |> write
-// Se Suitest non è raggiungibile la sync viene saltata (warning, non un errore fatale): il
-// servizio continua a operare con il db esistente, dato che il dominio applicativo (lab) è
-// preconfigurabile e operabile offline indipendentemente da Suitest.
 export const sync = (env: RegistrySyncEnv): TE.TaskEither<SyncError, Db.Db> =>
   pipe(
     // Init db (crea file JSON se non esiste)
@@ -55,13 +71,9 @@ export const sync = (env: RegistrySyncEnv): TE.TaskEither<SyncError, Db.Db> =>
 
     TE.flatMap((currentDb) =>
       pipe(
-        fetchSuitestLists(env.logger, env.suitestConfig),
-        TE.flatMap((incoming) => Db.syncFromSuitest(env.dbPath)(incoming)(env.fsEnv)),
-        TE.orElse((err) =>
-          pipe(
-            TE.fromIO(env.logger.warn(`Suitest sync skipped, continuing without it: ${Errors.format(err)}`)),
-            TE.map(() => currentDb),
-          ),
+        fetchSuitestListsOrSkip(env.logger, env.suitestConfig),
+        TE.flatMap((incoming) =>
+          O.isNone(incoming) ? TE.right(currentDb) : Db.syncFromSuitest(env.dbPath)(incoming.value)(env.fsEnv),
         ),
       ),
     ),

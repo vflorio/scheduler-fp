@@ -39,7 +39,13 @@ export interface DeviceRegistry {
   readonly tvs: {
     readonly update: (input: Db.TvUpdateInput) => TE.TaskEither<Db.DbError, Db.Db>;
     readonly add: (entry: Db.TvEntry) => TE.TaskEither<Db.DbError, Db.Db>;
-    readonly remove: (ip: string) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly remove: (deviceId: string) => TE.TaskEither<Db.DbError, Db.Db>;
+  };
+
+  readonly adb: {
+    readonly update: (input: Db.AdbUpdateInput) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly add: (entry: Db.AdbEntry) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly remove: (id: string) => TE.TaskEither<Db.DbError, Db.Db>;
   };
 }
 

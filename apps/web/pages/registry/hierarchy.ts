@@ -1,4 +1,5 @@
 import * as NetworkTarget from "@supervisor/core/network-target";
+import * as O from "fp-ts/Option";
 import type { AdbDevice } from "../../hooks/useAdbDevices";
 import type { CameraView, ControlUnitView, Db, Hierarchy, TvGroup, TvView } from "./types";
 
@@ -14,7 +15,7 @@ export function adbStatusFor(
 }
 
 // -------------------------------------------------------------------------------------
-// Join lab <-> suitest (via `suitestId`) + Hierarchy - Control Unit -> TV -> Camera
+// Join lab <-> suitest (+ lab.adb) + Hierarchy - Control Unit -> TV -> Camera
 // (non allocato/misto se manca il collegamento)
 // -------------------------------------------------------------------------------------
 
@@ -24,13 +25,17 @@ function enrich(db: Db): { controlUnits: ControlUnitView[]; tvs: TvView[]; camer
     online: db.suitest.controlUnits[cu.id]?.online,
   }));
 
+  // Identità TV = deviceId Suitest, sempre presente
   const tvs: TvView[] = Object.values(db.lab.tvs).map((tv) => {
-    const device = tv.suitestId ? db.suitest.devices[tv.suitestId] : undefined;
+    const device = db.suitest.devices[tv.deviceId];
     return { ...tv, controlUnitIds: device?.controlUnitIds, inUseBy: device?.inUseBy };
   });
 
   const cameras: CameraView[] = Object.values(db.lab.cameras).map((camera) => {
-    const vcd = camera.suitestId ? db.suitest.videoCaptureDevices[camera.suitestId] : undefined;
+    const vcdId = O.toUndefined(camera.videoCaptureDeviceId);
+    const vcd = vcdId ? db.suitest.videoCaptureDevices[vcdId] : undefined;
+    const adbId = O.toUndefined(camera.adbId);
+    const adb = adbId ? db.lab.adb[adbId] : undefined;
     return {
       ...camera,
       suitest: vcd
@@ -42,6 +47,7 @@ function enrich(db: Db): { controlUnits: ControlUnitView[]; tvs: TvView[]; camer
             streamActive: vcd.streamActive,
           }
         : undefined,
+      adb,
     };
   });
 
@@ -51,17 +57,17 @@ function enrich(db: Db): { controlUnits: ControlUnitView[]; tvs: TvView[]; camer
 export function buildHierarchy(db: Db): Hierarchy {
   const { controlUnits, tvs, cameras } = enrich(db);
 
-  const camerasByTvSuitestId = new Map<string, CameraView[]>();
+  const camerasByTvDeviceId = new Map<string, CameraView[]>();
   const orphanCameras: CameraView[] = [];
   for (const camera of cameras) {
     const tv =
       camera.suitest?.assignedDeviceId !== undefined
-        ? tvs.find((t) => t.suitestId === camera.suitest?.assignedDeviceId)
+        ? tvs.find((t) => t.deviceId === camera.suitest?.assignedDeviceId)
         : undefined;
-    if (tv?.suitestId) {
-      const list = camerasByTvSuitestId.get(tv.suitestId) ?? [];
+    if (tv) {
+      const list = camerasByTvDeviceId.get(tv.deviceId) ?? [];
       list.push(camera);
-      camerasByTvSuitestId.set(tv.suitestId, list);
+      camerasByTvDeviceId.set(tv.deviceId, list);
     } else {
       orphanCameras.push(camera);
     }
@@ -80,7 +86,7 @@ export function buildHierarchy(db: Db): Hierarchy {
     }
   }
 
-  const toGroup = (tv: TvView): TvGroup => ({ tv, cameras: camerasByTvSuitestId.get(tv.suitestId ?? "") ?? [] });
+  const toGroup = (tv: TvView): TvGroup => ({ tv, cameras: camerasByTvDeviceId.get(tv.deviceId) ?? [] });
 
   return {
     cuGroups: controlUnits.map((cu) => ({ cu, tvs: (tvsByCuId.get(cu.id) ?? []).map(toGroup) })),
@@ -89,23 +95,13 @@ export function buildHierarchy(db: Db): Hierarchy {
   };
 }
 
-// Candidati Suitest non ancora collegati a nessun'altra entry lab (riconciliazione manuale)
-export function tvSuitestCandidates(db: Db, currentSuitestId: string | undefined) {
-  const usedElsewhere = new Set(
-    Object.values(db.lab.tvs)
-      .map((t) => t.suitestId)
-      .filter((id): id is string => id !== undefined && id !== currentSuitestId),
-  );
-  return Object.values(db.suitest.devices)
-    .filter((d) => !usedElsewhere.has(d.deviceId))
-    .map((d) => ({ id: d.deviceId, primary: d.customName || d.deviceId, secondary: d.ipAddress }));
-}
-
-export function cameraSuitestCandidates(db: Db, currentSuitestId: string | undefined) {
+// Candidati Suitest (video-capture-device) non ancora collegati a nessun'altra camera
+// (riconciliazione manuale)
+export function cameraSuitestCandidates(db: Db, currentVideoCaptureDeviceId: string | undefined) {
   const usedElsewhere = new Set(
     Object.values(db.lab.cameras)
-      .map((c) => c.suitestId)
-      .filter((id): id is string => id !== undefined && id !== currentSuitestId),
+      .map((c) => O.toUndefined(c.videoCaptureDeviceId))
+      .filter((id): id is string => id !== undefined && id !== currentVideoCaptureDeviceId),
   );
   return Object.values(db.suitest.videoCaptureDevices)
     .filter((v) => !usedElsewhere.has(v.id))

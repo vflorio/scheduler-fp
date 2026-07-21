@@ -50,7 +50,7 @@ export const write =
   (path: string) =>
   (db: Db): ((env: Fs.Env) => TE.TaskEither<DbError, void>) =>
   (env) =>
-    env.writeFile(path, JSON.stringify(db, null, 2));
+    env.writeFile(path, JSON.stringify(DbCodec.encode(db), null, 2));
 
 export const modify =
   (path: string) =>
@@ -86,7 +86,8 @@ export const init =
           lab: {
             candyboxes: seedDict(seed?.candyboxes ?? [], (d) => d.id),
             cameras: seedDict(seed?.cameras ?? [], (d) => d.id),
-            tvs: seedDict(seed?.tvs ?? [], (d) => d.ip),
+            tvs: seedDict(seed?.tvs ?? [], (d) => d.deviceId),
+            adb: Object.fromEntries((seed?.adb ?? []).map((d) => [d.id, d])),
           },
         };
 

@@ -54,14 +54,14 @@ export function CameraRow({
   }
 
   statusChips.push(
-    camera.adbTarget ? (
+    camera.adb ? (
       <Chip
         key="t"
         size="small"
         variant={adbStatus === "device" ? "filled" : "outlined"}
         color={adbStatus === "device" ? "success" : "default"}
         icon={adbStatus === "device" ? <Usb fontSize="small" /> : <UsbOff fontSize="small" />}
-        label={`ADB: ${NetworkTarget.format(camera.adbTarget)}${adbStatus === "device" ? "" : ` (${adbStatus ?? "unreachable"})`}`}
+        label={`ADB: ${NetworkTarget.format(camera.adb.target)}${adbStatus === "device" ? "" : ` (${adbStatus ?? "unreachable"})`}`}
         title="Stato di raggiungibilità ADB dell'host associato - clicca per riassegnare"
         onClick={onAssign}
       />

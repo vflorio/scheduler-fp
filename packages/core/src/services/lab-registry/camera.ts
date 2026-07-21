@@ -1,31 +1,40 @@
 import type { Endomorphism } from "fp-ts/Endomorphism";
 import * as t from "io-ts";
-import * as NetworkTarget from "../../network-target";
+import { optionFromNullable } from "../../validation";
 import type { LabRegistry } from "./registry";
 
 // -------------------------------------------------------------------------------------
 // Model
 // -------------------------------------------------------------------------------------
 
-export const CameraEntryCodec = t.intersection([
-  t.type({
-    id: t.string,
-    label: t.string,
-    controlled: t.boolean,
-  }),
-  t.partial({
-    adbTarget: NetworkTarget.Codec, // "host:port" ADB assegnato manualmente (es. un tablet)
-    // Foreign key verso suitest-store.videoCaptureDevices[suitestId], impostata manualmente in
-    // fase di riconciliazione via UI (una camera aggiunta a mano, es. un tablet, può non averla)
-    suitestId: t.string,
-  }),
-]);
+// Identità stabile locale (`id`): una camera Suitest non ha un IP (solo customName), e l'host
+// ADB associato può cambiare/essere riassegnato, quindi non possono fungere da chiave primaria.
+//
+// `videoCaptureDeviceId`/`adbId` sono foreign key opzionali (verso suitest-store.videoCaptureDevices
+// e verso lab.adb rispettivamente) modellate come `Option<string>`: la chiave è sempre presente,
+// il valore può mancare (`null` a riposo) - a differenza di un `t.partial`, dove sarebbe la chiave
+// stessa a poter mancare.
+export const CameraEntryCodec = t.type({
+  id: t.string,
+  label: t.string,
+  controlled: t.boolean,
+  // Foreign key verso suitest-store.videoCaptureDevices[id], impostata manualmente in fase di
+  // riconciliazione via UI (una camera aggiunta a mano, es. un tablet, può non averla)
+  videoCaptureDeviceId: optionFromNullable(t.string),
+  // Foreign key verso lab.adb[id] - l'host ADB assegnato manualmente (es. un tablet)
+  adbId: optionFromNullable(t.string),
+});
 
 export type CameraEntry = t.TypeOf<typeof CameraEntryCodec>;
 
 export const CameraUpdateInputCodec = t.intersection([
   t.type({ id: t.string }),
-  t.partial({ label: t.string, controlled: t.boolean, adbTarget: NetworkTarget.Codec, suitestId: t.string }),
+  t.partial({
+    label: t.string,
+    controlled: t.boolean,
+    videoCaptureDeviceId: optionFromNullable(t.string),
+    adbId: optionFromNullable(t.string),
+  }),
 ]);
 
 export type CameraUpdateInput = t.TypeOf<typeof CameraUpdateInputCodec>;

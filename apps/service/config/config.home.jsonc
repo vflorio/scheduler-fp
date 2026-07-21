@@ -17,19 +17,50 @@
     "dbPath": "data/device-registry.json",
     "devices": {
       "cameras": [
-        { "id": "tablet", "label": "Tablet", "controlled": true, "adbTarget": "192.168.1.4:5555" },
+        {
+          "id": "tablet",
+          "label": "Tablet",
+          "controlled": true,
+          "videoCaptureDeviceId": null,
+          "adbId": "192.168.1.4:5555"
+        },
         // Camere Suitest (video-capture-device) già collegate ai mock TV - riconciliate a mano per test
-        { "id": "camera-tv-1", "label": "Camera_TV_1", "controlled": false, "suitestId": "vcd-001" },
-        { "id": "camera-tv-2", "label": "Camera_TV_2", "controlled": false, "suitestId": "vcd-002" },
-        { "id": "camera-tv-3", "label": "Camera_TV_3", "controlled": false, "suitestId": "vcd-003" },
-        { "id": "camera-tv-4", "label": "Camera_TV_4", "controlled": false, "suitestId": "vcd-004" }
+        {
+          "id": "camera-tv-1",
+          "label": "Camera_TV_1",
+          "controlled": false,
+          "videoCaptureDeviceId": "vcd-001",
+          "adbId": null
+        },
+        {
+          "id": "camera-tv-2",
+          "label": "Camera_TV_2",
+          "controlled": false,
+          "videoCaptureDeviceId": "vcd-002",
+          "adbId": null
+        },
+        {
+          "id": "camera-tv-3",
+          "label": "Camera_TV_3",
+          "controlled": false,
+          "videoCaptureDeviceId": "vcd-003",
+          "adbId": null
+        },
+        {
+          "id": "camera-tv-4",
+          "label": "Camera_TV_4",
+          "controlled": false,
+          "videoCaptureDeviceId": "vcd-004",
+          "adbId": null
+        }
       ],
       "tvs": [
-        { "ip": "192.168.2.1", "label": "TV_1", "controlled": false, "suitestId": "tv-001" },
-        { "ip": "192.168.2.2", "label": "TV_2", "controlled": false, "suitestId": "tv-002" },
-        { "ip": "192.168.2.3", "label": "TV_3", "controlled": false, "suitestId": "tv-003" },
-        { "ip": "192.168.2.4", "label": "TV_4", "controlled": false, "suitestId": "tv-004" }
-      ]
+        { "deviceId": "tv-001", "label": "TV_1", "controlled": false, "ip": "192.168.2.1" },
+        { "deviceId": "tv-002", "label": "TV_2", "controlled": false, "ip": "192.168.2.2" },
+        { "deviceId": "tv-003", "label": "TV_3", "controlled": false, "ip": "192.168.2.3" },
+        { "deviceId": "tv-004", "label": "TV_4", "controlled": false, "ip": "192.168.2.4" }
+      ],
+      "adb": [{ "id": "192.168.1.4:5555", "label": "Tablet", "target": "192.168.1.4:5555" }]
     }
   },
   "activationSchedule": {

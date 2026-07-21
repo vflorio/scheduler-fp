@@ -211,12 +211,22 @@ export const create: Effect<ServiceHandle> = pipe(
           },
 
           tvs: {
-            update: ({ ip, ...update }: Db.TvUpdateInput) =>
-              Db.modifyLab(config.registry.dbPath)(Db.updateTvByIp(ip, update))(Node.fsEnv),
+            update: ({ deviceId, ...update }: Db.TvUpdateInput) =>
+              Db.modifyLab(config.registry.dbPath)(Db.updateTvByDeviceId(deviceId, update))(Node.fsEnv),
 
             add: (entry: Db.TvEntry) => Db.modifyLab(config.registry.dbPath)(Db.addTv(entry))(Node.fsEnv),
 
-            remove: (ip: string) => Db.modifyLab(config.registry.dbPath)(Db.removeTvByIp(ip))(Node.fsEnv),
+            remove: (deviceId: string) =>
+              Db.modifyLab(config.registry.dbPath)(Db.removeTvByDeviceId(deviceId))(Node.fsEnv),
+          },
+
+          adb: {
+            update: ({ id, ...update }: Db.AdbUpdateInput) =>
+              Db.modifyLab(config.registry.dbPath)(Db.updateAdbEntryById(id, update))(Node.fsEnv),
+
+            add: (entry: Db.AdbEntry) => Db.modifyLab(config.registry.dbPath)(Db.addAdbEntry(entry))(Node.fsEnv),
+
+            remove: (id: string) => Db.modifyLab(config.registry.dbPath)(Db.removeAdbEntryById(id))(Node.fsEnv),
           },
         },
       },
