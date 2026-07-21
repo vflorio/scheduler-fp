@@ -210,13 +210,12 @@ export type VideoCaptureDevice = t.TypeOf<typeof VideoCaptureDeviceCodec>;
 
 const loggedGet = (config: SuitestConfig, path: string): TE.TaskEither<HTTPError, unknown> => {
   const url = endpoint(config, path);
-  const childLogger = config.logger?.child(url);
   return pipe(
     config.logger ? TE.fromIO(config.logger.debug(`GET ${url}`)) : TE.right(undefined),
     TE.flatMap(() => getJsonAuth(url, config.auth)),
     TE.tapIO((data) =>
-      childLogger //
-        ? childLogger.debug(`\n${Logger.formatJsonLog(10)([{ response: data }])}`)
+      config.logger //
+        ? config.logger.child("HTTP").debug(`${Logger.formatJsonLog([{ response: data }])}`)
         : constVoid,
     ),
     TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),

@@ -1,10 +1,10 @@
 import * as E from "fp-ts/Either";
-import { pipe } from "fp-ts/function";
+import { constVoid, pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
 import { format } from "../errors";
 import { type BasicAuth, getJsonAuth, type HTTPError } from "../http";
-import type * as Logger from "../logger";
+import * as Logger from "../logger";
 import { createValidationError, type ValidationError } from "../validation";
 
 // -------------------------------------------------------------------------------------
@@ -51,6 +51,7 @@ const fetchPage = <A>(
   pipe(
     logger ? TE.fromIO(logger.debug(`GET ${url}`)) : TE.right(undefined),
     TE.flatMap(() => getJsonAuth(url, auth)),
+    TE.tapIO((data) => (logger ? logger.child("HTTP").debug(Logger.formatJsonLog([{ response: data }])) : constVoid)),
     TE.flatMapEither((data) => pipe(PaginatedResponseSchema(itemCodec).decode(data), E.mapLeft(createValidationError))),
     TE.tapIO((page) =>
       logger

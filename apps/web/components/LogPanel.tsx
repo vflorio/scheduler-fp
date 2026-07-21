@@ -1,12 +1,16 @@
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
-import { Box, IconButton, Typography } from "@mui/material";
+import { Box, IconButton, MenuItem, Select, type SelectChangeEvent, Typography } from "@mui/material";
 import { LEVEL_PALETTE, TAG_PALETTE } from "@supervisor/core/log-palette";
+import { isLevelEnabled, type LogLevel, padContinuationLines } from "@supervisor/core/logger";
 import { ResizablePanel } from "@supervisor/ui/ResizablePanel";
 import { useEffect, useRef, useState } from "react";
 import { useLogFeed } from "../hooks/useLogFeed";
 
 const TIMESTAMP_COLOR = "#6e7681";
 const INDENT_SIZE = 2;
+
+// Livelli effettivamente emessi da Logger (fatal/trace/silent non sono mai loggati via Tagged)
+const FILTERABLE_LEVELS: readonly LogLevel[] = ["debug", "info", "warn", "error"];
 
 // Quanto vicino al fondo bisogna essere (in px) per considerare l'utente "agganciato" all'ultima riga
 const STICK_TO_BOTTOM_THRESHOLD = 48;
@@ -22,16 +26,19 @@ const COLLAPSED_WIDTH = 40;
 export function LogPanel() {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [collapsed, setCollapsed] = useState(false);
+  const [minLevel, setMinLevel] = useState<LogLevel>("debug");
   const { entries, status } = useLogFeed();
   const viewportRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+
+  const filteredEntries = entries.filter((entry) => isLevelEnabled(minLevel, entry.level));
 
   useEffect(() => {
     const el = viewportRef.current;
     if (el && stickToBottomRef.current) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [entries]);
+  }, [filteredEntries]);
 
   const handleScroll = () => {
     const el = viewportRef.current;
@@ -66,13 +73,28 @@ export function LogPanel() {
         flexDirection: "column",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", p: 1.5, pb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", p: 1.5, pb: 1, gap: 1 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
           Service Logs
         </Typography>
-        <IconButton size="small" onClick={() => setCollapsed(true)} title="Hide logs">
-          <ChevronRight fontSize="small" />
-        </IconButton>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Select
+            size="small"
+            variant="standard"
+            value={minLevel}
+            onChange={(event: SelectChangeEvent) => setMinLevel(event.target.value as LogLevel)}
+            sx={{ fontSize: 12, minWidth: 60 }}
+          >
+            {FILTERABLE_LEVELS.map((level) => (
+              <MenuItem key={level} value={level} sx={{ fontSize: 12 }}>
+                {level}
+              </MenuItem>
+            ))}
+          </Select>
+          <IconButton size="small" onClick={() => setCollapsed(true)} title="Hide logs">
+            <ChevronRight fontSize="small" />
+          </IconButton>
+        </Box>
       </Box>
       <Box
         ref={viewportRef}
@@ -92,10 +114,18 @@ export function LogPanel() {
             {status === "online" ? "Waiting for logs…" : "Connecting to service…"}
           </Typography>
         )}
-        {entries.map((entry) => {
+        {entries.length > 0 && filteredEntries.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            No logs at "{minLevel}" level or above
+          </Typography>
+        )}
+        {filteredEntries.map((entry) => {
           const time = new Date(entry.timestamp).toLocaleTimeString("it-IT");
           const indent = " ".repeat(entry.depth * INDENT_SIZE);
           const tagColor = entry.color !== undefined ? TAG_PALETTE[entry.color % TAG_PALETTE.length]?.hex : undefined;
+          const tagText = entry.tag ? `[${entry.tag}] ` : "";
+          const prefixWidth = `${time} | `.length + indent.length + tagText.length;
+          const message = padContinuationLines(entry.message, prefixWidth);
 
           return (
             <Box
@@ -117,7 +147,7 @@ export function LogPanel() {
                   [{entry.tag}]{" "}
                 </Box>
               )}
-              {entry.message}
+              {message}
             </Box>
           );
         })}

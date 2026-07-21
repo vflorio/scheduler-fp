@@ -135,13 +135,23 @@ export const create = (level: LogLevel, transports: readonly Transport[]): Tagge
 
 const INDENT_SIZE = 2;
 
+// Aligns continuation lines of a multiline message under where the first line's text
+// starts, so a block of text logged in one call (e.g. formatJsonLog output) reads as a
+// single indented block instead of ragged lines starting at column 0.
+export const padContinuationLines = (message: string, pad: number): string =>
+  message.includes("\n") ? message.split("\n").join(`\n${" ".repeat(pad)}`) : message;
+
 export const renderAnsi = (record: LogRecord): string => {
   const time = new Date(record.timestamp).toLocaleTimeString("it-IT");
   const indent = " ".repeat(record.depth * INDENT_SIZE);
-  const tagAnsi = record.tag ? `${TAG_PALETTE[record.color ?? 0]?.ansi ?? ""}[${record.tag}]${ANSI_RESET} ` : "";
+  const tagText = record.tag ? `[${record.tag}] ` : "";
+  const tagAnsi = record.tag ? `${TAG_PALETTE[record.color ?? 0]?.ansi ?? ""}${tagText}${ANSI_RESET}` : "";
   const levelAnsi = LEVEL_PALETTE[record.level]?.ansi ?? "";
 
-  return `${time} | ${indent}${tagAnsi}${levelAnsi}${record.message}${ANSI_RESET}`;
+  const prefix = `${time} | `;
+  const message = padContinuationLines(record.message, prefix.length + indent.length + tagText.length);
+
+  return `${prefix}${indent}${tagAnsi}${levelAnsi}${message}${ANSI_RESET}`;
 };
 
 // -------------------------------------------------------------------------------------
@@ -167,14 +177,5 @@ export const createStdoutLogger = (level: LogLevel = "info"): Tagged => create(l
 // JSON log formatting
 // -------------------------------------------------------------------------------------
 
-export const formatJsonLog =
-  (pad: number) =>
-  (entries: readonly Record<string, unknown>[]): string =>
-    entries
-      .map((entry) =>
-        `(JSON) ${JSON.stringify(entry, null, 2)}`
-          .split("\n")
-          .map((line) => " ".repeat(pad) + line)
-          .join("\n"),
-      )
-      .join("\n");
+export const formatJsonLog = (entries: readonly Record<string, unknown>[]): string =>
+  entries.map((entry) => `(JSON) ${JSON.stringify(entry, null, 2)}`).join("\n");

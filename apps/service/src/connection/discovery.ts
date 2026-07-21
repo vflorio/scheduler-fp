@@ -35,6 +35,11 @@ export type DiscoveryError = Adb.AdbError | AvahiBrowse.AvahiBrowseError | Shell
 
 type Effect<A> = RTE.ReaderTaskEither<Env, DiscoveryError, A>;
 
+const logDebug =
+  (message: string): Effect<void> =>
+  ({ logger }) =>
+    TE.fromIO(logger.debug(message));
+
 const logInfo =
   (message: string): Effect<void> =>
   ({ logger }) =>
@@ -133,8 +138,9 @@ export const discoverAndConnect: Effect<readonly NetworkTarget.Target[]> = pipe(
   // Processiamo i devices in modo sequenziale (1 a 1)
   RTE.bind("resolved", ({ newTargets }) => RTE.sequenceSeqArray(newTargets.map(connect))),
 
+  RTE.tap(() => logInfo("Discovery complete")),
   RTE.tap(({ connected, discovered, newTargets, resolved }) =>
-    logInfo(`Discovery complete\n${Logger.formatJsonLog(10)([{ connected, discovered, newTargets, resolved }])}`),
+    logDebug(Logger.formatJsonLog([{ discovered, connected, newTargets, resolved }])),
   ),
 
   RTE.map(({ connected, resolved }) => [...connected, ...resolved.filter(isPersistent).map((s) => s.target)]),
