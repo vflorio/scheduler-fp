@@ -1,5 +1,6 @@
 import { FiberManualRecord, Link as LinkIcon, Usb, UsbOff, Videocam } from "@mui/icons-material";
 import { Button, Chip } from "@mui/material";
+import * as NetworkTarget from "@supervisor/core/network-target";
 import { EntryRow } from "@supervisor/ui/EntryRow";
 import type { ReactNode } from "react";
 import type { AdbDevice } from "../../hooks/useAdbDevices";
@@ -60,7 +61,7 @@ export function CameraRow({
         variant={adbStatus === "device" ? "filled" : "outlined"}
         color={adbStatus === "device" ? "success" : "default"}
         icon={adbStatus === "device" ? <Usb fontSize="small" /> : <UsbOff fontSize="small" />}
-        label={`ADB: ${camera.adbTarget}${adbStatus === "device" ? "" : ` (${adbStatus ?? "unreachable"})`}`}
+        label={`ADB: ${NetworkTarget.format(camera.adbTarget)}${adbStatus === "device" ? "" : ` (${adbStatus ?? "unreachable"})`}`}
         title="Stato di raggiungibilità ADB dell'host associato - clicca per riassegnare"
         onClick={onAssign}
       />

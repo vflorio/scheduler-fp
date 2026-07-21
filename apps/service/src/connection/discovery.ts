@@ -1,8 +1,8 @@
 import * as Errors from "@supervisor/core/errors";
+import * as NetworkTarget from "@supervisor/core/network-target";
 import * as Adb from "@supervisor/core/services/adb";
 import * as AvahiBrowse from "@supervisor/core/services/avahi-browse";
 import type * as Shell from "@supervisor/core/shell";
-import * as Socket from "@supervisor/core/socket";
 import * as Machine from "@supervisor/core/state-machine/machine";
 import { pipe } from "fp-ts/function";
 import type { Predicate } from "fp-ts/Predicate";
@@ -24,10 +24,10 @@ export const machine: Machine.Machine<ConnectionEnv, never, TargetState, Connect
 // -------------------------------------------------------------------------------------
 
 export interface Env extends ConnectionEnv {
-  readonly isControlled: Predicate<Socket.IPv4>;
+  readonly isControlled: Predicate<NetworkTarget.Target>;
   // Un host è "noto" se presente in registry (come camera), indipendentemente da `controlled` -
   // distingue un device nostro ma non controllato da uno completamente esterno al registry
-  readonly isKnown: Predicate<Socket.IPv4>;
+  readonly isKnown: Predicate<NetworkTarget.Target>;
 }
 
 export type DiscoveryError = Adb.AdbError | AvahiBrowse.AvahiBrowseError | Shell.ShellSpawnError;
@@ -51,33 +51,35 @@ const liftMdns =
   (env) =>
     effect({ logger: env.logger.child("mDNS"), spawn: env.spawn });
 
-const getConnectedAdbDevices: Effect<readonly Socket.IPv4[]> = (env) =>
+const getConnectedAdbDevices: Effect<readonly NetworkTarget.Target[]> = (env) =>
   pipe(
     Adb.devices({ logger: env.logger.child("ADB"), spawn: env.spawn }),
     TE.map((devices) => devices.filter((d) => d.status === "device").map((d) => d.target)),
   );
 
 const filterControlledOnly =
-  (devices: readonly Socket.IPv4[]): Effect<readonly Socket.IPv4[]> =>
+  (devices: readonly NetworkTarget.Target[]): Effect<readonly NetworkTarget.Target[]> =>
   ({ isControlled }) =>
     TE.right(devices.filter(isControlled));
 
 // Noti al registry ma non (più) controllati: vanno disconnessi. Un device sconosciuto al
 // registry viene invece ignorato (potrebbe essere un device esterno, non nostro).
 const filterKnownButUncontrolled =
-  (devices: readonly Socket.IPv4[]): Effect<readonly Socket.IPv4[]> =>
+  (devices: readonly NetworkTarget.Target[]): Effect<readonly NetworkTarget.Target[]> =>
   ({ isControlled, isKnown }) =>
     TE.right(devices.filter((target) => isKnown(target) && !isControlled(target)));
 
 // Best-effort: un fallimento in disconnessione non deve far fallire l'intero ciclo di discovery,
 // si logga soltanto (verrà ritentato al prossimo ciclo).
 const disconnectStray =
-  (target: Socket.IPv4): Effect<void> =>
+  (target: NetworkTarget.Target): Effect<void> =>
   (env) =>
     pipe(
       Adb.disconnect(target)({ logger: env.logger.child("ADB"), spawn: env.spawn }),
       TE.orElse((error) => {
-        env.logger.error(`Failed to disconnect uncontrolled host ${target}: ${Errors.format(error)}`)();
+        env.logger.error(
+          `Failed to disconnect uncontrolled host ${NetworkTarget.format(target)}: ${Errors.format(error)}`,
+        )();
         return TE.right<Adb.AdbError, void>(undefined);
       }),
     );
@@ -85,10 +87,10 @@ const disconnectStray =
 // Applica un singolo device (già scoperto via mDNS) alla Target Machine, partendo da
 // Unknown, e ne ritorna lo stato finale (Persistent se la connessione ha avuto successo,
 // Unknown se ha fallito - vedi `reduce`/`handle`, che catchano i propri errori).
-const connect = (target: Socket.IPv4): Effect<TargetState> =>
-  Machine.dispatch(machine)(unknown(Socket.from(target).host), { _tag: "TargetDiscovered", target });
+const connect = (target: NetworkTarget.Target): Effect<TargetState> =>
+  Machine.dispatch(machine)(unknown(target.ip), { _tag: "TargetDiscovered", target });
 
-export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
+export const discoverAndConnect: Effect<readonly NetworkTarget.Target[]> = pipe(
   logInfo("Starting mDNS discovery"),
 
   RTE.bind("allConnected", () => getConnectedAdbDevices),
@@ -98,9 +100,7 @@ export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
   RTE.bind("stray", ({ allConnected }) => filterKnownButUncontrolled(allConnected)),
   RTE.tap(({ stray }) =>
     stray.length > 0
-      ? logInfo(
-          `Disconnecting known-but-uncontrolled hosts: ${stray.map((target) => Socket.from(target).host).join(", ")}`,
-        )
+      ? logInfo(`Disconnecting known-but-uncontrolled hosts: ${stray.map((target) => target.ip).join(", ")}`)
       : logInfo("No known-but-uncontrolled hosts to disconnect"),
   ),
   RTE.tap(({ stray }) => RTE.sequenceSeqArray(stray.map(disconnectStray))),
@@ -108,7 +108,7 @@ export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
   RTE.bind("connected", ({ allConnected }) => filterControlledOnly(allConnected)),
   RTE.tap(({ connected }) =>
     connected.length > 0
-      ? logInfo(`Already connected hosts: ${connected.map((target) => Socket.from(target).host).join(", ")}`)
+      ? logInfo(`Already connected hosts: ${connected.map((target) => target.ip).join(", ")}`)
       : logInfo("No already connected hosts"),
   ),
 
@@ -120,7 +120,9 @@ export const discoverAndConnect: Effect<readonly Socket.IPv4[]> = pipe(
     ),
   ),
 
-  RTE.bind("newTargets", ({ connected, discovered }) => RTE.of(RA.difference(Socket.EqByHost)(connected)(discovered))),
+  RTE.bind("newTargets", ({ connected, discovered }) =>
+    RTE.of(RA.difference(NetworkTarget.EqByIp)(connected)(discovered)),
+  ),
   RTE.tap(({ newTargets }) =>
     newTargets.length > 0
       ? logInfo(`New targets to connect: ${JSON.stringify(newTargets)}`)

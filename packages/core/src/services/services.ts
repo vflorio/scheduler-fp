@@ -1,7 +1,7 @@
 import type * as TE from "fp-ts/TaskEither";
 import type { LogFeed } from "../log-stream";
 import type * as Logger from "../logger";
-import type * as Socket from "../socket";
+import type * as NetworkTarget from "../network-target";
 import type { AdbError } from "./adb";
 import type * as Db from "./db";
 
@@ -12,7 +12,7 @@ export interface AndroidBridgeError {
 
 export interface AndroidBridge {
   readonly devices: () => TE.TaskEither<AdbError, readonly { target: string; status: string }[]>;
-  readonly reboot: (target: Socket.IPv4) => TE.TaskEither<AdbError, void>;
+  readonly reboot: (target: NetworkTarget.Target) => TE.TaskEither<AdbError, void>;
 }
 
 // biome-ignore lint/suspicious/noEmptyInterface: <wip>
@@ -24,9 +24,9 @@ export interface Notifications {}
 export interface DeviceRegistry {
   readonly getAll: () => TE.TaskEither<Db.DbError, Db.Db>;
 
-  readonly controlUnits: {
-    readonly update: (input: Db.ControlUnitUpdateInput) => TE.TaskEither<Db.DbError, Db.Db>;
-    readonly add: (entry: Db.ControlUnitEntry) => TE.TaskEither<Db.DbError, Db.Db>;
+  readonly candyboxes: {
+    readonly update: (input: Db.CandyboxUpdateInput) => TE.TaskEither<Db.DbError, Db.Db>;
+    readonly add: (entry: Db.CandyboxEntry) => TE.TaskEither<Db.DbError, Db.Db>;
     readonly remove: (id: string) => TE.TaskEither<Db.DbError, Db.Db>;
   };
 

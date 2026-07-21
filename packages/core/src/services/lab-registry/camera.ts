@@ -1,14 +1,12 @@
 import type { Endomorphism } from "fp-ts/Endomorphism";
 import * as t from "io-ts";
-import * as Socket from "../../socket";
+import * as NetworkTarget from "../../network-target";
 import type { LabRegistry } from "./registry";
 
 // -------------------------------------------------------------------------------------
 // Model
 // -------------------------------------------------------------------------------------
 
-// Identità stabile locale (`id`): una camera Suitest non ha un IP (solo customName), e l'host
-// ADB associato può cambiare/essere riassegnato, quindi non possono fungere da chiave primaria.
 export const CameraEntryCodec = t.intersection([
   t.type({
     id: t.string,
@@ -16,7 +14,7 @@ export const CameraEntryCodec = t.intersection([
     controlled: t.boolean,
   }),
   t.partial({
-    adbTarget: Socket.Codec, // "host:port" ADB assegnato manualmente (es. un tablet)
+    adbTarget: NetworkTarget.Codec, // "host:port" ADB assegnato manualmente (es. un tablet)
     // Foreign key verso suitest-store.videoCaptureDevices[suitestId], impostata manualmente in
     // fase di riconciliazione via UI (una camera aggiunta a mano, es. un tablet, può non averla)
     suitestId: t.string,
@@ -27,7 +25,7 @@ export type CameraEntry = t.TypeOf<typeof CameraEntryCodec>;
 
 export const CameraUpdateInputCodec = t.intersection([
   t.type({ id: t.string }),
-  t.partial({ label: t.string, controlled: t.boolean, adbTarget: Socket.Codec, suitestId: t.string }),
+  t.partial({ label: t.string, controlled: t.boolean, adbTarget: NetworkTarget.Codec, suitestId: t.string }),
 ]);
 
 export type CameraUpdateInput = t.TypeOf<typeof CameraUpdateInputCodec>;

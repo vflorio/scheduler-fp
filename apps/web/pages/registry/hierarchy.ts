@@ -1,11 +1,16 @@
+import * as NetworkTarget from "@supervisor/core/network-target";
 import type { AdbDevice } from "../../hooks/useAdbDevices";
 import type { CameraView, ControlUnitView, Db, Hierarchy, TvGroup, TvView } from "./types";
 
 // Stato di raggiungibilità ADB dell'host assegnato alla camera (fisico, via `adb devices`) -
 // distinto da `camera.suitest.online`, che riflette invece lo stato dell'app suitest-camera
-export function adbStatusFor(adbDevices: readonly AdbDevice[], target: string | undefined): AdbDevice["status"] | null {
+export function adbStatusFor(
+  adbDevices: readonly AdbDevice[],
+  target: NetworkTarget.Target | undefined,
+): AdbDevice["status"] | null {
   if (!target) return null;
-  return adbDevices.find((d) => d.target === target)?.status ?? "disconnect";
+  const formatted = NetworkTarget.format(target);
+  return adbDevices.find((d) => d.target === formatted)?.status ?? "disconnect";
 }
 
 // -------------------------------------------------------------------------------------
@@ -14,7 +19,7 @@ export function adbStatusFor(adbDevices: readonly AdbDevice[], target: string | 
 // -------------------------------------------------------------------------------------
 
 function enrich(db: Db): { controlUnits: ControlUnitView[]; tvs: TvView[]; cameras: CameraView[] } {
-  const controlUnits: ControlUnitView[] = Object.values(db.lab.controlUnits).map((cu) => ({
+  const controlUnits: ControlUnitView[] = Object.values(db.lab.candyboxes).map((cu) => ({
     ...cu,
     online: db.suitest.controlUnits[cu.id]?.online,
   }));

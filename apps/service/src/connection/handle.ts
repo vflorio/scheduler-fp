@@ -1,8 +1,8 @@
 import type * as Logger from "@supervisor/core/logger";
+import * as NetworkTarget from "@supervisor/core/network-target";
 import * as Retry from "@supervisor/core/retry/retry";
 import * as Adb from "@supervisor/core/services/adb";
 import type * as Shell from "@supervisor/core/shell";
-import * as Socket from "@supervisor/core/socket";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import type * as RTE from "fp-ts/ReaderTaskEither";
@@ -21,7 +21,7 @@ import type { ConnectionCommand, ConnectionEvent } from "./model";
 
 export interface ConnectionEnv {
   readonly logger: Logger.Tagged;
-  readonly adbPort: number;
+  readonly adbPort: NetworkTarget.PORT;
   readonly adbReconnectPolicy: Retry.Policy;
   readonly spawn: Shell.Spawn;
 }
@@ -58,7 +58,7 @@ export const handle =
             liftAdb(Adb.tcpip(env.adbPort)(target))(env),
             toEvents(
               (reason) => [{ _tag: "PersistentHandshakeFailed", reason }],
-              () => [{ _tag: "TcpipConfigured", persistentTarget: Socket.withPort(env.adbPort)(target) }],
+              () => [{ _tag: "TcpipConfigured", persistentTarget: NetworkTarget.withPort(env.adbPort)(target) }],
             ),
           ),
         )
@@ -82,7 +82,9 @@ export const handle =
               // Best-effort cleanup: il device è già Persistent, un fallimento qui non
               // deve farlo tornare Unknown - si logga soltanto.
               (reason) => {
-                env.logger.error(`Failed to disconnect temporary connection for ${target}: ${reason}`)();
+                env.logger.error(
+                  `Failed to disconnect temporary connection for ${NetworkTarget.format(target)}: ${reason}`,
+                )();
                 return [];
               },
               () => [],

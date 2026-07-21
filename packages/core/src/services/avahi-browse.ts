@@ -2,8 +2,8 @@ import { pipe } from "fp-ts/function";
 import type * as RTE from "fp-ts/ReaderTaskEither";
 import * as TE from "fp-ts/TaskEither";
 import type * as Logger from "../logger";
+import * as NetworkTarget from "../network-target";
 import * as Shell from "../shell";
-import { type IPv4, toTarget } from "../socket";
 
 // -------------------------------------------------------------------------------------
 // Model
@@ -31,9 +31,9 @@ type Effect<A> = RTE.ReaderTaskEither<AvahiBrowseEnv, AvahiBrowseError | Shell.S
 //
 // We extract address (field 7) and port (field 8).
 
-const parse = (stdout: string): IPv4[] => {
+const parse = (stdout: string): NetworkTarget.Target[] => {
   const seen = new Set<string>();
-  const endpoints: IPv4[] = [];
+  const endpoints: NetworkTarget.Target[] = [];
 
   for (const line of stdout.split("\n")) {
     if (!line.startsWith("=")) continue;
@@ -47,7 +47,7 @@ const parse = (stdout: string): IPv4[] => {
     const key = `${ip}:${port}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    endpoints.push(toTarget(ip, port));
+    endpoints.push(NetworkTarget.of(ip as NetworkTarget.IP, port as NetworkTarget.PORT));
   }
 
   return endpoints;
@@ -58,9 +58,15 @@ const parse = (stdout: string): IPv4[] => {
 // -------------------------------------------------------------------------------------
 
 export const discover =
-  (command: string, args: readonly string[]): Effect<IPv4[]> =>
+  (command: string, args: readonly string[]): Effect<NetworkTarget.Target[]> =>
   (env) =>
     pipe(Shell.run(command, args)({ spawn: env.spawn, logger: env.logger }), TE.map(parse));
 
-export const discoverAdbTlsConnect: Effect<IPv4[]> = discover("avahi-browse", ["-prt", "_adb-tls-connect._tcp"]);
-export const discoverAdbTlsPairing: Effect<IPv4[]> = discover("avahi-browse", ["-prt", "_adb-tls-pairing._tcp"]);
+export const discoverAdbTlsConnect: Effect<NetworkTarget.Target[]> = discover("avahi-browse", [
+  "-prt",
+  "_adb-tls-connect._tcp",
+]);
+export const discoverAdbTlsPairing: Effect<NetworkTarget.Target[]> = discover("avahi-browse", [
+  "-prt",
+  "_adb-tls-pairing._tcp",
+]);

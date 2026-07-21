@@ -1,87 +1,12 @@
+import type { CameraEntry, CandyboxEntry, Db, TvEntry } from "@supervisor/core/services/db";
+import type { InUseBy } from "@supervisor/core/services/suitest";
 import type { AdbDevice } from "../../hooks/useAdbDevices";
 
-// -------------------------------------------------------------------------------------
-// Types (mirrored dal core - due domini nettamente separati, come nel db)
-//
-// `lab` è il dominio applicativo (label/controlled/ip), preconfigurabile e indipendente da
-// Suitest: ogni entry ha al più un `suitestId` opzionale come foreign key. `suitest` è il mirror
-// in sola lettura dei dati grezzi Suitest, indicizzato per id. Qui uniamo i due lato client per
-// costruire la vista (nessuna delle due entità è "composta" lato db).
-// -------------------------------------------------------------------------------------
+export type { Db };
 
-export type DeviceKind = "control-unit" | "camera" | "tv";
+export type DeviceKind = "candybox" | "camera" | "tv";
 
-export interface InUseBy {
-  email?: string;
-  orgName?: string;
-  tokenName?: string;
-}
-
-// --- lab (dominio applicativo) ---
-
-export interface ControlUnitEntry {
-  id: string;
-  label: string;
-  controlled: boolean;
-}
-
-export interface CameraEntry {
-  id: string;
-  label: string;
-  controlled: boolean;
-  adbTarget?: string;
-  suitestId?: string;
-}
-
-export interface TvEntry {
-  ip: string;
-  label: string;
-  controlled: boolean;
-  suitestId?: string;
-}
-
-// --- suitest (mirror in sola lettura) ---
-
-export interface SuitestControlUnit {
-  id: string;
-  name: string;
-  online: boolean;
-}
-
-export interface SuitestDevice {
-  deviceId: string;
-  customName: string;
-  ipAddress: string;
-  controlUnitIds: string[];
-  inUseBy?: InUseBy;
-}
-
-export interface SuitestVideoCaptureDevice {
-  id: string;
-  name: string;
-  customName?: string;
-  assignedDeviceId: string;
-  online: boolean;
-  recordingActive: boolean;
-  streamActive: boolean;
-}
-
-export interface Db {
-  suitest: {
-    devices: Record<string, SuitestDevice>;
-    controlUnits: Record<string, SuitestControlUnit>;
-    videoCaptureDevices: Record<string, SuitestVideoCaptureDevice>;
-  };
-  lab: {
-    controlUnits: Record<string, ControlUnitEntry>;
-    cameras: Record<string, CameraEntry>;
-    tvs: Record<string, TvEntry>;
-  };
-}
-
-// --- view model (lab + eventuale join con suitest, per il rendering) ---
-
-export interface ControlUnitView extends ControlUnitEntry {
+export interface ControlUnitView extends CandyboxEntry {
   online?: boolean;
 }
 

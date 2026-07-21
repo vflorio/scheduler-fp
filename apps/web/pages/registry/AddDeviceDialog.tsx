@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import type { DeviceKind, NewDeviceForm } from "./types";
 
-const identifierLabel = (kind: DeviceKind) => (kind === "control-unit" ? "Control Unit ID" : "IP Address");
+const identifierLabel = (kind: DeviceKind) => (kind === "candybox" ? "Control Unit ID" : "IP Address");
 
 export function AddDeviceDialog({
   open,
@@ -42,7 +42,7 @@ export function AddDeviceDialog({
             label="Kind"
             onChange={(e) => onChange({ ...device, kind: e.target.value as DeviceKind })}
           >
-            <MenuItem value="control-unit">Control Unit</MenuItem>
+            <MenuItem value="candybox">Control Unit</MenuItem>
             <MenuItem value="camera">Camera</MenuItem>
             <MenuItem value="tv">Smart TV</MenuItem>
           </Select>
@@ -56,7 +56,7 @@ export function AddDeviceDialog({
         {needsIdentifier && (
           <TextField
             label={identifierLabel(device.kind)}
-            placeholder={device.kind === "control-unit" ? "cu-001" : "192.168.1.100"}
+            placeholder={device.kind === "candybox" ? "cu-001" : "192.168.1.100"}
             value={device.identifier}
             onChange={(e) => onChange({ ...device, identifier: e.target.value })}
             fullWidth

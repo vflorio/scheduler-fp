@@ -1,10 +1,10 @@
 import * as Errors from "@supervisor/core/errors";
 import type * as Logger from "@supervisor/core/logger";
+import * as NetworkTarget from "@supervisor/core/network-target";
 import type * as RetryPolicy from "@supervisor/core/retry/codec";
 import * as Retry from "@supervisor/core/retry/retry";
 import * as Adb from "@supervisor/core/services/adb";
 import type * as Shell from "@supervisor/core/shell";
-import type { IPv4 } from "@supervisor/core/socket";
 import * as WorkflowInterpreter from "@supervisor/core/workflow/interpreter";
 import type { RecoveryConfig } from "@supervisor/core/workflow/workflow";
 import { pipe } from "fp-ts/function";
@@ -26,7 +26,7 @@ export type RunError = WorkflowInterpreter.WorkflowError | RetryPolicy.PolicyDec
 export const run =
   (env: WorkflowRunnerEnv) =>
   (workflow: string) =>
-  (target: IPv4): TE.TaskEither<RunError, void> =>
+  (target: NetworkTarget.Target): TE.TaskEither<RunError, void> =>
     pipe(
       WorkflowInterpreter.run(
         env.recovery,
@@ -37,11 +37,16 @@ export const run =
         capabilities: makeCapabilities(env, target),
       }),
 
-      TE.tapIO(() => env.logger.info(`Workflow "${workflow}" completed on ${target}`)),
-      TE.tapError((error) => TE.fromIO(env.logger.error(`Workflow failed on ${target}: ${Errors.format(error)}`))),
+      TE.tapIO(() => env.logger.info(`Workflow "${workflow}" completed on ${NetworkTarget.format(target)}`)),
+      TE.tapError((error) =>
+        TE.fromIO(env.logger.error(`Workflow failed on ${NetworkTarget.format(target)}: ${Errors.format(error)}`)),
+      ),
     );
 
-const makeCapabilities = (env: WorkflowRunnerEnv, target: IPv4): WorkflowInterpreter.CommandCapabilities => {
+const makeCapabilities = (
+  env: WorkflowRunnerEnv,
+  target: NetworkTarget.Target,
+): WorkflowInterpreter.CommandCapabilities => {
   const adbEnv: Adb.AdbEnv = {
     logger: env.logger.child("ADB"),
     spawn: env.spawn,

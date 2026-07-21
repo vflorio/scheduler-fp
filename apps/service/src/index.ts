@@ -47,19 +47,19 @@ const main = () => {
       env.process.exit(1);
     }
 
-    const handle = result.right;
+    const serviceHandle = result.right;
 
     // Restart: SIGHUP ferma il runner corrente e rilancia
     env.process.onSignal("SIGHUP", () => {
       env.logger.info("Received SIGHUP - triggering restart")();
-      handle.stop();
+      serviceHandle.stop();
       run();
     });
 
     // Shutdown: SIGINT ferma e termina il processo
     env.process.onSignal("SIGINT", () => {
       env.logger.info("Received SIGINT - shutting down")();
-      handle.stop();
+      serviceHandle.stop();
       env.process.exit(0);
     });
   };

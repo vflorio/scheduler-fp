@@ -1,3 +1,4 @@
+import * as NetworkTarget from "@supervisor/core/network-target";
 import type * as Machine from "@supervisor/core/state-machine/machine";
 import * as TE from "fp-ts/TaskEither";
 import { match } from "ts-pattern";
@@ -13,20 +14,20 @@ import type { ConnectionEvent, TargetState } from "./model";
 const describeState = (state: TargetState): string =>
   match(state)
     .with({ _tag: "Unknown" }, (s) => `Unknown(${s.host})`)
-    .with({ _tag: "Temporary" }, (s) => `Temporary(${s.target})`)
-    .with({ _tag: "Persistent" }, (s) => `Persistent(${s.target})`)
+    .with({ _tag: "Temporary" }, (s) => `Temporary(${NetworkTarget.format(s.target)})`)
+    .with({ _tag: "Persistent" }, (s) => `Persistent(${NetworkTarget.format(s.target)})`)
     .exhaustive();
 
 const describeEvent = (event: ConnectionEvent): string =>
   match(event)
-    .with({ _tag: "TargetDiscovered" }, (e) => `TargetDiscovered(${e.target})`)
-    .with({ _tag: "TemporaryHandshakeOk" }, (e) => `TemporaryHandshakeOk(${e.target})`)
+    .with({ _tag: "TargetDiscovered" }, (e) => `TargetDiscovered(${NetworkTarget.format(e.target)})`)
+    .with({ _tag: "TemporaryHandshakeOk" }, (e) => `TemporaryHandshakeOk(${NetworkTarget.format(e.target)})`)
     .with({ _tag: "TemporaryHandshakeFailed" }, (e) => `TemporaryHandshakeFailed(${e.reason})`)
-    .with({ _tag: "TcpipConfigured" }, (e) => `TcpipConfigured(${e.persistentTarget})`)
-    .with({ _tag: "PersistentHandshakeOk" }, (e) => `PersistentHandshakeOk(${e.target})`)
+    .with({ _tag: "TcpipConfigured" }, (e) => `TcpipConfigured(${NetworkTarget.format(e.persistentTarget)})`)
+    .with({ _tag: "PersistentHandshakeOk" }, (e) => `PersistentHandshakeOk(${NetworkTarget.format(e.target)})`)
     .with({ _tag: "PersistentHandshakeFailed" }, (e) => `PersistentHandshakeFailed(${e.reason})`)
     .with({ _tag: "ConnectionLost" }, () => "ConnectionLost")
-    .with({ _tag: "PortChanged" }, (e) => `PortChanged(${e.target})`)
+    .with({ _tag: "PortChanged" }, (e) => `PortChanged(${NetworkTarget.format(e.target)})`)
     .exhaustive();
 
 // Tornare a Unknown da una fase più avanzata è una regressione (persa la connessione o

@@ -4,8 +4,9 @@ import * as t from "io-ts";
 import { ActivationScheduleCodec } from "./activation/schedule";
 import { of } from "./errors";
 import { LogLevel } from "./logger";
+import * as NetworkTarget from "./network-target";
 import { PolicyJsonCodec } from "./retry/codec";
-import { CameraEntryCodec, ControlUnitEntryCodec, TvEntryCodec } from "./services/db";
+import { CameraEntryCodec, CandyboxEntryCodec, TvEntryCodec } from "./services/db";
 import type { ValidationError } from "./validation";
 import { ScriptJsonCodec, WorkflowJsonCodec } from "./workflow/codec";
 
@@ -38,7 +39,7 @@ export type LogConfig = t.TypeOf<typeof LogCodec>; // Esportata e rinominato per
 
 // Configurazione connessione ADB
 const AdbCodec = t.type({
-  port: t.number,
+  port: NetworkTarget.PortCodec,
   reconnect: PolicyJsonCodec,
 });
 
@@ -56,7 +57,7 @@ const RegistryCodec = t.intersection([
   t.type({ dbPath: t.string }),
   t.partial({
     devices: t.partial({
-      controlUnits: t.array(ControlUnitEntryCodec),
+      candyboxes: t.array(CandyboxEntryCodec),
       cameras: t.array(CameraEntryCodec),
       tvs: t.array(TvEntryCodec),
     }),

@@ -1,8 +1,8 @@
 import {
   CameraEntryCodec,
   CameraUpdateInputCodec,
-  ControlUnitEntryCodec,
-  ControlUnitUpdateInputCodec,
+  CandyboxEntryCodec,
+  CandyboxUpdateInputCodec,
   TvEntryCodec,
   TvUpdateInputCodec,
 } from "@supervisor/core/services/db";
@@ -29,18 +29,18 @@ const decodeOrThrow =
       }),
     );
 
-const controlUnitsRouter = router({
+const candyboxesRouter = router({
   update: publicProcedure
-    .input(decodeOrThrow(ControlUnitUpdateInputCodec))
-    .mutation(({ ctx, input }) => pipe(ctx.services.registry.controlUnits.update(input), ApiResult.fromTaskEither)),
+    .input(decodeOrThrow(CandyboxUpdateInputCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.candyboxes.update(input), ApiResult.fromTaskEither)),
 
   add: publicProcedure
-    .input(decodeOrThrow(ControlUnitEntryCodec))
-    .mutation(({ ctx, input }) => pipe(ctx.services.registry.controlUnits.add(input), ApiResult.fromTaskEither)),
+    .input(decodeOrThrow(CandyboxEntryCodec))
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.candyboxes.add(input), ApiResult.fromTaskEither)),
 
   remove: publicProcedure
     .input(decodeOrThrow(T.string))
-    .mutation(({ ctx, input }) => pipe(ctx.services.registry.controlUnits.remove(input), ApiResult.fromTaskEither)),
+    .mutation(({ ctx, input }) => pipe(ctx.services.registry.candyboxes.remove(input), ApiResult.fromTaskEither)),
 });
 
 const camerasRouter = router({
@@ -73,7 +73,7 @@ const tvsRouter = router({
 
 export const registryRouter = router({
   getAll: publicProcedure.query(({ ctx }) => pipe(ctx.services.registry.getAll(), ApiResult.fromTaskEither)),
-  controlUnits: controlUnitsRouter,
+  candyboxes: candyboxesRouter,
   cameras: camerasRouter,
   tvs: tvsRouter,
 });

@@ -6,10 +6,6 @@ import type { LabRegistry } from "./registry";
 // Model
 // -------------------------------------------------------------------------------------
 
-// Identità = ip statico (nessuna porta: quella ADB è dinamica ed è già risolta a monte da
-// mDNS/tcpip reconnect, fuori da questo dominio). Stato live Suitest (status, inUseBy,
-// controlUnitIds della gerarchia) NON vive qui: si legge da suitest-store.devices[suitestId]
-// quando `suitestId` è impostato.
 export const TvEntryCodec = t.intersection([
   t.type({
     ip: t.string,

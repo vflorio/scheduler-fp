@@ -6,7 +6,7 @@ import { trpc } from "../../trpc/client";
 // -------------------------------------------------------------------------------------
 
 export const mutations = {
-  "control-unit": trpc.registry.controlUnits,
+  candybox: trpc.registry.candyboxes,
   camera: trpc.registry.cameras,
   tv: trpc.registry.tvs,
 } as const;

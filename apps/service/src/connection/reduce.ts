@@ -1,4 +1,3 @@
-import * as Socket from "@supervisor/core/socket";
 import * as Machine from "@supervisor/core/state-machine/machine";
 import { match } from "ts-pattern";
 import type { ConnectionCommand, ConnectionEvent, TargetState } from "./model";
@@ -29,7 +28,7 @@ export const reduce: Machine.Reducer<TargetState, ConnectionEvent, ConnectionCom
     )
     // (State): Temporary -> (Event): TemporaryHandshakeFailed -> (State): Unknown
     .with([{ _tag: "Temporary" }, { _tag: "TemporaryHandshakeFailed" }], ([s]) =>
-      Machine.transition(unknown(Socket.from(s.target).host)),
+      Machine.transition(unknown(s.target.ip)),
     )
 
     // Temporary -> Persistent
@@ -45,19 +44,15 @@ export const reduce: Machine.Reducer<TargetState, ConnectionEvent, ConnectionCom
     )
     // (State): Temporary -> (Event): PersistentHandshakeFailed -> (State): Unknown
     .with([{ _tag: "Temporary" }, { _tag: "PersistentHandshakeFailed" }], ([s]) =>
-      Machine.transition(unknown(Socket.from(s.target).host)),
+      Machine.transition(unknown(s.target.ip)),
     )
 
     // Connection Lost
 
     // (State): Persistent -> (Event): ConnectionLost -> (State): Unknown
-    .with([{ _tag: "Temporary" }, { _tag: "ConnectionLost" }], ([s]) =>
-      Machine.transition(unknown(Socket.from(s.target).host)),
-    )
+    .with([{ _tag: "Temporary" }, { _tag: "ConnectionLost" }], ([s]) => Machine.transition(unknown(s.target.ip)))
     // (State): Persistent -> (Event): ConnectionLost -> (State): Unknown
-    .with([{ _tag: "Persistent" }, { _tag: "ConnectionLost" }], ([s]) =>
-      Machine.transition(unknown(Socket.from(s.target).host)),
-    )
+    .with([{ _tag: "Persistent" }, { _tag: "ConnectionLost" }], ([s]) => Machine.transition(unknown(s.target.ip)))
 
     // Port Changed
 

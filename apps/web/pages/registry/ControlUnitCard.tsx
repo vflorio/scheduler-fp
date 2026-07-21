@@ -30,9 +30,9 @@ export function ControlUnitCard({
             color={group.cu.online ? "success" : "default"}
           />,
         ]}
-        onToggle={() => onToggle("control-unit", group.cu.id, group.cu.controlled)}
-        onEdit={() => onEdit("control-unit", group.cu.id, group.cu.label)}
-        onDelete={() => onDelete("control-unit", group.cu.id)}
+        onToggle={() => onToggle("candybox", group.cu.id, group.cu.controlled)}
+        onEdit={() => onEdit("candybox", group.cu.id, group.cu.label)}
+        onDelete={() => onDelete("candybox", group.cu.id)}
       />
       {group.tvs.length > 0 && (
         <Stack spacing={1} sx={{ mt: 1.5, pl: 3, borderLeft: "2px solid", borderColor: "divider" }}>

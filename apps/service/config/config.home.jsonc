@@ -17,7 +17,7 @@
     "dbPath": "data/device-registry.json",
     "devices": {
       "cameras": [
-        { "id": "tablet", "label": "Tablet", "adbTarget": "192.168.1.4:5555", "controlled": true },
+        { "id": "tablet", "label": "Tablet", "controlled": true, "adbTarget": "192.168.1.4:5555" },
         // Camere Suitest (video-capture-device) già collegate ai mock TV - riconciliate a mano per test
         { "id": "camera-tv-1", "label": "Camera_TV_1", "controlled": false, "suitestId": "vcd-001" },
         { "id": "camera-tv-2", "label": "Camera_TV_2", "controlled": false, "suitestId": "vcd-002" },

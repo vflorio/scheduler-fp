@@ -1,4 +1,9 @@
 export * from "./camera";
-export * from "./control-unit";
+export * from "./candybox";
 export * from "./registry";
 export * from "./tv";
+
+export type Associated = {
+  _tag: "Associated";
+  suitestId: string;
+};

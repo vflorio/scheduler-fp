@@ -1,6 +1,6 @@
 import * as t from "io-ts";
 import { type CameraEntry, CameraEntryCodec } from "./camera";
-import { type ControlUnitEntry, ControlUnitEntryCodec } from "./control-unit";
+import { type CandyboxEntry, CandyboxEntryCodec } from "./candybox";
 import { type TvEntry, TvEntryCodec } from "./tv";
 
 // -------------------------------------------------------------------------------------
@@ -12,17 +12,17 @@ import { type TvEntry, TvEntryCodec } from "./tv";
 // -------------------------------------------------------------------------------------
 
 export const LabRegistryCodec = t.type({
-  controlUnits: t.record(t.string, ControlUnitEntryCodec),
+  candyboxes: t.record(t.string, CandyboxEntryCodec),
   cameras: t.record(t.string, CameraEntryCodec),
   tvs: t.record(t.string, TvEntryCodec),
 });
 
 export type LabRegistry = t.TypeOf<typeof LabRegistryCodec>;
 
-export const empty: LabRegistry = { controlUnits: {}, cameras: {}, tvs: {} };
+export const empty: LabRegistry = { candyboxes: {}, cameras: {}, tvs: {} };
 
 export interface LabRegistrySeed {
-  readonly controlUnits?: readonly ControlUnitEntry[];
+  readonly candyboxes?: readonly CandyboxEntry[];
   readonly cameras?: readonly CameraEntry[];
   readonly tvs?: readonly TvEntry[];
 }

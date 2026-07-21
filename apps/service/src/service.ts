@@ -4,11 +4,11 @@ import type * as ConfigModel from "@supervisor/core/config";
 import * as Errors from "@supervisor/core/errors";
 import * as LogStream from "@supervisor/core/log-stream";
 import * as Logger from "@supervisor/core/logger";
+import * as NetworkTarget from "@supervisor/core/network-target";
 import * as RetryPolicy from "@supervisor/core/retry/codec";
 import * as Schedule from "@supervisor/core/schedule";
 import * as Adb from "@supervisor/core/services/adb";
 import * as Db from "@supervisor/core/services/db";
-import * as Socket from "@supervisor/core/socket";
 import type { ValidationError } from "@supervisor/core/validation";
 import * as E from "fp-ts/Either";
 import { flow, pipe } from "fp-ts/function";
@@ -98,7 +98,7 @@ export const create: Effect<ServiceHandle> = pipe(
     const workflowLog = discoveryLog.child("Workflow");
     const registryLog = activationLog.child("Registry");
 
-    const runWorkflow: (targets: readonly Socket.IPv4[]) => TE.TaskEither<Workflow.RunError, void> = flow(
+    const runWorkflow: (targets: readonly NetworkTarget.Target[]) => TE.TaskEither<Workflow.RunError, void> = flow(
       RA.traverse(TE.ApplicativeSeq)(
         Workflow.run({ logger: workflowLog, spawn: Node.spawn, recovery: config.recovery })("android-chrome-test"),
       ),
@@ -128,9 +128,9 @@ export const create: Effect<ServiceHandle> = pipe(
             TE.map(({ controlledHosts, knownHosts }) => ({
               // Determina se un determinato IP è noto al registry (controllato o meno)
               // un device completamente esterno al registry non va toccato, viene solo ignorato
-              isKnown: (target: Socket.IPv4): boolean => knownHosts.includes(Socket.from(target).host),
+              isKnown: (target: NetworkTarget.Target): boolean => knownHosts.includes(target.ip),
               // Determina se un determinato IP è marcato come controllabile dal DB
-              isControlled: (target: Socket.IPv4): boolean => controlledHosts.includes(Socket.from(target).host),
+              isControlled: (target: NetworkTarget.Target): boolean => controlledHosts.includes(target.ip),
             })),
           ),
         ),
@@ -171,7 +171,11 @@ export const create: Effect<ServiceHandle> = pipe(
         // TODO: Servizi di gestione delle dispositivi android
         android: {
           // Recupera la lista dei device connessi tramite ADB
-          devices: () => Adb.devices({ logger: trpcLog, spawn: Node.spawn }),
+          devices: () =>
+            pipe(
+              Adb.devices({ logger: trpcLog, spawn: Node.spawn }),
+              TE.map(RA.map((d) => ({ ...d, target: NetworkTarget.format(d.target) }))),
+            ),
 
           // Riavvia un device tramite ADB
           reboot: (target) => Adb.reboot(target)({ logger: trpcLog, spawn: Node.spawn }),
@@ -188,14 +192,13 @@ export const create: Effect<ServiceHandle> = pipe(
           // Recupera l'intero db (mirror Suitest + dominio applicativo)
           getAll: () => Db.read(config.registry.dbPath)(Node.fsEnv),
 
-          controlUnits: {
-            update: ({ id, ...update }: Db.ControlUnitUpdateInput) =>
-              Db.modifyLab(config.registry.dbPath)(Db.updateControlUnitById(id, update))(Node.fsEnv),
+          candyboxes: {
+            update: ({ id, ...update }: Db.CandyboxUpdateInput) =>
+              Db.modifyLab(config.registry.dbPath)(Db.updateCandyboxById(id, update))(Node.fsEnv),
 
-            add: (entry: Db.ControlUnitEntry) =>
-              Db.modifyLab(config.registry.dbPath)(Db.addControlUnit(entry))(Node.fsEnv),
+            add: (entry: Db.CandyboxEntry) => Db.modifyLab(config.registry.dbPath)(Db.addCandybox(entry))(Node.fsEnv),
 
-            remove: (id: string) => Db.modifyLab(config.registry.dbPath)(Db.removeControlUnitById(id))(Node.fsEnv),
+            remove: (id: string) => Db.modifyLab(config.registry.dbPath)(Db.removeCandyboxById(id))(Node.fsEnv),
           },
 
           cameras: {

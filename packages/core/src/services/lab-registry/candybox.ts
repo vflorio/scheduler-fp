@@ -3,6 +3,7 @@ import * as t from "io-ts";
 import type { ControlUnit } from "../suitest";
 import type { LabRegistry } from "./registry";
 
+// TODO Questo diventa Candybox per distinguerlo meglio dal dominio di Suitest
 // -------------------------------------------------------------------------------------
 // Model
 // -------------------------------------------------------------------------------------
@@ -10,70 +11,70 @@ import type { LabRegistry } from "./registry";
 // Identità = id Suitest: un control unit (CandyBox/Raspberry Pi) non ha esistenza indipendente
 // da Suitest (a differenza di TV/Camera non può essere preconfigurato offline), quindi non serve
 // una foreign key separata: `id` qui È l'id Suitest.
-export const ControlUnitEntryCodec = t.type({
+export const CandyboxEntryCodec = t.type({
   id: t.string,
   label: t.string,
   controlled: t.boolean,
 });
 
-export type ControlUnitEntry = t.TypeOf<typeof ControlUnitEntryCodec>;
+export type CandyboxEntry = t.TypeOf<typeof CandyboxEntryCodec>;
 
-export const ControlUnitUpdateInputCodec = t.intersection([
+export const CandyboxUpdateInputCodec = t.intersection([
   t.type({ id: t.string }),
   t.partial({ label: t.string, controlled: t.boolean }),
 ]);
 
-export type ControlUnitUpdateInput = t.TypeOf<typeof ControlUnitUpdateInputCodec>;
+export type CandyboxUpdateInput = t.TypeOf<typeof CandyboxUpdateInputCodec>;
 
 // -------------------------------------------------------------------------------------
 // Combinators - Control Units
 // -------------------------------------------------------------------------------------
 
-export const addControlUnit =
-  (entry: ControlUnitEntry): Endomorphism<LabRegistry> =>
+export const addCandybox =
+  (entry: CandyboxEntry): Endomorphism<LabRegistry> =>
   (registry) => ({
     ...registry,
-    controlUnits: { ...registry.controlUnits, [entry.id]: entry },
+    candyboxes: { ...registry.candyboxes, [entry.id]: entry },
   });
 
-export const removeControlUnitById =
+export const removeCandyboxById =
   (id: string): Endomorphism<LabRegistry> =>
   (registry) => {
-    const { [id]: _removed, ...controlUnits } = registry.controlUnits;
-    return { ...registry, controlUnits };
+    const { [id]: _removed, ...controlUnits } = registry.candyboxes;
+    return { ...registry, candyboxes: controlUnits };
   };
 
-export const updateControlUnitById =
-  (id: string, update: Partial<Omit<ControlUnitEntry, "id">>): Endomorphism<LabRegistry> =>
+export const updateCandyboxById =
+  (id: string, update: Partial<Omit<CandyboxEntry, "id">>): Endomorphism<LabRegistry> =>
   (registry) => {
-    const existing = registry.controlUnits[id];
+    const existing = registry.candyboxes[id];
     if (!existing) return registry;
-    return { ...registry, controlUnits: { ...registry.controlUnits, [id]: { ...existing, ...update } } };
+    return { ...registry, candyboxes: { ...registry.candyboxes, [id]: { ...existing, ...update } } };
   };
 
-export const findControlUnitById =
+export const findCandyboxById =
   (id: string) =>
-  (registry: LabRegistry): ControlUnitEntry | undefined =>
-    registry.controlUnits[id];
+  (registry: LabRegistry): CandyboxEntry | undefined =>
+    registry.candyboxes[id];
 
-export const controlledControlUnitIds = (registry: LabRegistry): readonly string[] =>
-  Object.values(registry.controlUnits)
+export const controlledCandyboxIds = (registry: LabRegistry): readonly string[] =>
+  Object.values(registry.candyboxes)
     .filter((d) => d.controlled)
     .map((d) => d.id);
 
 // Auto-import dalla sync Suitest: a differenza di TV/Camera l'identità coincide con quella
 // Suitest, quindi non serve riconciliazione manuale via UI. Le entry esistenti mantengono
 // label/controlled locali; i control unit nuovi vengono aggiunti con controlled:false.
-export const upsertControlUnitsFromSuitest =
+export const upsertCandyboxesFromSuitestControlUnits =
   (controlUnits: readonly ControlUnit[]): Endomorphism<LabRegistry> =>
   (registry) => ({
     ...registry,
-    controlUnits: {
-      ...registry.controlUnits,
+    candyboxes: {
+      ...registry.candyboxes,
       ...Object.fromEntries(
         controlUnits.map((cu) => [
           cu.id,
-          registry.controlUnits[cu.id] ?? { id: cu.id, label: cu.name, controlled: false },
+          registry.candyboxes[cu.id] ?? { id: cu.id, label: cu.name, controlled: false },
         ]),
       ),
     },

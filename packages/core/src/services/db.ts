@@ -84,7 +84,7 @@ export const init =
         const initial: Db = {
           suitest: SuitestStoreDomain.empty,
           lab: {
-            controlUnits: seedDict(seed?.controlUnits ?? [], (d) => d.id),
+            candyboxes: seedDict(seed?.candyboxes ?? [], (d) => d.id),
             cameras: seedDict(seed?.cameras ?? [], (d) => d.id),
             tvs: seedDict(seed?.tvs ?? [], (d) => d.ip),
           },
@@ -109,5 +109,5 @@ export const syncFromSuitest =
   (incoming: SuitestLists): ((env: Fs.Env) => TE.TaskEither<DbError, Db>) =>
     modify(path)((db) => ({
       suitest: SuitestStoreDomain.replaceFromSuitest(incoming),
-      lab: Lab.upsertControlUnitsFromSuitest(incoming.controlUnits)(db.lab),
+      lab: Lab.upsertCandyboxesFromSuitestControlUnits(incoming.controlUnits)(db.lab),
     }));

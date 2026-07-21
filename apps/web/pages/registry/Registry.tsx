@@ -14,6 +14,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import * as NetworkTarget from "@supervisor/core/network-target";
+import * as E from "fp-ts/Either";
 import { useState } from "react";
 import { match } from "ts-pattern";
 import { useData } from "vike-react/useData";
@@ -28,7 +30,6 @@ import { LinkSuitestDialog } from "./LinkSuitestDialog";
 import { mutate, mutations } from "./mutations";
 import { TvRow } from "./TvRow";
 import type { CameraView, Db, DeviceKind, LinkingTarget, NewDeviceForm, TvView } from "./types";
-
 // -------------------------------------------------------------------------------------
 // Component
 // -------------------------------------------------------------------------------------
@@ -38,7 +39,6 @@ export function RegistryView() {
   const liveAdbDevices = useAdbDevices(adbDevices.ok ? adbDevices.data : []);
 
   return match(registry)
-
     .with({ ok: true }, ({ data }) => <HierarchyView db={data} adbDevices={liveAdbDevices} />)
     .with({ ok: false }, ({ error }) => <Alert severity="error">Registry error: {error.message}</Alert>)
     .exhaustive();
@@ -46,7 +46,7 @@ export function RegistryView() {
 
 const emptyNewDevice: NewDeviceForm = { kind: "camera", label: "", identifier: "", controlled: true };
 
-const identifierLabel = (kind: DeviceKind) => (kind === "control-unit" ? "Control Unit ID" : "IP Address");
+const identifierLabel = (kind: DeviceKind) => (kind === "candybox" ? "Control Unit ID" : "IP Address");
 
 function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDevice[] }) {
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +61,7 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
     mutate(
       () =>
         match(kind)
-          .with("control-unit", () => mutations["control-unit"].update.mutate({ id, controlled: !controlled }))
+          .with("candybox", () => mutations["candybox"].update.mutate({ id, controlled: !controlled }))
           .with("camera", () => mutations.camera.update.mutate({ id, controlled: !controlled }))
           .with("tv", () => mutations.tv.update.mutate({ ip: id, controlled: !controlled }))
           .exhaustive(),
@@ -73,7 +73,7 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
       if (!editing) return { ok: false as const, error: { type: "ValidationError", message: "Nothing to edit" } };
 
       const result = await match(editing.kind)
-        .with("control-unit", () => mutations["control-unit"].update.mutate({ id: editing.id, label: editLabel }))
+        .with("candybox", () => mutations["candybox"].update.mutate({ id: editing.id, label: editLabel }))
         .with("camera", () => mutations.camera.update.mutate({ id: editing.id, label: editLabel }))
         .with("tv", () => mutations.tv.update.mutate({ ip: editing.id, label: editLabel }))
         .exhaustive();
@@ -85,7 +85,7 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
     mutate(
       () =>
         match(kind)
-          .with("control-unit", () => mutations["control-unit"].remove.mutate(id))
+          .with("candybox", () => mutations["candybox"].remove.mutate(id))
           .with("camera", () => mutations.camera.remove.mutate(id))
           .with("tv", () => mutations.tv.remove.mutate(id))
           .exhaustive(),
@@ -96,10 +96,10 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
     mutate(async () => {
       if (!assigningCamera) return { ok: false as const, error: { type: "ValidationError", message: "No camera" } };
 
-      const result = await mutations.camera.update.mutate({
-        id: assigningCamera.id,
-        adbTarget: target as `${string}:${number}`,
-      });
+      const decoded = NetworkTarget.decode(target);
+      if (E.isLeft(decoded)) return { ok: false as const, error: decoded.left };
+
+      const result = await mutations.camera.update.mutate({ id: assigningCamera.id, adbTarget: decoded.right });
       if (result.ok) setAssigningCamera(null);
       return result;
     }, setError);
@@ -125,8 +125,8 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
         };
 
       const result = await match(newDevice.kind)
-        .with("control-unit", () =>
-          mutations["control-unit"].add.mutate({
+        .with("candybox", () =>
+          mutations["candybox"].add.mutate({
             id: newDevice.identifier,
             label: newDevice.label,
             controlled: newDevice.controlled,
@@ -167,17 +167,18 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
   const { cuGroups, unallocatedTvs, orphanCameras } = buildHierarchy(db);
 
   const totalDevices =
-    Object.keys(db.lab.controlUnits).length + Object.keys(db.lab.cameras).length + Object.keys(db.lab.tvs).length;
+    Object.keys(db.lab.candyboxes).length + Object.keys(db.lab.cameras).length + Object.keys(db.lab.tvs).length;
 
   const totalControlled =
-    Object.values(db.lab.controlUnits).filter((d) => d.controlled).length +
+    Object.values(db.lab.candyboxes).filter((d) => d.controlled).length +
     Object.values(db.lab.cameras).filter((d) => d.controlled).length +
     Object.values(db.lab.tvs).filter((d) => d.controlled).length;
 
   const usedAdbTargets = new Set(
     Object.values(db.lab.cameras)
       .map((c) => c.adbTarget)
-      .filter((t): t is string => t !== undefined),
+      .filter((t): t is NetworkTarget.Target => t !== undefined)
+      .map(NetworkTarget.format),
   );
 
   const linkCandidates =

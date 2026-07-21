@@ -73,7 +73,7 @@ export const sync = (env: RegistrySyncEnv): TE.TaskEither<SyncError, Db.Db> =>
         Object.keys(db.suitest.videoCaptureDevices).length;
 
       const controlled =
-        Db.controlledControlUnitIds(db.lab).length +
+        Db.controlledCandyboxIds(db.lab).length +
         Object.values(db.lab.cameras).filter((d) => d.controlled).length +
         Object.values(db.lab.tvs).filter((d) => d.controlled).length;
 

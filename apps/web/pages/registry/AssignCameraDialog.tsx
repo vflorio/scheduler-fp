@@ -1,4 +1,5 @@
 import { Chip } from "@mui/material";
+import * as NetworkTarget from "@supervisor/core/network-target";
 import { SelectDialog } from "@supervisor/ui/SelectDialog";
 import type { AdbDevice } from "../../hooks/useAdbDevices";
 import type { CameraView } from "./types";
@@ -16,13 +17,14 @@ export function AssignCameraDialog({
   onAssign: (target: string) => void;
   onClose: () => void;
 }) {
-  const candidates = adbDevices.filter((d) => d.target === camera?.adbTarget || !usedTargets.has(d.target));
+  const selectedTarget = camera?.adbTarget ? NetworkTarget.format(camera.adbTarget) : undefined;
+  const candidates = adbDevices.filter((d) => d.target === selectedTarget || !usedTargets.has(d.target));
 
   return (
     <SelectDialog
       open={camera !== null}
       title={`Assegna host ADB${camera ? ` - ${camera.label}` : ""}`}
-      selectedId={camera?.adbTarget}
+      selectedId={selectedTarget}
       options={candidates.map((d) => ({
         id: d.target,
         primary: <span style={{ fontFamily: "monospace" }}>{d.target}</span>,
