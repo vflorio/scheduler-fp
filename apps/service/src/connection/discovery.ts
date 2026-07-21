@@ -1,4 +1,5 @@
 import * as Errors from "@supervisor/core/errors";
+import * as Logger from "@supervisor/core/logger";
 import * as NetworkTarget from "@supervisor/core/network-target";
 import * as Adb from "@supervisor/core/services/adb";
 import * as AvahiBrowse from "@supervisor/core/services/avahi-browse";
@@ -133,7 +134,7 @@ export const discoverAndConnect: Effect<readonly NetworkTarget.Target[]> = pipe(
   RTE.bind("resolved", ({ newTargets }) => RTE.sequenceSeqArray(newTargets.map(connect))),
 
   RTE.tap(({ connected, discovered, newTargets, resolved }) =>
-    logInfo(`Discovery complete\n${JSON.stringify({ connected, discovered, newTargets, resolved }, null, 2)}`),
+    logInfo(`Discovery complete\n${Logger.formatJsonLog(10)([{ connected, discovered, newTargets, resolved }])}`),
   ),
 
   RTE.map(({ connected, resolved }) => [...connected, ...resolved.filter(isPersistent).map((s) => s.target)]),

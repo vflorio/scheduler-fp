@@ -162,3 +162,19 @@ export const stdoutTransport: Transport = (record) => {
 
 export const createConsoleLogger = (level: LogLevel = "info"): Tagged => create(level, [consoleTransport]);
 export const createStdoutLogger = (level: LogLevel = "info"): Tagged => create(level, [stdoutTransport]);
+
+// -------------------------------------------------------------------------------------
+// JSON log formatting
+// -------------------------------------------------------------------------------------
+
+export const formatJsonLog =
+  (pad: number) =>
+  (entries: readonly Record<string, unknown>[]): string =>
+    entries
+      .map((entry) =>
+        `(JSON) ${JSON.stringify(entry, null, 2)}`
+          .split("\n")
+          .map((line) => " ".repeat(pad) + line)
+          .join("\n"),
+      )
+      .join("\n");
