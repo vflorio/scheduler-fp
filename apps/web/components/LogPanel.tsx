@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { Box, IconButton, Typography } from "@mui/material";
 import { LEVEL_PALETTE, TAG_PALETTE } from "@supervisor/core/log-palette";
+import { ResizablePanel } from "@supervisor/ui/ResizablePanel";
 import { useEffect, useRef, useState } from "react";
 import { useLogFeed } from "../hooks/useLogFeed";
 
@@ -10,9 +11,16 @@ const INDENT_SIZE = 2;
 // Quanto vicino al fondo bisogna essere (in px) per considerare l'utente "agganciato" all'ultima riga
 const STICK_TO_BOTTOM_THRESHOLD = 48;
 
-// Pannello log globale (in +Layout.tsx, visibile su ogni pagina), collassabile in una
-// striscia laterale sottile - sostituisce la vecchia pagina Logs a tutta pagina.
-export function LogPanel({ sx }: { sx?: React.CSSProperties }) {
+const DEFAULT_WIDTH = 340;
+const MIN_WIDTH = 220;
+const MAX_WIDTH = 1024;
+const COLLAPSE_THRESHOLD = 140;
+const COLLAPSED_WIDTH = 40;
+
+// Pannello log globale (in +Layout.tsx, visibile su ogni pagina), ridimensionabile
+// trascinando il bordo sinistro e collassabile in una striscia laterale sottile -
+export function LogPanel() {
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [collapsed, setCollapsed] = useState(false);
   const { entries, status } = useLogFeed();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -31,39 +39,31 @@ export function LogPanel({ sx }: { sx?: React.CSSProperties }) {
     stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_TO_BOTTOM_THRESHOLD;
   };
 
-  if (collapsed) {
-    return (
-      <Box
-        component="aside"
-        sx={{
-          flexShrink: 0,
-          borderLeft: "1px solid",
-          borderColor: "divider",
-          bgcolor: "background.paper",
-          display: "flex",
-          justifyContent: "center",
-          width: 40,
-          pt: 2,
-        }}
-      >
-        <IconButton size="small" onClick={() => setCollapsed(false)} title="Show logs">
-          <ChevronLeft fontSize="small" />
-        </IconButton>
-      </Box>
-    );
-  }
-
   return (
-    <Box
+    <ResizablePanel
       component="aside"
+      handleSide="left"
+      size={width}
+      onResize={setWidth}
+      minSize={MIN_WIDTH}
+      maxSize={MAX_WIDTH}
+      collapsed={collapsed}
+      onCollapsedChange={setCollapsed}
+      collapseThreshold={COLLAPSE_THRESHOLD}
+      collapsedSize={COLLAPSED_WIDTH}
+      collapsedContent={
+        <Box sx={{ display: "flex", justifyContent: "center", pt: 2 }}>
+          <IconButton size="small" onClick={() => setCollapsed(false)} title="Show logs">
+            <ChevronLeft fontSize="small" />
+          </IconButton>
+        </Box>
+      }
       sx={{
-        flexShrink: 0,
         borderLeft: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
         display: "flex",
         flexDirection: "column",
-        ...sx,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", p: 1.5, pb: 1 }}>
@@ -122,6 +122,6 @@ export function LogPanel({ sx }: { sx?: React.CSSProperties }) {
           );
         })}
       </Box>
-    </Box>
+    </ResizablePanel>
   );
 }

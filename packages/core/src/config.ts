@@ -107,7 +107,7 @@ export const decode = (raw: unknown): E.Either<ValidationError, ServiceConfig> =
 // di sola lettura via tRPC): maschera le credenziali, non va mai loggata/servita raw.
 // -------------------------------------------------------------------------------------
 
-const REDACTED = "«redacted»";
+const REDACTED = "[redacted]";
 
 export const redact = (config: ServiceConfig): ServiceConfig => ({
   ...config,

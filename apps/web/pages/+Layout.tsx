@@ -33,7 +33,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <Box id="page-content" component="main" sx={{ flexGrow: 2, minWidth: 0, p: { xs: 2, md: 4 } }}>
             {children}
           </Box>
-          <LogPanel sx={{ flexGrow: 1 }} />
+          <LogPanel />
         </Box>
       </LogFeedProvider>
     </ThemeProvider>
