@@ -101,3 +101,16 @@ export const decode = (raw: unknown): E.Either<ValidationError, ServiceConfig> =
     ServiceConfigCodec.decode,
     E.mapLeft((errors) => of("ValidationError")(`Invalid configuration:\n${formatErrors(errors)}`)),
   );
+
+// -------------------------------------------------------------------------------------
+// Redazione - da usare ogni volta che la config viene esposta fuori dal processo (es. UI
+// di sola lettura via tRPC): maschera le credenziali, non va mai loggata/servita raw.
+// -------------------------------------------------------------------------------------
+
+const REDACTED = "«redacted»";
+
+export const redact = (config: ServiceConfig): ServiceConfig => ({
+  ...config,
+  suitest: { ...config.suitest, tokenId: REDACTED, tokenPassword: REDACTED },
+  slack: { ...config.slack, botToken: REDACTED },
+});

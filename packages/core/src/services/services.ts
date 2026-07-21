@@ -1,4 +1,5 @@
 import type * as TE from "fp-ts/TaskEither";
+import type * as ConfigModel from "../config";
 import type { LogFeed } from "../log-stream";
 import type * as Logger from "../logger";
 import type * as NetworkTarget from "../network-target";
@@ -49,10 +50,16 @@ export interface DeviceRegistry {
   };
 }
 
+export interface Settings {
+  // Config già redatta (segreti mascherati) - non esporre mai la ServiceConfig raw fuori dal processo
+  readonly getConfig: () => ConfigModel.ServiceConfig;
+}
+
 export interface Services {
   readonly android: AndroidBridge;
   readonly mdns: MdnsDiscovery;
   readonly registry: DeviceRegistry;
+  readonly settings: Settings;
   readonly notifications: Notifications;
   // Questo serve per permettere di avere in logger transportato in HTTP (per loggare errori critici delle web-app)
   readonly logger: Logger.Tagged; // Web -> Service

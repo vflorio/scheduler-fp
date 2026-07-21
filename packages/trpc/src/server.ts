@@ -4,6 +4,7 @@ import { router } from "./instance";
 import { androidRouter } from "./routers/android";
 import { registryRouter } from "./routers/device-registry";
 import { logsRouter } from "./routers/logs";
+import { settingsRouter } from "./routers/settings";
 
 export * from "./instance";
 export * from "./result";
@@ -16,6 +17,7 @@ export const appRouter = router({
   android: androidRouter,
   registry: registryRouter,
   logs: logsRouter,
+  settings: settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

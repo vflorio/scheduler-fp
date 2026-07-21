@@ -1,6 +1,6 @@
 import * as ActivationRunner from "@supervisor/core/activation/runner";
 import * as ActivationSchedule from "@supervisor/core/activation/schedule";
-import type * as ConfigModel from "@supervisor/core/config";
+import * as ConfigModel from "@supervisor/core/config";
 import * as Errors from "@supervisor/core/errors";
 import * as LogStream from "@supervisor/core/log-stream";
 import * as Logger from "@supervisor/core/logger";
@@ -228,6 +228,11 @@ export const create: Effect<ServiceHandle> = pipe(
 
             remove: (id: string) => Db.modifyLab(config.registry.dbPath)(Db.removeAdbEntryById(id))(Node.fsEnv),
           },
+        },
+
+        // Config di servizio in sola lettura (già redatta - mai esporre credenziali raw)
+        settings: {
+          getConfig: () => ConfigModel.redact(config),
         },
       },
     });

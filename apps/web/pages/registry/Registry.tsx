@@ -21,8 +21,9 @@ import * as O from "fp-ts/Option";
 import { useState } from "react";
 import { match } from "ts-pattern";
 import { useData } from "vike-react/useData";
+import { Activity } from "../../components/Activity";
 import { type AdbDevice, useAdbDevices } from "../../hooks/useAdbDevices";
-import type { Data } from "./+data";
+import type { Data } from "../index/+data";
 import { AddDeviceDialog } from "./AddDeviceDialog";
 import { AssignCameraDialog } from "./AssignCameraDialog";
 import { CameraRow } from "./CameraRow";
@@ -176,18 +177,18 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
   const linkCandidates = linking ? cameraSuitestCandidates(db, linking.currentVideoCaptureDeviceId) : [];
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1 }}>
-        <Typography variant="h5" sx={{ flexGrow: 1, fontWeight: 600 }}>
-          Device Registry
-        </Typography>
-        <Chip label={`${totalDevices} devices`} size="small" />
-        <Chip label={`${totalControlled} controlled`} size="small" color="primary" />
-        <IconButton onClick={() => setAddOpen(true)} color="primary" title="Add ADB Target">
-          <Add />
-        </IconButton>
-      </Box>
-
+    <Activity
+      title="Device Registry"
+      actions={
+        <>
+          <Chip label={`${totalDevices} devices`} size="small" />
+          <Chip label={`${totalControlled} controlled`} size="small" color="primary" />
+          <IconButton onClick={() => setAddOpen(true)} color="primary" title="Add ADB Target">
+            <Add />
+          </IconButton>
+        </>
+      }
+    >
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
@@ -317,6 +318,6 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
         onLink={handleLinkSuitest}
         onClose={() => setLinking(null)}
       />
-    </Box>
+    </Activity>
   );
 }
