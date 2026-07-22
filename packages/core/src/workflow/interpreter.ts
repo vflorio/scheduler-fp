@@ -23,6 +23,7 @@ export interface CommandCapabilities {
   readonly restartApp: (packageId: string) => TE.TaskEither<WorkflowError, void>;
   readonly ensureActivity: (packageId: string, activity: string) => TE.TaskEither<WorkflowError, void>;
   readonly openUrl: (url: string) => TE.TaskEither<WorkflowError, void>;
+  readonly openDeveloperSettings: () => TE.TaskEither<WorkflowError, void>;
   readonly reboot: () => TE.TaskEither<WorkflowError, void>;
   readonly wakeUp: () => TE.TaskEither<WorkflowError, void>;
   readonly inputTap: (coords: TapCoords) => TE.TaskEither<WorkflowError, void>;
@@ -63,6 +64,7 @@ const commandToString = (cmd: Command): string =>
     .with({ type: "restartApp" }, ({ packageId }) => `restartApp(${packageId})`)
     .with({ type: "ensureActivity" }, ({ packageId, activity }) => `ensureActivity(${packageId}, ${activity})`)
     .with({ type: "openUrl" }, ({ url }) => `openUrl(${url})`)
+    .with({ type: "openDeveloperSettings" }, () => "openDeveloperSettings")
     .with({ type: "reboot" }, () => "reboot")
     .with({ type: "wakeUp" }, () => "wakeUp")
     .with({ type: "inputTap" }, ({ coords }) => `inputTap(${coords.x}, ${coords.y})`)
@@ -90,6 +92,7 @@ const interpretCommand = (cmd: Command): Effect<void> =>
           liftCommand((c) => c.ensureActivity(packageId, activity)),
         )
         .with({ type: "openUrl" }, ({ url }) => liftCommand((c) => c.openUrl(url)))
+        .with({ type: "openDeveloperSettings" }, () => liftCommand((c) => c.openDeveloperSettings()))
         .with({ type: "reboot" }, () => liftCommand((c) => c.reboot()))
         .with({ type: "wakeUp" }, () => liftCommand((c) => c.wakeUp()))
         .with({ type: "inputTap" }, ({ coords }) => liftCommand((c) => c.inputTap(coords)))

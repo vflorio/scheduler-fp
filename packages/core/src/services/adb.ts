@@ -159,6 +159,10 @@ export const openUrl =
   (target: NetworkTarget.Target): Effect<void> =>
     pipe(run(["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", url], target), RTE.asUnit);
 
+// Open the "Developement Settings" screen (Settings > System > Development)
+export const openDeveloperSettings = (target: NetworkTarget.Target): Effect<void> =>
+  pipe(run(["shell", "am", "start", "-a", "android.settings.APPLICATION_DEVELOPMENT_SETTINGS"], target), RTE.asUnit);
+
 // Force-stop and then restart an app by package id
 export const restartApp =
   (packageId: string) =>

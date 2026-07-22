@@ -88,7 +88,7 @@
     "scripts": [],
     "workflows": [
       [
-        "android-chrome-test",
+        "open-chrome",
         {
           "primary": {
             "commands": [
@@ -112,6 +112,15 @@
               ["ensureActivity", "com.android.chrome", "com.google.android.apps.chrome.Main"]
             ],
             "policy": [["constantDelay", "60s"], ["limitRetries", 3]]
+          }
+        }
+      ],
+      [
+        "open-developer-settings",
+        {
+          "primary": {
+            "commands": [["wakeUp"], ["openDeveloperSettings"]],
+            "policy": [["constantDelay", "1s"], ["limitRetries", 3]]
           }
         }
       ]

@@ -69,6 +69,9 @@ const makeCapabilities = (
     // Open URL in default browser
     openUrl: (url) => pipe(Adb.openUrl(url)(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
 
+    // Open "Wireless debugging" settings screen (System > Developer options)
+    openDeveloperSettings: () => pipe(Adb.openDeveloperSettings(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
+
     // Reboot Device
     reboot: () => pipe(Adb.reboot(target)(adbEnv), TE.mapLeft(mapWorkflowError)),
 

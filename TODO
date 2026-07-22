@@ -16,9 +16,9 @@ Attività oggi:
 ## Monitoring
 
 - [ ] Candybox reachability check
-- [ ] Availability check: polling raggiungibilità per device type (Candybox, Android camera), con intervallo configurabile
+- [ ] Suitest Availability check: polling raggiungibilità per device type (Candybox, Android camera), con intervallo configurabile
 - [X] Activation gate: saltare il polling fuori dallo schedule di lavoro configurato
-- [ ] Offline state tracker: tracciamento centralizzato stato device (online/offline/recovering), durata irraggiungibilità, integrato con availability check
+- [ ] Device Offline state tracker: tracciamento centralizzato stato device (online/offline/recovering), durata irraggiungibilità, integrato con availability check
 
 ## Recovery Workflows
 

@@ -100,7 +100,7 @@ export const create: Effect<ServiceHandle> = pipe(
 
     const runWorkflow: (targets: readonly NetworkTarget.Target[]) => TE.TaskEither<Workflow.RunError, void> = flow(
       RA.traverse(TE.ApplicativeSeq)(
-        Workflow.run({ logger: workflowLog, spawn: Node.spawn, recovery: config.recovery })("android-chrome-test"),
+        Workflow.run({ logger: workflowLog, spawn: Node.spawn, recovery: config.recovery })("open-developer-settings"),
       ),
       TE.asUnit,
     );
