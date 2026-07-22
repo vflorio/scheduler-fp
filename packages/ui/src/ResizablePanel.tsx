@@ -3,25 +3,12 @@ import { Box } from "@mui/material";
 import type { ElementType, ReactNode, PointerEvent as ReactPointerEvent } from "react";
 import { useRef, useState } from "react";
 
-// -------------------------------------------------------------------------------------
-// Generic horizontally-resizable panel: a drag handle on one edge changes `size`, and
-// dragging past `collapseThreshold` snaps the panel into a thin `collapsedSize` strip.
-// Fully controlled - no layout/content knowledge, no persistence. The caller owns
-// `size`/`collapsed` state and decides what the collapsed strip renders (e.g. an
-// expand button), so the same primitive fits a sidebar or a log panel alike.
-// -------------------------------------------------------------------------------------
-
 export interface ResizablePanelProps {
   readonly handleSide: "left" | "right";
   readonly size: number;
   readonly onResize: (size: number) => void;
   readonly minSize?: number;
   readonly maxSize?: number;
-  readonly collapsed: boolean;
-  readonly onCollapsedChange: (collapsed: boolean) => void;
-  readonly collapseThreshold?: number;
-  readonly collapsedSize?: number;
-  readonly collapsedContent?: ReactNode;
   readonly component?: ElementType;
   readonly sx?: SxProps<Theme>;
   readonly children: ReactNode;
@@ -43,11 +30,6 @@ export function ResizablePanel({
   onResize,
   minSize = 160,
   maxSize = 600,
-  collapsed,
-  onCollapsedChange,
-  collapseThreshold = 96,
-  collapsedSize = 40,
-  collapsedContent,
   component = "div",
   sx,
   children,
@@ -66,7 +48,7 @@ export function ResizablePanel({
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
-      startSize: collapsed ? collapseThreshold : size,
+      startSize: size,
       activationTimer,
     };
   };
@@ -77,12 +59,6 @@ export function ResizablePanel({
 
     const deltaX = event.clientX - drag.startX;
     const rawSize = handleSide === "left" ? drag.startSize - deltaX : drag.startSize + deltaX;
-
-    if (rawSize < collapseThreshold) {
-      if (!collapsed) onCollapsedChange(true);
-      return;
-    }
-    if (collapsed) onCollapsedChange(false);
     onResize(Math.min(maxSize, Math.max(minSize, rawSize)));
   };
 
@@ -95,21 +71,6 @@ export function ResizablePanel({
     document.body.style.removeProperty("cursor");
     document.body.style.removeProperty("user-select");
   };
-
-  if (collapsed) {
-    return (
-      <Box
-        component={component}
-        onPointerDown={startDragging}
-        onPointerMove={handleDragging}
-        onPointerUp={stopDragging}
-        onPointerCancel={stopDragging}
-        sx={{ flexShrink: 0, width: collapsedSize, cursor: "col-resize", ...sx }}
-      >
-        {collapsedContent}
-      </Box>
-    );
-  }
 
   return (
     <Box

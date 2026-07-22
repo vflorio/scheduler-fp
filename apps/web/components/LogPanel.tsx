@@ -1,5 +1,4 @@
-import { ChevronLeft, ChevronRight } from "@mui/icons-material";
-import { Box, IconButton, MenuItem, Select, type SelectChangeEvent, Typography } from "@mui/material";
+import { Box, MenuItem, Select, type SelectChangeEvent, Typography } from "@mui/material";
 import { LEVEL_PALETTE, TAG_PALETTE } from "@supervisor/core/log-palette";
 import { isLevelEnabled, type LogLevel, padContinuationLines } from "@supervisor/core/logger";
 import { ResizablePanel } from "@supervisor/ui/ResizablePanel";
@@ -18,14 +17,11 @@ const STICK_TO_BOTTOM_THRESHOLD = 48;
 const DEFAULT_WIDTH = 340;
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 1024;
-const COLLAPSE_THRESHOLD = 140;
-const COLLAPSED_WIDTH = 40;
 
 // Pannello log globale (in +Layout.tsx, visibile su ogni pagina), ridimensionabile
-// trascinando il bordo sinistro e collassabile in una striscia laterale sottile -
+// trascinando il bordo sinistro -
 export function LogPanel() {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
-  const [collapsed, setCollapsed] = useState(false);
   const [minLevel, setMinLevel] = useState<LogLevel>("debug");
   const { entries, status } = useLogFeed();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -54,17 +50,6 @@ export function LogPanel() {
       onResize={setWidth}
       minSize={MIN_WIDTH}
       maxSize={MAX_WIDTH}
-      collapsed={collapsed}
-      onCollapsedChange={setCollapsed}
-      collapseThreshold={COLLAPSE_THRESHOLD}
-      collapsedSize={COLLAPSED_WIDTH}
-      collapsedContent={
-        <Box sx={{ display: "flex", justifyContent: "center", pt: 2 }}>
-          <IconButton size="small" onClick={() => setCollapsed(false)} title="Show logs">
-            <ChevronLeft fontSize="small" />
-          </IconButton>
-        </Box>
-      }
       sx={{
         borderLeft: "1px solid",
         borderColor: "divider",
@@ -77,24 +62,19 @@ export function LogPanel() {
         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
           Service Logs
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <Select
-            size="small"
-            variant="standard"
-            value={minLevel}
-            onChange={(event: SelectChangeEvent) => setMinLevel(event.target.value as LogLevel)}
-            sx={{ fontSize: 12, minWidth: 60 }}
-          >
-            {FILTERABLE_LEVELS.map((level) => (
-              <MenuItem key={level} value={level} sx={{ fontSize: 12 }}>
-                {level}
-              </MenuItem>
-            ))}
-          </Select>
-          <IconButton size="small" onClick={() => setCollapsed(true)} title="Hide logs">
-            <ChevronRight fontSize="small" />
-          </IconButton>
-        </Box>
+        <Select
+          size="small"
+          variant="standard"
+          value={minLevel}
+          onChange={(event: SelectChangeEvent) => setMinLevel(event.target.value as LogLevel)}
+          sx={{ fontSize: 12, width: 60 }}
+        >
+          {FILTERABLE_LEVELS.map((level) => (
+            <MenuItem key={level} value={level} sx={{ fontSize: 12 }}>
+              {level}
+            </MenuItem>
+          ))}
+        </Select>
       </Box>
       <Box
         ref={viewportRef}
@@ -102,6 +82,7 @@ export function LogPanel() {
         sx={{
           flexGrow: 1,
           overflow: "auto",
+          scrollbarGutter: "stable",
           bgcolor: "#0a0c10",
           p: 1.5,
           fontFamily: '"JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace',

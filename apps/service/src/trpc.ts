@@ -24,6 +24,8 @@ export const startServer = (deps: Deps) => {
     hostname,
     fetch(request) {
       const url = new URL(request.url);
+      server.timeout(request, 0);
+
       return fetchRequestHandler({
         endpoint: "/trpc",
         req: request,

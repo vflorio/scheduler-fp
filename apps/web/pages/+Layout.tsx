@@ -1,18 +1,20 @@
-import { BugReport, FiberManualRecord, Home, Settings } from "@mui/icons-material";
+import { BugReport, ChevronLeft, ChevronRight, FiberManualRecord, Home, Settings } from "@mui/icons-material";
 import {
   Box,
   CssBaseline,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Stack,
   ThemeProvider,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
 import { match } from "ts-pattern";
 import { usePageContext } from "vike-react/usePageContext";
-import logoUrl from "../assets/logo.svg";
 import { LogPanel } from "../components/LogPanel";
 import { LogFeedProvider, useLogFeed } from "../hooks/useLogFeed";
 import { PredicatesProvider } from "../hooks/usePredicates";
@@ -21,9 +23,12 @@ import { theme } from "../theme";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: <Home fontSize="small" /> },
-  { href: "/settings", label: "Settings", icon: <Settings fontSize="small" /> },
   { href: "/mock", label: "Mock data", icon: <BugReport fontSize="small" /> },
+  { href: "/settings", label: "Settings", icon: <Settings fontSize="small" /> },
 ];
+
+const SIDEBAR_WIDTH = 240;
+const SIDEBAR_COLLAPSED_WIDTH = 72;
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -47,12 +52,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 function Sidebar() {
   const pageContext = usePageContext();
   const { urlPathname } = pageContext;
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
     <Box
       component="nav"
       sx={{
-        width: 240,
+        width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
@@ -61,48 +67,66 @@ function Sidebar() {
         borderRight: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
+        overflow: "hidden",
+        transition: (theme) => theme.transitions.create("width"),
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1, py: 2 }}>
-        <a href="/" style={{ display: "flex" }}>
-          <img src={logoUrl} height={36} width={36} alt="logo" />
-        </a>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-          Lab Supervisor
-        </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "space-between",
+          px: 1,
+          py: 2,
+        }}
+      >
+        {!collapsed && (
+          <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600 }}>
+            Lab Supervisor
+          </Typography>
+        )}
+        <IconButton
+          size="small"
+          onClick={() => setCollapsed((prev) => !prev)}
+          title={collapsed ? "Expand" : "Collapse"}
+        >
+          {collapsed ? <ChevronRight fontSize="small" /> : <ChevronLeft fontSize="small" />}
+        </IconButton>
       </Box>
       <List sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
         {NAV_ITEMS.map((item) => {
           const isActive = item.href === "/" ? urlPathname === item.href : urlPathname.startsWith(item.href);
           return (
-            <ListItemButton
-              key={item.href}
-              component="a"
-              href={item.href}
-              selected={isActive}
-              sx={{
-                "&.Mui-selected": {
-                  bgcolor: "primary.main",
-                  color: "primary.contrastText",
-                  "&:hover": { bgcolor: "primary.main" },
-                  "& .MuiListItemIcon-root": { color: "inherit" },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
+            <Tooltip key={item.href} title={item.label} placement="right" disableHoverListener={!collapsed}>
+              <ListItemButton
+                component="a"
+                href={item.href}
+                selected={isActive}
+                sx={{
+                  justifyContent: collapsed ? "center" : "flex-start",
+                  "&.Mui-selected": {
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    "&:hover": { bgcolor: "primary.main" },
+                    "& .MuiListItemIcon-root": { color: "inherit" },
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, justifyContent: "center" }}>{item.icon}</ListItemIcon>
+                {!collapsed && <ListItemText primary={item.label} />}
+              </ListItemButton>
+            </Tooltip>
           );
         })}
       </List>
       <Box sx={{ mt: "auto" }}>
-        <ServiceStatusIndicator />
+        <ServiceStatusIndicator collapsed={collapsed} />
       </Box>
     </Box>
   );
 }
 
-function ServiceStatusIndicator() {
+function ServiceStatusIndicator({ collapsed }: { collapsed: boolean }) {
   const { status } = useLogFeed();
 
   const { color, label } = match(status)
@@ -112,11 +136,17 @@ function ServiceStatusIndicator() {
     .exhaustive();
 
   return (
-    <Stack direction="row" spacing={1} sx={{ px: 1, alignItems: "center" }}>
-      <FiberManualRecord sx={{ fontSize: 10, color }} />
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
+    <Stack
+      direction="row"
+      spacing={1}
+      sx={{ px: 1, alignItems: "center", justifyContent: collapsed ? "center" : "flex-start" }}
+    >
+      <FiberManualRecord sx={{ fontSize: 10, color, flexShrink: 0 }} />
+      {!collapsed && (
+        <Typography variant="caption" color="text.secondary" noWrap>
+          {label}
+        </Typography>
+      )}
     </Stack>
   );
 }

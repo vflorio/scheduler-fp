@@ -1,7 +1,7 @@
 import { Dns } from "@mui/icons-material";
-import { Paper, Stack } from "@mui/material";
-import { EntryRow } from "@supervisor/ui/EntryRow";
-import { PredicateDot } from "../../components/PredicateDot";
+import { Box, Paper } from "@mui/material";
+import { EntryRow, entryRowGridSx, entryRowSubgridSx } from "@supervisor/ui/EntryRow";
+import { PredicateStat } from "../../components/PredicateStat";
 import { TvRow } from "./TvRow";
 import type { CuGroup, RowActions } from "./types";
 
@@ -15,20 +15,20 @@ export function ControlUnitCard({
   onLinkCamera,
 }: { group: CuGroup } & RowActions) {
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <Paper variant="outlined" sx={{ ...entryRowGridSx, p: 2, rowGap: 1 }}>
       <EntryRow
         icon={<Dns fontSize="small" />}
         label={group.cu.label}
         secondary={group.cu.id}
         checked={group.cu.controlled}
         checkedTitle="Controlled by supervisor"
-        statusChips={[
-          <PredicateDot
+        indicators={[
+          <PredicateStat
             key="p"
             domain="suitest-control-unit"
             entityId={group.cu.id}
             name="suitest_control_unit_online"
-            label="Control unit online"
+            label="Control unit status"
             colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
             detail={(value) => (value === undefined ? "unknown" : value ? "online" : "offline")}
           />,
@@ -38,7 +38,7 @@ export function ControlUnitCard({
         onDelete={() => onDelete("candybox", group.cu.id)}
       />
       {group.tvs.length > 0 && (
-        <Stack spacing={1} sx={{ mt: 1.5, pl: 3, borderLeft: "2px solid", borderColor: "divider" }}>
+        <Box sx={{ ...entryRowSubgridSx, rowGap: 1, mt: 1.5, pl: 3, borderLeft: "2px solid", borderColor: "divider" }}>
           {group.tvs.map((tvGroup) => (
             <TvRow
               key={tvGroup.tv.deviceId}
@@ -51,7 +51,7 @@ export function ControlUnitCard({
               onLinkCamera={onLinkCamera}
             />
           ))}
-        </Stack>
+        </Box>
       )}
     </Paper>
   );

@@ -68,21 +68,21 @@ export const run =
     const diffFor = diff<RawItem>(config.domain, config.keyOf, config.toFacts);
     let snapshot: ReadonlyMap<string, PredicateValue> = new Map();
 
-    const trackerLogger = logger.child(`tracker:${config.domain}`);
+    const trackerLogger = logger.child(`tracker`);
 
     const tick = async (): Promise<void> => {
       const result = await config.fetch(env)();
 
       if (E.isLeft(result)) {
-        trackerLogger.error(`tracker poll failed: ${formatError(result.left)}`)();
+        trackerLogger.error(`${config.domain} poll failed: ${formatError(result.left)}`)();
         return;
       }
 
       const { changed, next } = diffFor(snapshot, result.right);
       snapshot = next;
 
-      trackerLogger.info(`tracker tick: ${config.domain} - changed facts: ${changed.length}`)();
-      trackerLogger.debug(`changed = ${Logger.formatJsonLog([{ changed }])}`)();
+      trackerLogger.info(`${config.domain} tick - changed facts: ${changed.length}`)();
+      trackerLogger.debug(`${config.domain} = ${Logger.formatJsonLog([{ changed }])}`)();
 
       for (const fact of changed) stream.emit(fact);
     };

@@ -1,10 +1,26 @@
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  MenuItem,
+  Paper,
+  Select,
+  type SelectChangeEvent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 import type { ControlUnit, Device, DeviceStatus, VideoCaptureDevice } from "@supervisor/core/services/suitest";
 import { useEffect, useState } from "react";
 
 // -------------------------------------------------------------------------------------
-// Form di debug volutamente minimale: serve solo a smanettare a runtime con i dati del
-// mock server (apps/mocks) per vedere i predicati di tracking (apps/service/src/tracking)
-// cambiare in tempo reale. Nessuna cura estetica, HTML grezzo.
+// Form di debug: serve solo a smanettare a runtime con i dati del mock server (apps/mocks)
+// per vedere i predicati di tracking (apps/service/src/tracking) cambiare in tempo reale.
 // -------------------------------------------------------------------------------------
 
 const BASE = "/api/mocks";
@@ -81,129 +97,136 @@ export function MockDataForm() {
 
   if (error) {
     return (
-      <p style={{ color: "crimson" }}>
+      <Alert severity="error">
         Mock server unreachable ({error}). È in esecuzione <code>bun mock-services:start</code> su :3002?
-      </p>
+      </Alert>
     );
   }
 
-  if (!state) return <p>Loading…</p>;
+  if (!state) return <Typography color="text.secondary">Loading…</Typography>;
 
   return (
-    <div style={{ fontFamily: "monospace", fontSize: 13 }}>
-      <h2>Mock data (debug)</h2>
-      <button type="button" onClick={reset}>
+    <Box>
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        Mock data (debug)
+      </Typography>
+      <Button variant="outlined" onClick={reset} sx={{ mb: 3 }}>
         Reset all to seed
-      </button>
+      </Button>
 
-      <h3>Video Capture Devices</h3>
-      <table border={1} cellPadding={4} style={{ borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>id</th>
-            <th>name</th>
-            <th>online</th>
-            <th>recording</th>
-            <th>streaming</th>
-          </tr>
-        </thead>
-        <tbody>
-          {state.videoCaptureDevices.map((vcd) => (
-            <tr key={vcd.id}>
-              <td>{vcd.id}</td>
-              <td>{vcd.customName ?? vcd.name}</td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={vcd.online}
-                  onChange={(e) => applyVcd(vcd.id, { online: e.target.checked })}
-                />
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={vcd.recordingActive}
-                  onChange={(e) => applyVcd(vcd.id, { recordingActive: e.target.checked })}
-                />
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={vcd.streamActive}
-                  onChange={(e) => applyVcd(vcd.id, { streamActive: e.target.checked })}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Video Capture Devices
+      </Typography>
+      <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>id</TableCell>
+              <TableCell>name</TableCell>
+              <TableCell>online</TableCell>
+              <TableCell>recording</TableCell>
+              <TableCell>streaming</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {state.videoCaptureDevices.map((vcd) => (
+              <TableRow key={vcd.id}>
+                <TableCell>{vcd.id}</TableCell>
+                <TableCell>{vcd.customName ?? vcd.name}</TableCell>
+                <TableCell>
+                  <Checkbox checked={vcd.online} onChange={(e) => applyVcd(vcd.id, { online: e.target.checked })} />
+                </TableCell>
+                <TableCell>
+                  <Checkbox
+                    checked={vcd.recordingActive}
+                    onChange={(e) => applyVcd(vcd.id, { recordingActive: e.target.checked })}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Checkbox
+                    checked={vcd.streamActive}
+                    onChange={(e) => applyVcd(vcd.id, { streamActive: e.target.checked })}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      <h3>Control Units</h3>
-      <table border={1} cellPadding={4} style={{ borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>id</th>
-            <th>name</th>
-            <th>online</th>
-          </tr>
-        </thead>
-        <tbody>
-          {state.controlUnits.map((cu) => (
-            <tr key={cu.id}>
-              <td>{cu.id}</td>
-              <td>{cu.name}</td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={cu.online}
-                  onChange={(e) => applyCu(cu.id, { online: e.target.checked })}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Control Units
+      </Typography>
+      <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>id</TableCell>
+              <TableCell>name</TableCell>
+              <TableCell>online</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {state.controlUnits.map((cu) => (
+              <TableRow key={cu.id}>
+                <TableCell>{cu.id}</TableCell>
+                <TableCell>{cu.name}</TableCell>
+                <TableCell>
+                  <Checkbox checked={cu.online} onChange={(e) => applyCu(cu.id, { online: e.target.checked })} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      <h3>Devices (TV)</h3>
-      <table border={1} cellPadding={4} style={{ borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>id</th>
-            <th>name</th>
-            <th>status</th>
-            <th>in use</th>
-          </tr>
-        </thead>
-        <tbody>
-          {state.devices.map((d) => (
-            <tr key={d.deviceId}>
-              <td>{d.deviceId}</td>
-              <td>{d.customName}</td>
-              <td>
-                <select
-                  value={d.status}
-                  onChange={(e) => applyDevice(d.deviceId, { status: e.target.value as DeviceStatus })}
-                >
-                  {DEVICE_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={d.inUseBy != null}
-                  onChange={(e) =>
-                    applyDevice(d.deviceId, { inUseBy: e.target.checked ? { email: "debug@local" } : null })
-                  }
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Devices (TV)
+      </Typography>
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>id</TableCell>
+              <TableCell>name</TableCell>
+              <TableCell>status</TableCell>
+              <TableCell>in use</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {state.devices.map((d) => (
+              <TableRow key={d.deviceId}>
+                <TableCell>{d.deviceId}</TableCell>
+                <TableCell>{d.customName}</TableCell>
+                <TableCell>
+                  <Select
+                    size="small"
+                    value={d.status}
+                    onChange={(e: SelectChangeEvent) =>
+                      applyDevice(d.deviceId, { status: e.target.value as DeviceStatus })
+                    }
+                    sx={{ minWidth: 200 }}
+                  >
+                    {DEVICE_STATUSES.map((s) => (
+                      <MenuItem key={s} value={s}>
+                        {s}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <Checkbox
+                    checked={d.inUseBy != null}
+                    onChange={(e) =>
+                      applyDevice(d.deviceId, { inUseBy: e.target.checked ? { email: "debug@local" } : null })
+                    }
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 }

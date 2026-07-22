@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import * as NetworkTarget from "@supervisor/core/network-target";
+import { entryRowGridSx } from "@supervisor/ui/EntryRow";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
@@ -22,7 +23,7 @@ import { useState } from "react";
 import { match } from "ts-pattern";
 import { useData } from "vike-react/useData";
 import { Activity } from "../../components/Activity";
-import { PredicateDot } from "../../components/PredicateDot";
+import { PredicateStat } from "../../components/PredicateStat";
 import { type AdbDevice, useAdbDevices } from "../../hooks/useAdbDevices";
 import { useServiceLogger } from "../../hooks/useServiceLogger";
 import type { Data } from "../index/+data";
@@ -223,12 +224,16 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
           />
         ))}
 
-        {(unallocatedTvs.length > 0 || orphanCameras.length > 0) && (
+        <Typography variant="subtitle2" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
+          Unlinked
+        </Typography>
+
+        {unallocatedTvs.length > 0 && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="overline" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
-              Unassigned
+              TVs
             </Typography>
-            <Stack spacing={1}>
+            <Box sx={{ ...entryRowGridSx, rowGap: 1 }}>
               {unallocatedTvs.map((tvGroup) => (
                 <TvRow
                   key={tvGroup.tv.deviceId}
@@ -241,6 +246,16 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
                   onLinkCamera={handleLinkCamera}
                 />
               ))}
+            </Box>
+          </Paper>
+        )}
+
+        {orphanCameras.length > 0 && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="overline" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
+              Cameras
+            </Typography>
+            <Box sx={{ ...entryRowGridSx, rowGap: 1 }}>
               {orphanCameras.map((camera) => (
                 <CameraRow
                   key={camera.id}
@@ -253,43 +268,7 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
                   onLink={() => handleLinkCamera(camera)}
                 />
               ))}
-            </Stack>
-          </Paper>
-        )}
-
-        {Object.keys(db.lab.adb).length > 0 && (
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="overline" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
-              ADB Targets
-            </Typography>
-            <Stack spacing={1}>
-              {Object.values(db.lab.adb).map((entry) => (
-                <Box key={entry.id} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 0.5 }}>
-                  <Box sx={{ color: "text.secondary", display: "flex" }}>
-                    <Usb fontSize="small" />
-                  </Box>
-                  <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {entry.label}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {NetworkTarget.format(entry.target)}
-                    </Typography>
-                  </Box>
-                  <PredicateDot
-                    domain="adb"
-                    entityId={NetworkTarget.format(entry.target)}
-                    name="adb_device_reachable"
-                    label="ADB reachable"
-                    colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
-                    detail={(value) => (value === undefined ? "unknown" : value ? "reachable" : "unreachable")}
-                  />
-                  <IconButton size="small" onClick={() => handleDeleteAdb(entry.id)} title="Remove">
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Box>
-              ))}
-            </Stack>
+            </Box>
           </Paper>
         )}
       </Stack>

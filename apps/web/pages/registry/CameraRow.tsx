@@ -1,10 +1,10 @@
-import { Link as LinkIcon, Videocam } from "@mui/icons-material";
-import { Chip } from "@mui/material";
+import { Link as LinkIcon, Usb, Videocam } from "@mui/icons-material";
+import { Box, Button, Stack, Typography } from "@mui/material";
 import * as NetworkTarget from "@supervisor/core/network-target";
 import { EntryRow } from "@supervisor/ui/EntryRow";
 import * as O from "fp-ts/Option";
 import type { ReactNode } from "react";
-import { PredicateDot } from "../../components/PredicateDot";
+import { PredicateStat } from "../../components/PredicateStat";
 import type { AdbDevice } from "../../hooks/useAdbDevices";
 import type { CameraView, DeviceKind } from "./types";
 
@@ -25,90 +25,74 @@ export function CameraRow({
   onAssign: () => void;
   onLink: () => void;
 }) {
-  const statusChips: ReactNode[] = [];
+  const connectivity: ReactNode[] = [];
+  const activity: ReactNode[] = [];
+  const actions: ReactNode[] = [];
   const videoCaptureDeviceId = O.toUndefined(camera.videoCaptureDeviceId);
+  const adbAddress = camera.adb ? NetworkTarget.format(camera.adb.target) : undefined;
 
-  if (!camera.adb) {
-    statusChips.push(
-      <Chip
-        key="a"
-        size="small"
-        variant="outlined"
-        icon={<LinkIcon fontSize="small" />}
-        label="Assign ADB"
-        onClick={onAssign}
-        sx={{ mr: 4 }}
+  if (camera.suitest && videoCaptureDeviceId) {
+    connectivity.push(
+      <PredicateStat
+        key="pc"
+        domain="suitest-camera"
+        entityId={videoCaptureDeviceId}
+        name="suitest_camera_connected"
+        label="Camera status"
+        colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
+        detail={(value) => (value === undefined ? "unknown" : value ? "online" : "offline")}
       />,
     );
-  }
-
-  if (!camera.suitest || !videoCaptureDeviceId) {
-    statusChips.push(
-      <Chip
-        key="o"
-        size="small"
-        variant="outlined"
-        icon={<LinkIcon fontSize="small" />}
-        label="Link Suitest"
-        onClick={onLink}
-        sx={{ mr: 4 }}
-      />,
-    );
-  } else {
-    statusChips.push(
-      <PredicateDot
+    activity.push(
+      <PredicateStat
         key="pr"
         domain="suitest-camera"
         entityId={videoCaptureDeviceId}
         name="suitest_camera_recording"
         label="Recording"
         colorFor={(value) => (value === undefined ? "disabled" : value ? "error" : "disabled")}
-        detail={(value) => (value ? "recording" : "idle")}
+        detail={(value) => (value ? "active" : "idle")}
       />,
-      <PredicateDot
+      <PredicateStat
         key="pl"
         domain="suitest-camera"
         entityId={videoCaptureDeviceId}
         name="suitest_camera_streaming"
         label="Streaming"
         colorFor={(value) => (value === undefined ? "disabled" : value ? "info" : "disabled")}
-        detail={(value) => (value ? "streaming" : "not streaming")}
+        detail={(value) => (value ? "active" : "idle")}
       />,
-      <PredicateDot
-        key="pc"
-        domain="suitest-camera"
-        entityId={videoCaptureDeviceId}
-        name="suitest_camera_connected"
-        label="Camera connected"
-        colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
-        detail={(value) => (value === undefined ? "unknown" : value ? "online" : "offline")}
-      />,
+    );
+  } else {
+    actions.push(
+      <Button key="o" size="small" variant="outlined" startIcon={<LinkIcon fontSize="small" />} onClick={onLink}>
+        Link Suitest
+      </Button>,
     );
   }
 
-  if (camera.adb) {
-    const address = NetworkTarget.format(camera.adb.target);
-    statusChips.push(
-      <Chip
-        key="ra"
-        size="small"
-        variant="outlined"
-        icon={<LinkIcon fontSize="small" />}
-        label="Reassign ADB"
-        onClick={onAssign}
-        sx={{ mr: 4 }}
-      />,
-      <PredicateDot
+  if (camera.adb && adbAddress) {
+    connectivity.push(
+      <PredicateStat
         key="pa"
         domain="adb"
-        entityId={address}
+        entityId={adbAddress}
         name="adb_device_reachable"
-        label="ADB reachable"
+        label="ADB status"
         colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
-        detail={(value) =>
-          `${address}, ${value === undefined ? "unknown" : value ? "reachable" : (adbStatus ?? "unreachable")}`
-        }
+        detail={(value) => (value === undefined ? "unknown" : value ? "reachable" : (adbStatus ?? "unreachable"))}
       />,
+    );
+    actions.push(
+      <Button key="ra" size="small" variant="outlined" startIcon={<Usb fontSize="small" />} onClick={onAssign}>
+        Change ADB
+      </Button>,
+    );
+  } else {
+    actions.push(
+      <Button key="a" size="small" variant="outlined" startIcon={<Usb fontSize="small" />} onClick={onAssign}>
+        Assign ADB
+      </Button>,
     );
   }
 
@@ -121,7 +105,25 @@ export function CameraRow({
       }
       checked={camera.controlled}
       checkedTitle="Controlled by supervisor"
-      statusChips={statusChips}
+      indicators={[...connectivity, ...activity]}
+      context={
+        <Stack sx={{ width: "100%", gap: 1, direction: "row", justifyContent: "space-between", alignItems: "center" }}>
+          {adbAddress && (
+            <Stack sx={{ flexDirection: "row", gap: 1, alignItems: "center", minWidth: 0 }}>
+              <Usb fontSize="small" color="disabled" />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+                  Assigned ADB
+                </Typography>
+                <Typography variant="caption" color="textSecondary" noWrap sx={{ display: "block" }}>
+                  {adbAddress}
+                </Typography>
+              </Box>
+            </Stack>
+          )}
+        </Stack>
+      }
+      actions={actions}
       onToggle={() => onToggle("camera", camera.id, camera.controlled)}
       onEdit={() => onEdit("camera", camera.id, camera.label)}
       onDelete={() => onDelete("camera", camera.id)}
