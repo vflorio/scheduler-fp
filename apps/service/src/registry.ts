@@ -1,3 +1,4 @@
+import type * as Config from "@supervisor/core/config";
 import * as Errors from "@supervisor/core/errors";
 import type * as Fs from "@supervisor/core/fs";
 import type * as Logger from "@supervisor/core/logger";
@@ -12,7 +13,7 @@ interface RegistrySyncEnv {
   readonly fsEnv: Fs.Env;
   readonly dbPath: string;
   readonly seedDevices?: Db.LabRegistrySeed;
-  readonly suitestConfig: Suitest.SuitestConfig;
+  readonly suitestConfig: Config.Suitest;
 }
 
 export type SyncError = Db.DbError;
@@ -22,15 +23,18 @@ export type SyncError = Db.DbError;
 // /video-capture-devices ritorna le camera
 const fetchSuitestLists = (
   logger: Logger.Tagged,
-  suitestConfig: Suitest.SuitestConfig,
+  suitestConfig: Config.Suitest,
 ): TE.TaskEither<Suitest.SuitestError, Db.SuitestLists> => {
-  const config: Suitest.SuitestConfig = { ...suitestConfig, logger: logger.child("Suitest") };
+  const env: Suitest.Env = {
+    suitestConfig,
+    logger: logger.child("Suitest"),
+  };
 
   return pipe(
     TE.Do,
-    TE.bind("devices", () => Suitest.getAllDevices(config)),
-    TE.bind("controlUnits", () => Suitest.getControlUnits(config)),
-    TE.bind("videoCaptureDevices", () => Suitest.getVideoCaptureDevices(config)),
+    TE.bind("devices", () => Suitest.getAllDevices(env)),
+    TE.bind("controlUnits", () => Suitest.getControlUnits(env)),
+    TE.bind("videoCaptureDevices", () => Suitest.getVideoCaptureDevices(env)),
     TE.tapIO(({ devices, controlUnits, videoCaptureDevices }) =>
       logger.info(
         `Fetched ${devices.length} devices, ${controlUnits.length} control units, ` +
@@ -45,7 +49,7 @@ const fetchSuitestLists = (
 // indipendentemente da Suitest.
 const fetchSuitestListsOrSkip = (
   logger: Logger.Tagged,
-  suitestConfig: Suitest.SuitestConfig,
+  suitestConfig: Config.Suitest,
 ): TE.TaskEither<never, O.Option<Db.SuitestLists>> =>
   pipe(
     fetchSuitestLists(logger, suitestConfig),

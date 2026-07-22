@@ -1,6 +1,7 @@
 import { Dns } from "@mui/icons-material";
-import { Chip, Paper, Stack } from "@mui/material";
+import { Paper, Stack } from "@mui/material";
 import { EntryRow } from "@supervisor/ui/EntryRow";
+import { PredicateDot } from "../../components/PredicateDot";
 import { TvRow } from "./TvRow";
 import type { CuGroup, RowActions } from "./types";
 
@@ -22,11 +23,14 @@ export function ControlUnitCard({
         checked={group.cu.controlled}
         checkedTitle="Controlled by supervisor"
         statusChips={[
-          <Chip
-            key="s"
-            size="small"
-            label={group.cu.online ? "online" : "offline"}
-            color={group.cu.online ? "success" : "default"}
+          <PredicateDot
+            key="p"
+            domain="suitest-control-unit"
+            entityId={group.cu.id}
+            name="suitest_control_unit_online"
+            label="Control unit online"
+            colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
+            detail={(value) => (value === undefined ? "unknown" : value ? "online" : "offline")}
           />,
         ]}
         onToggle={() => onToggle("candybox", group.cu.id, group.cu.controlled)}

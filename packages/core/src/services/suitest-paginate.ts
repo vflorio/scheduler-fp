@@ -1,3 +1,4 @@
+import * as Validation from "@supervisor/core/validation";
 import * as E from "fp-ts/Either";
 import { constVoid, pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
@@ -5,7 +6,6 @@ import * as t from "io-ts";
 import { format } from "../errors";
 import { type BasicAuth, getJsonAuth, type HTTPError } from "../http";
 import * as Logger from "../logger";
-import { createValidationError, type ValidationError } from "../validation";
 
 // -------------------------------------------------------------------------------------
 // Model - Paginated response
@@ -36,7 +36,7 @@ export interface PaginatedResponse<A> {
 // Errors
 // -------------------------------------------------------------------------------------
 
-export type PaginationFetchError = HTTPError | ValidationError;
+export type PaginationFetchError = HTTPError | Validation.ValidationError;
 
 // -------------------------------------------------------------------------------------
 // Single page - fetch and validate by URL
@@ -51,13 +51,17 @@ const fetchPage = <A>(
   pipe(
     logger ? TE.fromIO(logger.debug(`GET ${url}`)) : TE.right(undefined),
     TE.flatMap(() => getJsonAuth(url, auth)),
-    TE.tapIO((data) => (logger ? logger.child("HTTP").debug(Logger.formatJsonLog([{ response: data }])) : constVoid)),
-    TE.flatMapEither((data) => pipe(PaginatedResponseSchema(itemCodec).decode(data), E.mapLeft(createValidationError))),
-    TE.tapIO((page) =>
-      logger
-        ? logger.debug(`  -> page ${page.page ?? 1}: ${page.values.length} items (total: ${page.total ?? "?"})`)
-        : () => {},
+    TE.tapIO((data) =>
+      logger ? logger.child("HTTP").logNetwork(Logger.formatJsonLog([{ response: data }])) : constVoid,
     ),
+    TE.flatMapEither((data) =>
+      pipe(PaginatedResponseSchema(itemCodec).decode(data), E.mapLeft(Validation.createValidationError)),
+    ),
+    //TE.tapIO((page) =>
+    //  logger
+    //    ? logger.debug(`  -> page ${page.page ?? 1}: ${page.values.length} items (total: ${page.total ?? "?"})`)
+    //    : () => {},
+    //),
     TE.tapError((err) => (logger ? TE.fromIO(logger.error(`  ✗ ${format(err)}`)) : TE.right(undefined))),
   );
 

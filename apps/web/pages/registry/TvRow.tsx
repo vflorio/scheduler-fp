@@ -1,7 +1,8 @@
-import { MailOutlined, Tv } from "@mui/icons-material";
-import { Box, Chip, Stack } from "@mui/material";
+import { Tv } from "@mui/icons-material";
+import { Box, Stack } from "@mui/material";
 import { EntryRow } from "@supervisor/ui/EntryRow";
 import * as O from "fp-ts/Option";
+import { PredicateDot } from "../../components/PredicateDot";
 import { CameraRow } from "./CameraRow";
 import { adbStatusFor } from "./hierarchy";
 import type { RowActions, TvGroup } from "./types";
@@ -27,11 +28,32 @@ export function TvRow({
         checked={tv.controlled}
         checkedTitle="Controlled by supervisor"
         statusChips={[
-          inUseLabel ? (
-            <Chip key="u" size="small" color="warning" icon={<MailOutlined fontSize="small" />} label={inUseLabel} />
-          ) : (
-            <Chip key="u" size="small" variant="outlined" label="Available" />
-          ),
+          <PredicateDot
+            key="u"
+            domain="suitest-device"
+            entityId={tv.deviceId}
+            name="suitest_device_in_use"
+            label="In use"
+            colorFor={(value) => (value === undefined ? "disabled" : value ? "warning" : "disabled")}
+            detail={inUseLabel ?? "available"}
+          />,
+          <PredicateDot
+            key="s"
+            domain="suitest-device"
+            entityId={tv.deviceId}
+            name="suitest_device_status"
+            label="Device status"
+            colorFor={(value) =>
+              value === undefined
+                ? "disabled"
+                : value === "READY"
+                  ? "success"
+                  : value === "OFFLINE"
+                    ? "error"
+                    : "warning"
+            }
+            detail={(value) => (value === undefined ? "unknown" : String(value))}
+          />,
         ]}
         onToggle={() => onToggle("tv", tv.deviceId, tv.controlled)}
         onEdit={() => onEdit("tv", tv.deviceId, tv.label)}

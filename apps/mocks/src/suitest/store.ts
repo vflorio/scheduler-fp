@@ -1,4 +1,4 @@
-import type { ControlUnit, Device, DeviceStatus, VideoCaptureDevice } from "@supervisor/core/services/suitest";
+import type { ControlUnit, Device, DeviceStatus, InUseBy, VideoCaptureDevice } from "@supervisor/core/services/suitest";
 
 // -------------------------------------------------------------------------------------
 // Seed data
@@ -99,12 +99,45 @@ export class SuitestStore {
 
   getDevice = (id: string): Device | undefined => this.devices.find((d) => d.deviceId === id);
 
-  setDeviceStatus = (id: string, status: DeviceStatus): boolean => {
-    const device = this.getDevice(id);
-    if (!device) return false;
-    (device as { status: DeviceStatus }).status = status;
+  // Patch di debug per la form web di test: `inUseBy: null` rimuove esplicitamente il
+  // campo (assente = "libero"), a differenza di `undefined` che lascerebbe invariato il
+  // valore corrente se la chiave non viene inviata dal client.
+  updateDevice = (id: string, patch: { status?: DeviceStatus; inUseBy?: InUseBy | null }): boolean => {
+    const index = this.devices.findIndex((d) => d.deviceId === id);
+    if (index === -1) return false;
+
+    const next: Device = { ...this.devices[index]! };
+    if (patch.status !== undefined) next.status = patch.status;
+    if ("inUseBy" in patch) {
+      if (patch.inUseBy === null) delete next.inUseBy;
+      else next.inUseBy = patch.inUseBy;
+    }
+
+    this.devices[index] = next;
     return true;
   };
 
   getControlUnit = (id: string): ControlUnit | undefined => this.controlUnits.find((cu) => cu.id === id);
+
+  updateControlUnit = (id: string, patch: Partial<Pick<ControlUnit, "online">>): boolean => {
+    const index = this.controlUnits.findIndex((cu) => cu.id === id);
+    if (index === -1) return false;
+
+    this.controlUnits[index] = { ...this.controlUnits[index]!, ...patch };
+    return true;
+  };
+
+  getVideoCaptureDevice = (id: string): VideoCaptureDevice | undefined =>
+    this.videoCaptureDevices.find((d) => d.id === id);
+
+  updateVideoCaptureDevice = (
+    id: string,
+    patch: Partial<Pick<VideoCaptureDevice, "online" | "recordingActive" | "streamActive">>,
+  ): boolean => {
+    const index = this.videoCaptureDevices.findIndex((d) => d.id === id);
+    if (index === -1) return false;
+
+    this.videoCaptureDevices[index] = { ...this.videoCaptureDevices[index]!, ...patch };
+    return true;
+  };
 }

@@ -31,10 +31,10 @@ export function EntryRow({
   onDelete,
 }: EntryRowProps) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 0.5 }}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 0.5, flexGrow: 1 }}>
       <Checkbox checked={checked} onChange={onToggle} size="small" title={checkedTitle} />
       <Box sx={{ color: "text.secondary", display: "flex" }}>{icon}</Box>
-      <Box sx={{ minWidth: 0, flexShrink: 0 }}>
+      <Box sx={{ minWidth: 0, flexShrink: 0, flexGrow: 1 }}>
         <Typography variant="body2" sx={{ fontWeight: 500 }}>
           {label}
         </Typography>
@@ -44,7 +44,7 @@ export function EntryRow({
           </Typography>
         )}
       </Box>
-      <Stack direction="row" spacing={1} sx={{ flexGrow: 1, flexWrap: "wrap" }}>
+      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", alignItems: "center", px: 4 }}>
         {statusChips}
       </Stack>
       <IconButton size="small" onClick={onEdit} title="Edit label">

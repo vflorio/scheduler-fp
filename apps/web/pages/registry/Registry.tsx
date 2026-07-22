@@ -22,7 +22,9 @@ import { useState } from "react";
 import { match } from "ts-pattern";
 import { useData } from "vike-react/useData";
 import { Activity } from "../../components/Activity";
+import { PredicateDot } from "../../components/PredicateDot";
 import { type AdbDevice, useAdbDevices } from "../../hooks/useAdbDevices";
+import { useServiceLogger } from "../../hooks/useServiceLogger";
 import type { Data } from "../index/+data";
 import { AddDeviceDialog } from "./AddDeviceDialog";
 import { AssignCameraDialog } from "./AssignCameraDialog";
@@ -57,9 +59,11 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
   const [newAdbTarget, setNewAdbTarget] = useState<NewAdbTargetForm>(emptyNewAdbTarget);
   const [assigningCamera, setAssigningCamera] = useState<CameraView | null>(null);
   const [linking, setLinking] = useState<LinkingTarget | null>(null);
+  const log = useServiceLogger();
 
-  const handleToggle = (kind: DeviceKind, id: string, controlled: boolean) =>
-    mutate(
+  const handleToggle = (kind: DeviceKind, id: string, controlled: boolean) => {
+    log(`User ${controlled ? "disabled" : "enabled"} control of ${kind} ${id}`);
+    return mutate(
       () =>
         match(kind)
           .with("candybox", () => mutations.candybox.update.mutate({ id, controlled: !controlled }))
@@ -68,11 +72,13 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
           .exhaustive(),
       setError,
     );
+  };
 
   const handleSaveLabel = () =>
     mutate(async () => {
       if (!editing) return { ok: false as const, error: { type: "ValidationError", message: "Nothing to edit" } };
 
+      log(`User renamed ${editing.kind} ${editing.id} to "${editLabel}"`);
       const result = await match(editing.kind)
         .with("candybox", () => mutations.candybox.update.mutate({ id: editing.id, label: editLabel }))
         .with("camera", () => mutations.camera.update.mutate({ id: editing.id, label: editLabel }))
@@ -82,8 +88,9 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
       return result;
     }, setError);
 
-  const handleDelete = (kind: DeviceKind, id: string) =>
-    mutate(
+  const handleDelete = (kind: DeviceKind, id: string) => {
+    log(`User deleted ${kind} ${id}`, "warn");
+    return mutate(
       () =>
         match(kind)
           .with("candybox", () => mutations.candybox.remove.mutate(id))
@@ -92,8 +99,12 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
           .exhaustive(),
       setError,
     );
+  };
 
-  const handleDeleteAdb = (id: string) => mutate(() => mutations.adb.remove.mutate(id), setError);
+  const handleDeleteAdb = (id: string) => {
+    log(`User deleted adb target ${id}`, "warn");
+    return mutate(() => mutations.adb.remove.mutate(id), setError);
+  };
 
   // Assegna un host ADB a una camera: upsert (idempotente, chiave = target stesso) del target
   // nel registro `adb`, poi collega la camera via foreign key `adbId`.
@@ -105,10 +116,11 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
       if (E.isLeft(decoded)) return { ok: false as const, error: decoded.left };
 
       const id = NetworkTarget.format(decoded.right);
-      const addResult = await mutations.adb.add.mutate({ id, label: id, target: decoded.right });
+      log(`User assigned ADB host ${id} to camera ${assigningCamera.id}`);
+      const addResult = await mutations.adb.add.mutate({ id, label: id, target: id });
       if (!addResult.ok) return addResult;
 
-      const result = await mutations.camera.update.mutate({ id: assigningCamera.id, adbId: O.some(id) });
+      const result = await mutations.camera.update.mutate({ id: assigningCamera.id, adbId: id });
       if (result.ok) setAssigningCamera(null);
       return result;
     }, setError);
@@ -117,9 +129,10 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
     mutate(async () => {
       if (!linking) return { ok: false as const, error: { type: "ValidationError", message: "Nothing to link" } };
 
+      log(`User linked Suitest video-capture-device ${videoCaptureDeviceId} to camera ${linking.id}`);
       const result = await mutations.camera.update.mutate({
         id: linking.id,
-        videoCaptureDeviceId: O.some(videoCaptureDeviceId),
+        videoCaptureDeviceId,
       });
       if (result.ok) setLinking(null);
       return result;
@@ -134,7 +147,8 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
       if (E.isLeft(decoded)) return { ok: false as const, error: decoded.left };
 
       const id = NetworkTarget.format(decoded.right);
-      const result = await mutations.adb.add.mutate({ id, label: newAdbTarget.label, target: decoded.right });
+      log(`User added ADB target ${id} ("${newAdbTarget.label}")`);
+      const result = await mutations.adb.add.mutate({ id, label: newAdbTarget.label, target: id });
 
       if (result.ok) {
         setAddOpen(false);
@@ -262,6 +276,14 @@ function HierarchyView({ db, adbDevices }: { db: Db; adbDevices: readonly AdbDev
                       {NetworkTarget.format(entry.target)}
                     </Typography>
                   </Box>
+                  <PredicateDot
+                    domain="adb"
+                    entityId={NetworkTarget.format(entry.target)}
+                    name="adb_device_reachable"
+                    label="ADB reachable"
+                    colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
+                    detail={(value) => (value === undefined ? "unknown" : value ? "reachable" : "unreachable")}
+                  />
                   <IconButton size="small" onClick={() => handleDeleteAdb(entry.id)} title="Remove">
                     <Delete fontSize="small" />
                   </IconButton>

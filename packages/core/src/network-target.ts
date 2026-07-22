@@ -1,3 +1,4 @@
+import * as Validation from "@supervisor/core/validation";
 import * as E from "fp-ts/Either";
 import type { Endomorphism } from "fp-ts/Endomorphism";
 import * as Equality from "fp-ts/Eq";
@@ -5,7 +6,6 @@ import { pipe } from "fp-ts/function";
 import * as N from "fp-ts/number";
 import * as S from "fp-ts/string";
 import * as t from "io-ts";
-import { createValidationError, type ValidationError } from "./validation";
 
 // -------------------------------------------------------------------------------------
 // IP
@@ -69,8 +69,8 @@ export const Codec = new t.Type<Target, string, unknown>(
   (target) => `${target.ip}:${target.port}`,
 );
 
-export const decode = (s: string): E.Either<ValidationError, Target> =>
-  pipe(Codec.decode(s), E.mapLeft(createValidationError));
+export const decode = (s: string): E.Either<Validation.ValidationError, Target> =>
+  pipe(Codec.decode(s), E.mapLeft(Validation.createValidationError));
 
 export const of = (ip: IP, port: PORT): Target => ({ ip, port });
 

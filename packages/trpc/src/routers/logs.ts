@@ -1,11 +1,34 @@
 import type { LogEntry } from "@supervisor/core/log-stream";
+import type { Logger } from "@supervisor/core/logger";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { publicProcedure, router } from "../instance";
 
 // -------------------------------------------------------------------------------------
-// Logs router (live tail, SSE-based subscription)
+// Logs router (live tail, SSE-based subscription; record = Web -> Service)
 // -------------------------------------------------------------------------------------
+
+// Sottoinsieme di LogLevel effettivamente invocabile su `Logger`
+// (fatal/trace/silent non sono metodi dell'interfaccia, sono solo livelli di soglia)
+type ClientLogLevel = keyof Logger;
+const CLIENT_LOG_LEVELS = new Set<ClientLogLevel>(["debug", "info", "warn", "error"]);
+
+export interface LogRecordInput {
+  readonly level: ClientLogLevel;
+  readonly message: string;
+}
+
+const logRecordInput = (value: unknown): LogRecordInput => {
+  if (typeof value !== "object" || value === null) throw new Error("Expected a log record object");
+
+  const { level, message } = value as Record<string, unknown>;
+  if (typeof message !== "string" || message.length === 0) throw new Error("Expected a non-empty message string");
+  if (typeof level !== "string" || !CLIENT_LOG_LEVELS.has(level as ClientLogLevel)) {
+    throw new Error("Expected level to be one of debug|info|warn|error");
+  }
+
+  return { level: level as ClientLogLevel, message };
+};
 
 export interface LogTailInput {
   readonly lastEventId?: string;
@@ -27,6 +50,12 @@ const logTailInput = (value: unknown): LogTailInput => {
 const HISTORY_REPLAY_SIZE = 200;
 
 export const logsRouter = router({
+  // Registra nel logger di servizio (tag "web") un'azione dispatchata dalla web-app, così
+  // che nei log risulti chiaramente che è stato l'utente a scatenarla e non un tick automatico
+  record: publicProcedure.input(logRecordInput).mutation(({ ctx, input }) => {
+    ctx.services.logger[input.level](input.message)();
+  }),
+
   tail: publicProcedure.input(logTailInput).subscription(async function* ({
     ctx,
     input,

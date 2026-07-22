@@ -10,6 +10,11 @@ export default defineConfig({
         target: "http://localhost:3001",
         rewrite: (path) => path.replace(/^\/api\/trpc/, "/trpc"),
       },
+      // Mock Suitest server (apps/mocks) - solo per la form di debug /mock in sviluppo
+      "/api/mocks": {
+        target: "http://localhost:3002",
+        rewrite: (path) => path.replace(/^\/api\/mocks/, ""),
+      },
     },
   },
 });

@@ -21,9 +21,16 @@
   "monitoring": {
     "polling": [["constantDelay", "30s"]] // loop principale
   },
+  "tracking": {
+    "adb": { "polling": [["constantDelay", "5s"]] }, // poll locale, nessun costo esterno
+    "suitestCamera": { "polling": [["constantDelay", "20s"]] },
+    "suitestControlUnit": { "polling": [["constantDelay", "20s"]] },
+    "suitestDevice": { "polling": [["constantDelay", "20s"]] }
+  },
   "log": {
     "level": "debug" // "error" | "warn" | "info" | "debug"
     //"file": "logs/service.log"
+    //"network": true // stampa le risposte HTTP (get/post, singole o paginate) indipendentemente da "level"
   },
   "adb": {
     "port": 5555,

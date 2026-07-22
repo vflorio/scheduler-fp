@@ -5,6 +5,7 @@ import { androidRouter } from "./routers/android";
 import { registryRouter } from "./routers/device-registry";
 import { logsRouter } from "./routers/logs";
 import { settingsRouter } from "./routers/settings";
+import { trackingRouter } from "./routers/tracking";
 
 export * from "./instance";
 export * from "./result";
@@ -18,6 +19,7 @@ export const appRouter = router({
   registry: registryRouter,
   logs: logsRouter,
   settings: settingsRouter,
+  tracking: trackingRouter,
 });
 
 export type AppRouter = typeof appRouter;

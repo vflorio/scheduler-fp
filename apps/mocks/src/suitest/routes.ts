@@ -38,14 +38,30 @@ export function suitestRoutes(
     const url = new URL(req.url);
     const path = url.pathname;
 
-    // Admin routes (no auth)
+    // Admin routes (no auth) - usati dalla form di debug in apps/web per far cambiare
+    // i predicati di monitoring a runtime senza toccare hardware reale
     if (path === "/_admin/reset" && req.method === "POST") {
       store.reset();
       return Response.json({ ok: true });
     }
+    if (path === "/_admin/state" && req.method === "GET") {
+      return Response.json({
+        devices: store.devices,
+        videoCaptureDevices: store.videoCaptureDevices,
+        controlUnits: store.controlUnits,
+      });
+    }
     if (req.method === "PUT" && path.startsWith("/_admin/devices/")) {
       const id = path.replace("/_admin/devices/", "").replace("/status", "");
-      return handleAdminSetStatus(store, req, id);
+      return handleAdminUpdateDevice(store, req, id);
+    }
+    if (req.method === "PUT" && path.startsWith("/_admin/video-capture-devices/")) {
+      const id = path.replace("/_admin/video-capture-devices/", "");
+      return handleAdminUpdateVideoCaptureDevice(store, req, id);
+    }
+    if (req.method === "PUT" && path.startsWith("/_admin/control-units/")) {
+      const id = path.replace("/_admin/control-units/", "");
+      return handleAdminUpdateControlUnit(store, req, id);
     }
 
     // API routes (Basic auth)
@@ -138,10 +154,23 @@ function handleControlUnitAction(store: SuitestStore, id: string, action: (cu: {
   return Response.json({});
 }
 
-async function handleAdminSetStatus(store: SuitestStore, req: Request, id: string): Promise<Response> {
-  const body = (await req.json()) as { status?: string };
-  if (!body.status) return Response.json({ error: "Missing status" }, { status: 400 });
-  const ok = store.setDeviceStatus(id, body.status as any);
+async function handleAdminUpdateDevice(store: SuitestStore, req: Request, id: string): Promise<Response> {
+  const body = (await req.json()) as { status?: string; inUseBy?: Record<string, string> | null };
+  const ok = store.updateDevice(decodeURIComponent(id), body as any);
   if (!ok) return notFound("Device not found");
+  return Response.json({ ok: true });
+}
+
+async function handleAdminUpdateVideoCaptureDevice(store: SuitestStore, req: Request, id: string): Promise<Response> {
+  const body = (await req.json()) as { online?: boolean; recordingActive?: boolean; streamActive?: boolean };
+  const ok = store.updateVideoCaptureDevice(decodeURIComponent(id), body);
+  if (!ok) return notFound("Video capture device not found");
+  return Response.json({ ok: true });
+}
+
+async function handleAdminUpdateControlUnit(store: SuitestStore, req: Request, id: string): Promise<Response> {
+  const body = (await req.json()) as { online?: boolean };
+  const ok = store.updateControlUnit(decodeURIComponent(id), body);
+  if (!ok) return notFound("Control unit not found");
   return Response.json({ ok: true });
 }

@@ -7,6 +7,11 @@ export interface Logger {
   readonly info: (message: string) => IO.IO<void>;
   readonly warn: (message: string) => IO.IO<void>;
   readonly error: (message: string) => IO.IO<void>;
+
+  // Traccia risposte HTTP (get/post, singole o paginate), gated dal flag `network` di
+  // LogConfig invece che dal `level` configurato - non esiste un livello "verbose"
+  // supportato dalla console, quindi è un interruttore indipendente, non un settimo livello.
+  readonly logNetwork: (message: string) => IO.IO<void>;
 }
 
 // -------------------------------------------------------------------------------------
@@ -89,24 +94,41 @@ interface LoggerContext {
   readonly transports: readonly Transport[];
   readonly tag?: string;
   readonly depth: number;
+  // Interruttore indipendente dal livello per Logger.logNetwork (vedi Config.Log.network)
+  readonly network: boolean;
 }
+
+const dispatch = (ctx: LoggerContext, level: LogLevel, message: string): void => {
+  const record: LogRecord = {
+    level,
+    timestamp: Date.now(),
+    tag: ctx.tag,
+    depth: ctx.depth,
+    color: ctx.tag ? getModuleColor(ctx.tag) : undefined,
+    message,
+  };
+
+  for (const transport of ctx.transports) transport(record);
+};
 
 const emit =
   (ctx: LoggerContext, level: LogLevel) =>
   (message: string): IO.IO<void> =>
   () => {
-    if (!isLevelEnabled(ctx.configuredLevel, level)) return;
+    if (isLevelEnabled(ctx.configuredLevel, level)) dispatch(ctx, level, message);
+  };
 
-    const record: LogRecord = {
-      level,
-      timestamp: Date.now(),
-      tag: ctx.tag,
-      depth: ctx.depth,
-      color: ctx.tag ? getModuleColor(ctx.tag) : undefined,
-      message,
-    };
-
-    for (const transport of ctx.transports) transport(record);
+// A differenza di `emit`, non passa da `isLevelEnabled`: è gated solo da `ctx.network`,
+// così resta visibile anche quando `level` è configurato più severo (es. "warn"/"error").
+// Il record emesso usa comunque "debug" come `level` (rendering/pino non hanno un livello
+// "network" dedicato), quindi il filtro locale della web UI (dropdown livello) lo nasconde
+// se lì si sceglie un livello minimo sopra "debug" - un controllo di visualizzazione
+// indipendente da questo interruttore lato servizio.
+const emitNetwork =
+  (ctx: LoggerContext) =>
+  (message: string): IO.IO<void> =>
+  () => {
+    if (ctx.network) dispatch(ctx, "debug", message);
   };
 
 const build = (ctx: LoggerContext): Tagged => ({
@@ -114,6 +136,7 @@ const build = (ctx: LoggerContext): Tagged => ({
   info: emit(ctx, "info"),
   warn: emit(ctx, "warn"),
   error: emit(ctx, "error"),
+  logNetwork: emitNetwork(ctx),
   child: (tag: string) => build({ ...ctx, tag, depth: ctx.tag ? ctx.depth + 1 : ctx.depth }),
 });
 
@@ -126,8 +149,8 @@ export const tagged =
 // Generic logger factory
 // -------------------------------------------------------------------------------------
 
-export const create = (level: LogLevel, transports: readonly Transport[]): Tagged =>
-  build({ configuredLevel: level, transports, depth: 0 });
+export const create = (level: LogLevel, transports: readonly Transport[], network = false): Tagged =>
+  build({ configuredLevel: level, transports, depth: 0, network });
 
 // -------------------------------------------------------------------------------------
 // ANSI rendering (terminal transports only)
@@ -174,8 +197,15 @@ export const createConsoleLogger = (level: LogLevel = "info"): Tagged => create(
 export const createStdoutLogger = (level: LogLevel = "info"): Tagged => create(level, [stdoutTransport]);
 
 // -------------------------------------------------------------------------------------
-// JSON log formatting
+// formatting
 // -------------------------------------------------------------------------------------
 
 export const formatJsonLog = (entries: readonly Record<string, unknown>[]): string =>
   entries.map((entry) => `(JSON) ${JSON.stringify(entry, null, 2)}`).join("\n");
+
+export const formatMs = (ms: number): string => {
+  if (ms < 1000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} seconds`;
+  if (ms < 3_600_000) return `${(ms / 60_000).toFixed(1)} minuntes`;
+  return `${(ms / 3_600_000).toFixed(1)} h`;
+};

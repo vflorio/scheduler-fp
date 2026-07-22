@@ -1,0 +1,68 @@
+import * as IO from "fp-ts/IO";
+import { pipe } from "fp-ts/lib/function";
+import * as TE from "fp-ts/TaskEither";
+import * as Errors from "./errors";
+import * as Logger from "./logger";
+import * as Retry from "./retry/retry";
+
+// -------------------------------------------------------------------------------------
+// Interval Loop
+// Motore minimale per un ciclo `onTick` a cadenza guidata da una Retry.Policy, senza
+// alcuna nozione di schedule/orario di lavoro (a differenza di activation/runner.ts,
+// che combina le due cose): un tracker di monitoring deve poter girare in continuo.
+// -------------------------------------------------------------------------------------
+
+export interface StartError extends Errors.AppError<"StartError"> {}
+
+export type StartTask = TE.TaskEither<StartError, void>;
+export type StopIO = IO.IO<void>;
+
+export interface Handle {
+  readonly start: StartTask;
+  readonly stop: StopIO;
+}
+
+// Esegue `onTick` ripetutamente, con delay tra i tick determinato dalla policy.
+// Si ferma se la policy è esaurita (torna null) - per le policy di tracking questo non
+// dovrebbe mai accadere in pratica (constantDelay/exponentialBackoff+capDelay, senza limitRetries),
+// stessa convenzione già in uso per `monitoring.polling`.
+export const create = (logger: Logger.Tagged, policy: Retry.Policy, onTick: () => void | Promise<void>): Handle => {
+  const controller = new AbortController();
+
+  const pilLogger = logger.child("interval-loop");
+
+  let status: Retry.Status = Retry.initialStatus;
+
+  const tick = async (): Promise<void> => {
+    if (controller.signal.aborted) return;
+
+    await onTick();
+
+    const delay = policy(status);
+    if (delay === null) {
+      pilLogger.info("Policy exhausted - stopping")();
+      return;
+    }
+
+    status = { iteration: status.iteration + 1, previousDelay: delay };
+
+    pilLogger.debug(`Tick: ${status.iteration} - next delay: ${Logger.formatMs(delay)}`)();
+
+    await sleep(delay);
+
+    return tick();
+  };
+
+  return {
+    start: pipe(
+      TE.fromIO(pilLogger.info("Starting")),
+      TE.flatMap(() => TE.tryCatch(() => tick(), Errors.fromUnknown("StartError"))),
+    ),
+    stop: pipe(
+      pilLogger.info("Stopped"),
+      IO.flatMap(() => () => controller.abort()),
+    ),
+  };
+};
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));

@@ -1,6 +1,6 @@
+import * as Validation from "@supervisor/core/validation";
 import type { Endomorphism } from "fp-ts/Endomorphism";
 import * as t from "io-ts";
-import { optionFromNullable } from "../../validation";
 import type { LabRegistry } from "./registry";
 
 // -------------------------------------------------------------------------------------
@@ -14,14 +14,14 @@ export const TvEntryCodec = t.type({
   deviceId: t.string,
   label: t.string,
   controlled: t.boolean,
-  ip: optionFromNullable(t.string),
+  ip: Validation.optionFromNullable(t.string),
 });
 
 export type TvEntry = t.TypeOf<typeof TvEntryCodec>;
 
 export const TvUpdateInputCodec = t.intersection([
   t.type({ deviceId: t.string }),
-  t.partial({ label: t.string, controlled: t.boolean, ip: optionFromNullable(t.string) }),
+  t.partial({ label: t.string, controlled: t.boolean, ip: Validation.optionFromNullable(t.string) }),
 ]);
 
 export type TvUpdateInput = t.TypeOf<typeof TvUpdateInputCodec>;

@@ -1,23 +1,23 @@
+import * as Validation from "@supervisor/core/validation";
 import { constVoid, pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
+import type * as Config from "../config";
 import { format } from "../errors";
-import { type BasicAuth, getJsonAuth, type HTTPError, postJsonBasic } from "../http";
+import { getJsonAuth, type HTTPError, postJsonBasic } from "../http";
 import * as Logger from "../logger";
-import { type ValidationError, validate } from "../validation";
 import { fetchAllPages, type PaginationFetchError } from "./suitest-paginate";
 
-export type SuitestError = HTTPError | ValidationError | PaginationFetchError;
+export type SuitestError = HTTPError | Validation.ValidationError | PaginationFetchError;
 
-export interface SuitestConfig {
-  readonly auth: BasicAuth;
-  readonly baseUrl?: string;
+export interface Env {
+  readonly suitestConfig: Config.Suitest;
   readonly logger?: Logger.Tagged;
 }
 
 const BASE_URL = "https://the.suite.st/api/public/v4";
 
-const endpoint = (config: SuitestConfig, path: string): string => `${config.baseUrl ?? BASE_URL}${path}`;
+const endpoint = (env: Env, path: string): string => `${env.suitestConfig.baseUrl ?? BASE_URL}${path}`;
 
 // -------------------------------------------------------------------------------------
 // Model - Device Status
@@ -208,26 +208,27 @@ export type VideoCaptureDevice = t.TypeOf<typeof VideoCaptureDeviceCodec>;
 // Logging helper
 // -------------------------------------------------------------------------------------
 
-const loggedGet = (config: SuitestConfig, path: string): TE.TaskEither<HTTPError, unknown> => {
-  const url = endpoint(config, path);
+const loggedGet = (env: Env, path: string): TE.TaskEither<HTTPError, unknown> => {
+  const url = endpoint(env, path);
   return pipe(
-    config.logger ? TE.fromIO(config.logger.debug(`GET ${url}`)) : TE.right(undefined),
-    TE.flatMap(() => getJsonAuth(url, config.auth)),
+    env.logger ? TE.fromIO(env.logger.debug(`GET ${url}`)) : TE.right(undefined),
+    TE.flatMap(() => getJsonAuth(url, env.suitestConfig)),
     TE.tapIO((data) =>
-      config.logger //
-        ? config.logger.child("HTTP").debug(`${Logger.formatJsonLog([{ response: data }])}`)
-        : constVoid,
+      env.logger ? env.logger.child("HTTP").logNetwork(Logger.formatJsonLog([{ response: data }])) : constVoid,
     ),
-    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),
+    TE.tapError((err) => (env.logger ? TE.fromIO(env.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),
   );
 };
 
-const loggedPost = (config: SuitestConfig, path: string): TE.TaskEither<HTTPError, unknown> => {
-  const url = endpoint(config, path);
+const loggedPost = (env: Env, path: string): TE.TaskEither<HTTPError, unknown> => {
+  const url = endpoint(env, path);
   return pipe(
-    config.logger ? TE.fromIO(config.logger.debug(`POST ${url}`)) : TE.right(undefined),
-    TE.flatMap(() => postJsonBasic(url, config.auth)),
-    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),
+    env.logger ? TE.fromIO(env.logger.debug(`POST ${url}`)) : TE.right(undefined),
+    TE.flatMap(() => postJsonBasic(url, env.suitestConfig)),
+    TE.tapIO((data) =>
+      env.logger ? env.logger.child("HTTP").logNetwork(Logger.formatJsonLog([{ response: data }])) : constVoid,
+    ),
+    TE.tapError((err) => (env.logger ? TE.fromIO(env.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),
   );
 };
 
@@ -236,40 +237,41 @@ const loggedPost = (config: SuitestConfig, path: string): TE.TaskEither<HTTPErro
 // -------------------------------------------------------------------------------------
 
 // TVs, Smart Plugs (mai fotocamere: quelle arrivano solo da /video-capture-devices)
-export const getAllDevices = (config: SuitestConfig): TE.TaskEither<SuitestError, readonly Device[]> =>
+export const getAllDevices = (env: Env): TE.TaskEither<SuitestError, readonly Device[]> =>
   pipe(
-    fetchAllPages(endpoint(config, "/devices"), config.auth, DeviceCodec, config.logger),
-    TE.tapIO((devices) => (config.logger ? config.logger.debug(`  -> ${devices.length} devices total`) : () => {})),
-    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),
+    fetchAllPages(endpoint(env, "/devices"), env.suitestConfig, DeviceCodec, env.logger),
+    TE.tapIO((devices) => (env.logger ? env.logger.debug(`  -> ${devices.length} devices total`) : () => {})),
+    TE.tapError((err) => (env.logger ? TE.fromIO(env.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),
   );
 
 // Dettaglio di un singolo device
-export const getDevice = (config: SuitestConfig, deviceId: string): TE.TaskEither<SuitestError, DeviceDetail> =>
-  pipe(loggedGet(config, `/devices/${encodeURIComponent(deviceId)}`), TE.flatMapEither(validate(DeviceDetailCodec)));
+export const getDevice = (env: Env, deviceId: string): TE.TaskEither<SuitestError, DeviceDetail> =>
+  pipe(
+    loggedGet(env, `/devices/${encodeURIComponent(deviceId)}`),
+    TE.flatMapEither(Validation.validate(DeviceDetailCodec)),
+  );
 
 // -------------------------------------------------------------------------------------
 // API - Control Units
 // -------------------------------------------------------------------------------------
 
 // Lista di tutte le control unit (CandyBox, Raspberry Pi, ecc.)
-export const getControlUnits = (config: SuitestConfig): TE.TaskEither<SuitestError, readonly ControlUnit[]> =>
-  pipe(loggedGet(config, "/control-units"), TE.flatMapEither(validate(ControlUnitsResponseCodec)));
+export const getControlUnits = (env: Env): TE.TaskEither<SuitestError, readonly ControlUnit[]> =>
+  pipe(loggedGet(env, "/control-units"), TE.flatMapEither(Validation.validate(ControlUnitsResponseCodec)));
 
 // -------------------------------------------------------------------------------------
 // API - Video Capture Devices
 // -------------------------------------------------------------------------------------
 
-export const getVideoCaptureDevices = (
-  config: SuitestConfig,
-): TE.TaskEither<SuitestError, readonly VideoCaptureDevice[]> =>
+export const getVideoCaptureDevices = (env: Env): TE.TaskEither<SuitestError, readonly VideoCaptureDevice[]> =>
   pipe(
-    fetchAllPages(endpoint(config, "/video-capture-devices"), config.auth, VideoCaptureDeviceCodec, config.logger),
+    fetchAllPages(endpoint(env, "/video-capture-devices"), env.suitestConfig, VideoCaptureDeviceCodec, env.logger),
     TE.tapIO((devices) =>
-      config.logger ? config.logger.debug(`  -> ${devices.length} video capture devices total`) : () => {},
+      env.logger ? env.logger.debug(`  -> ${devices.length} video capture devices total`) : () => {},
     ),
-    TE.tapError((err) => (config.logger ? TE.fromIO(config.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),
+    TE.tapError((err) => (env.logger ? TE.fromIO(env.logger.error(`  X ${format(err)}`)) : TE.right(undefined))),
   );
 
 // Riavvia una control unit (CandyBox/Raspberry Pi)
-export const rebootControlUnit = (config: SuitestConfig, controlId: string): TE.TaskEither<SuitestError, void> =>
-  pipe(loggedPost(config, `/control-units/${encodeURIComponent(controlId)}/reboot`), TE.asUnit);
+export const rebootControlUnit = (env: Env, controlId: string): TE.TaskEither<SuitestError, void> =>
+  pipe(loggedPost(env, `/control-units/${encodeURIComponent(controlId)}/reboot`), TE.asUnit);

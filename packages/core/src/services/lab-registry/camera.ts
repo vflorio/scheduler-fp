@@ -1,6 +1,6 @@
+import * as Validation from "@supervisor/core/validation";
 import type { Endomorphism } from "fp-ts/Endomorphism";
 import * as t from "io-ts";
-import { optionFromNullable } from "../../validation";
 import type { LabRegistry } from "./registry";
 
 // -------------------------------------------------------------------------------------
@@ -20,9 +20,9 @@ export const CameraEntryCodec = t.type({
   controlled: t.boolean,
   // Foreign key verso suitest-store.videoCaptureDevices[id], impostata manualmente in fase di
   // riconciliazione via UI (una camera aggiunta a mano, es. un tablet, può non averla)
-  videoCaptureDeviceId: optionFromNullable(t.string),
+  videoCaptureDeviceId: Validation.optionFromNullable(t.string),
   // Foreign key verso lab.adb[id] - l'host ADB assegnato manualmente (es. un tablet)
-  adbId: optionFromNullable(t.string),
+  adbId: Validation.optionFromNullable(t.string),
 });
 
 export type CameraEntry = t.TypeOf<typeof CameraEntryCodec>;
@@ -32,8 +32,8 @@ export const CameraUpdateInputCodec = t.intersection([
   t.partial({
     label: t.string,
     controlled: t.boolean,
-    videoCaptureDeviceId: optionFromNullable(t.string),
-    adbId: optionFromNullable(t.string),
+    videoCaptureDeviceId: Validation.optionFromNullable(t.string),
+    adbId: Validation.optionFromNullable(t.string),
   }),
 ]);
 

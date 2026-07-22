@@ -1,3 +1,4 @@
+import * as Validation from "@supervisor/core/validation";
 import * as E from "fp-ts/Either";
 import type { Endomorphism } from "fp-ts/Endomorphism";
 import { pipe } from "fp-ts/function";
@@ -5,7 +6,6 @@ import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
 import { type AppError, fromUnknown } from "../errors";
 import type * as Fs from "../fs";
-import { type ValidationError, validate } from "../validation";
 import * as Lab from "./lab-registry";
 import type { SuitestLists } from "./suitest-store";
 import * as SuitestStoreDomain from "./suitest-store";
@@ -30,7 +30,7 @@ export type Db = t.TypeOf<typeof DbCodec>;
 
 export const empty: Db = { suitest: SuitestStoreDomain.empty, lab: Lab.empty };
 
-export type DbError = Fs.FileSystemError | ValidationError | ParseError;
+export type DbError = Fs.FileSystemError | Validation.ValidationError | ParseError;
 
 export interface ParseError extends AppError<"ParseError"> {}
 
@@ -44,7 +44,7 @@ const parseJson = (raw: string): E.Either<ParseError, unknown> =>
 export const read =
   (path: string): ((env: Fs.Env) => TE.TaskEither<DbError, Db>) =>
   (env) =>
-    pipe(env.readFile(path), TE.flatMapEither(parseJson), TE.flatMapEither(validate(DbCodec)));
+    pipe(env.readFile(path), TE.flatMapEither(parseJson), TE.flatMapEither(Validation.validate(DbCodec)));
 
 export const write =
   (path: string) =>

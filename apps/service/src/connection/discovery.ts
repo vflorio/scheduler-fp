@@ -6,7 +6,7 @@ import * as AvahiBrowse from "@supervisor/core/services/avahi-browse";
 import type * as Shell from "@supervisor/core/shell";
 import * as Machine from "@supervisor/core/state-machine/machine";
 import { pipe } from "fp-ts/function";
-import type { Predicate } from "fp-ts/Predicate";
+import type * as P from "fp-ts/Predicate";
 import * as RTE from "fp-ts/ReaderTaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as TE from "fp-ts/TaskEither";
@@ -25,10 +25,11 @@ export const machine: Machine.Machine<ConnectionEnv, never, TargetState, Connect
 // -------------------------------------------------------------------------------------
 
 export interface Env extends ConnectionEnv {
-  readonly isControlled: Predicate<NetworkTarget.Target>;
-  // Un host è "noto" se presente in registry (come camera), indipendentemente da `controlled` -
-  // distingue un device nostro ma non controllato da uno completamente esterno al registry
-  readonly isKnown: Predicate<NetworkTarget.Target>;
+  // Determina se un determinato IP è noto al registry (controllato o meno)
+  // un device completamente esterno al registry non va toccato, viene solo ignorato
+  readonly isControlled: P.Predicate<NetworkTarget.Target>;
+  // Determina se un determinato IP è marcato come controllabile dal DB
+  readonly isKnown: P.Predicate<NetworkTarget.Target>;
 }
 
 export type DiscoveryError = Adb.AdbError | AvahiBrowse.AvahiBrowseError | Shell.ShellSpawnError;
@@ -139,9 +140,6 @@ export const discoverAndConnect: Effect<readonly NetworkTarget.Target[]> = pipe(
   RTE.bind("resolved", ({ newTargets }) => RTE.sequenceSeqArray(newTargets.map(connect))),
 
   RTE.tap(() => logInfo("Discovery complete")),
-  RTE.tap(({ connected, discovered, newTargets, resolved }) =>
-    logDebug(Logger.formatJsonLog([{ discovered, connected, newTargets, resolved }])),
-  ),
-
+  RTE.tap(({ resolved }) => logDebug(Logger.formatJsonLog([{ resolved }]))),
   RTE.map(({ connected, resolved }) => [...connected, ...resolved.filter(isPersistent).map((s) => s.target)]),
 );

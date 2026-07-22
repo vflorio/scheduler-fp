@@ -1,4 +1,4 @@
-import { FiberManualRecord, Home, Settings } from "@mui/icons-material";
+import { BugReport, FiberManualRecord, Home, Settings } from "@mui/icons-material";
 import {
   Box,
   CssBaseline,
@@ -15,12 +15,14 @@ import { usePageContext } from "vike-react/usePageContext";
 import logoUrl from "../assets/logo.svg";
 import { LogPanel } from "../components/LogPanel";
 import { LogFeedProvider, useLogFeed } from "../hooks/useLogFeed";
+import { PredicatesProvider } from "../hooks/usePredicates";
 import "./Layout.css";
 import { theme } from "../theme";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: <Home fontSize="small" /> },
   { href: "/settings", label: "Settings", icon: <Settings fontSize="small" /> },
+  { href: "/mock", label: "Mock data", icon: <BugReport fontSize="small" /> },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -28,13 +30,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <LogFeedProvider>
-        <Box sx={{ display: "flex", height: "100vh", width: "100%" }}>
-          <Sidebar />
-          <Box id="page-content" component="main" sx={{ flexGrow: 2, minWidth: 0, p: { xs: 2, md: 4 } }}>
-            {children}
+        <PredicatesProvider>
+          <Box sx={{ display: "flex", height: "100vh", width: "100%" }}>
+            <Sidebar />
+            <Box id="page-content" component="main" sx={{ flexGrow: 2, minWidth: 0, p: { xs: 2, md: 4 } }}>
+              {children}
+            </Box>
+            <LogPanel />
           </Box>
-          <LogPanel />
-        </Box>
+        </PredicatesProvider>
       </LogFeedProvider>
     </ThemeProvider>
   );

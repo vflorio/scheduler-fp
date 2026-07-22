@@ -5,11 +5,12 @@ import * as Errors from "@supervisor/core/errors";
 import * as LogStream from "@supervisor/core/log-stream";
 import * as Logger from "@supervisor/core/logger";
 import * as NetworkTarget from "@supervisor/core/network-target";
-import * as RetryPolicy from "@supervisor/core/retry/codec";
+import * as Predicates from "@supervisor/core/predicates/index";
+import * as RetryPolicy from "@supervisor/core/retry/retry";
 import * as Schedule from "@supervisor/core/schedule";
 import * as Adb from "@supervisor/core/services/adb";
 import * as Db from "@supervisor/core/services/db";
-import type { ValidationError } from "@supervisor/core/validation";
+import type * as Validation from "@supervisor/core/validation";
 import * as E from "fp-ts/Either";
 import { flow, pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
@@ -22,6 +23,7 @@ import * as Connection from "./connection";
 import * as ServiceLogger from "./logger";
 import * as Node from "./node";
 import * as Registry from "./registry";
+import * as Tracking from "./tracking";
 import * as Trpc from "./trpc";
 import * as Workflow from "./workflow";
 
@@ -37,7 +39,7 @@ export interface Env {
 
 type Effect<A> = RTE.ReaderTaskEither<
   Env,
-  ValidationError | Config.FetchError | RetryPolicy.PolicyDecodeError | ActivationRunner.StartError,
+  Validation.ValidationError | Config.FetchError | RetryPolicy.PolicyDecodeError | ActivationRunner.StartError,
   A
 >;
 
@@ -48,7 +50,28 @@ const logInfo = (message: string): Effect<void> =>
     RTE.asUnit,
   );
 
-const loadConfig: Effect<ConfigModel.ServiceConfig> = (env) => Config.load(env.configFetcher);
+const loadConfig: Effect<ConfigModel.Service> = (env) => Config.load(env.configFetcher);
+
+const parseConfigPolicies = (
+  config: ConfigModel.Service,
+): Effect<{
+  activationPolicy: RetryPolicy.Policy;
+  adbReconnectPolicy: RetryPolicy.Policy;
+  adbTrackingPolicy: RetryPolicy.Policy;
+  suitestCameraTrackingPolicy: RetryPolicy.Policy;
+  suitestControlUnitTrackingPolicy: RetryPolicy.Policy;
+  suitestDeviceTrackingPolicy: RetryPolicy.Policy;
+}> =>
+  pipe(
+    E.Do,
+    E.bind("activationPolicy", () => RetryPolicy.decode(config.monitoring.polling)),
+    E.bind("adbReconnectPolicy", () => RetryPolicy.decode(config.adb.reconnect)),
+    E.bind("adbTrackingPolicy", () => RetryPolicy.decode(config.tracking.adb.polling)),
+    E.bind("suitestCameraTrackingPolicy", () => RetryPolicy.decode(config.tracking.suitestCamera.polling)),
+    E.bind("suitestControlUnitTrackingPolicy", () => RetryPolicy.decode(config.tracking.suitestControlUnit.polling)),
+    E.bind("suitestDeviceTrackingPolicy", () => RetryPolicy.decode(config.tracking.suitestDevice.polling)),
+    RTE.fromEither,
+  );
 
 // -------------------------------------------------------------------------------------
 // Service
@@ -58,25 +81,24 @@ export interface ServiceHandle {
   readonly stop: () => void;
 }
 
-const createLogger = (config: ConfigModel.LogConfig, transports: readonly Logger.Transport[] = []) =>
-  ServiceLogger.create(config, transports);
-
 export const create: Effect<ServiceHandle> = pipe(
   logInfo("Loading config..."),
-  RTE.flatMap(() => loadConfig),
+  RTE.bind("config", () => loadConfig),
+  RTE.bind("policies", ({ config }) => parseConfigPolicies(config)),
 
-  RTE.flatMapEither((config) =>
-    pipe(
-      E.Do,
-      E.bind("activationPolicy", () => RetryPolicy.decode(config.monitoring.polling)),
-      E.bind("adbReconnectPolicy", () => RetryPolicy.decode(config.adb.reconnect)),
-      E.map(({ activationPolicy, adbReconnectPolicy }) => ({ config, activationPolicy, adbReconnectPolicy })),
-    ),
-  ),
+  RTE.flatMap(({ config, policies }) => {
+    const {
+      activationPolicy,
+      adbReconnectPolicy,
+      adbTrackingPolicy,
+      suitestCameraTrackingPolicy,
+      suitestControlUnitTrackingPolicy,
+      suitestDeviceTrackingPolicy,
+    } = policies;
 
-  RTE.flatMap(({ config, activationPolicy, adbReconnectPolicy }) => {
     const logStream = LogStream.createLogStream();
-    const logger = pipe(createLogger(config.log, [logStream.transport]), Logger.tagged("Service"));
+    const logger = pipe(ServiceLogger.create(config.log, [logStream.transport]), Logger.tagged("Service"));
+
     const activationSchedule = ActivationSchedule.toSchedule(config.activationSchedule);
 
     logger.info(`Config loaded - schedule: ${ActivationSchedule.toString(config.activationSchedule)}`)();
@@ -97,6 +119,22 @@ export const create: Effect<ServiceHandle> = pipe(
     const discoveryLog = activationLog.child("Discovery");
     const workflowLog = discoveryLog.child("Workflow");
     const registryLog = activationLog.child("Registry");
+    const trackingLog = logger.child("Tracking");
+
+    const predicateStream = Predicates.createPredicateStream();
+
+    const trackingHandle = Tracking.startAll({
+      logger: trackingLog,
+      adbEnv: { logger: trackingLog.child("adb"), spawn: Node.spawn },
+      suitestConfig: config.suitest,
+      stream: predicateStream,
+      policies: {
+        adb: adbTrackingPolicy,
+        suitestCamera: suitestCameraTrackingPolicy,
+        suitestControlUnit: suitestControlUnitTrackingPolicy,
+        suitestDevice: suitestDeviceTrackingPolicy,
+      },
+    });
 
     const runWorkflow: (targets: readonly NetworkTarget.Target[]) => TE.TaskEither<Workflow.RunError, void> = flow(
       RA.traverse(TE.ApplicativeSeq)(
@@ -110,10 +148,7 @@ export const create: Effect<ServiceHandle> = pipe(
         // Sync registry prima di discover
         Registry.sync({
           logger: registryLog,
-          suitestConfig: {
-            auth: { tokenId: config.suitest.tokenId, tokenPassword: config.suitest.tokenPassword },
-            baseUrl: config.suitest.baseUrl,
-          },
+          suitestConfig: config.suitest,
           dbPath: config.registry.dbPath,
           seedDevices: config.registry.devices,
           fsEnv: Node.fsEnv,
@@ -168,17 +203,34 @@ export const create: Effect<ServiceHandle> = pipe(
         // Feed live dei log di servizio, consumato dalla subscription tRPC per la web-app
         logs: logStream,
 
+        // Feed live dei predicati di monitoring, consumato dalla subscription tRPC per la web-app
+        tracking: predicateStream,
+
         // TODO: Servizi di gestione delle dispositivi android
         android: {
           // Recupera la lista dei device connessi tramite ADB
           devices: () =>
             pipe(
               Adb.devices({ logger: trpcLog, spawn: Node.spawn }),
-              TE.map(RA.map((d) => ({ ...d, target: NetworkTarget.format(d.target) }))),
+              TE.map(RA.map((device) => ({ ...device, target: NetworkTarget.format(device.target) }))),
             ),
 
           // Riavvia un device tramite ADB
           reboot: (target) => Adb.reboot(target)({ logger: trpcLog, spawn: Node.spawn }),
+
+          // Live feed dei device ADB alimentato dal tracker centralizzato (apps/service/src/tracking/adb):
+          // consolidato qui per evitare che `android.devicesTail` ripolli `adb devices` per conto proprio
+          devicesFeed: {
+            subscribe: (listener) =>
+              trackingHandle.adbDeviceFeed.subscribe((devices) =>
+                listener(devices.map((device) => ({ ...device, target: NetworkTarget.format(device.target) }))),
+              ),
+
+            snapshot: () =>
+              trackingHandle.adbDeviceFeed
+                .snapshot()
+                .map((device) => ({ ...device, target: NetworkTarget.format(device.target) })),
+          },
         },
 
         // TODO: Servizio di DNS-SD (Service Discovery)
@@ -244,6 +296,7 @@ export const create: Effect<ServiceHandle> = pipe(
           stop: () =>
             pipe(
               TE.fromIO(activationRunner.stop),
+              TE.flatMapIO(() => trackingHandle.stop),
               TE.flatMap(() => trpcServer.stop),
               TE.flatMapIO(() => logger.info("stop completed")),
             ),

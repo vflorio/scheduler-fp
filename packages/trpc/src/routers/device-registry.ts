@@ -31,6 +31,18 @@ const decodeOrThrow =
       }),
     );
 
+// `decodeOrThrow` da solo tipizza il client sulla stessa forma del valore *decodificato*
+// (tRPC, per un validatore "bare function", assume input === output). Va bene quando i campi
+// del codec non trasformano la rappresentazione, ma per un codec come `AdbEntryCodec` - il cui
+// campo `target` è stringa sul wire e oggetto `{ip,port}` una volta decodificato - forzerebbe il
+// client a inviare già la forma decodificata, che il decode server-side rigetta. Questo wrapper
+// dichiara esplicitamente input (wire, `OutputOf`) e output (decodificato, `TypeOf`) distinti.
+const wireInput = <A, O>(codec: T.Type<A, O, unknown>) => ({
+  _input: undefined as unknown as O,
+  _output: undefined as unknown as A,
+  parse: decodeOrThrow(codec),
+});
+
 const candyboxesRouter = router({
   update: publicProcedure
     .input(decodeOrThrow(CandyboxUpdateInputCodec))
@@ -46,12 +58,15 @@ const candyboxesRouter = router({
 });
 
 const camerasRouter = router({
+  // `videoCaptureDeviceId`/`adbId` sono Option<string> una volta decodificati ma stringa|null
+  // sul wire (vedi wireInput) - un validatore bare-function (decodeOrThrow) forzerebbe il
+  // client a inviare già un Option, che il decode server-side rigetta.
   update: publicProcedure
-    .input(decodeOrThrow(CameraUpdateInputCodec))
+    .input(wireInput(CameraUpdateInputCodec))
     .mutation(({ ctx, input }) => pipe(ctx.services.registry.cameras.update(input), ApiResult.fromTaskEither)),
 
   add: publicProcedure
-    .input(decodeOrThrow(CameraEntryCodec))
+    .input(wireInput(CameraEntryCodec))
     .mutation(({ ctx, input }) => pipe(ctx.services.registry.cameras.add(input), ApiResult.fromTaskEither)),
 
   remove: publicProcedure
@@ -60,12 +75,13 @@ const camerasRouter = router({
 });
 
 const tvsRouter = router({
+  // `ip` è Option<string> una volta decodificato ma stringa|null sul wire (vedi wireInput)
   update: publicProcedure
-    .input(decodeOrThrow(TvUpdateInputCodec))
+    .input(wireInput(TvUpdateInputCodec))
     .mutation(({ ctx, input }) => pipe(ctx.services.registry.tvs.update(input), ApiResult.fromTaskEither)),
 
   add: publicProcedure
-    .input(decodeOrThrow(TvEntryCodec))
+    .input(wireInput(TvEntryCodec))
     .mutation(({ ctx, input }) => pipe(ctx.services.registry.tvs.add(input), ApiResult.fromTaskEither)),
 
   remove: publicProcedure
@@ -79,7 +95,7 @@ const adbRouter = router({
     .mutation(({ ctx, input }) => pipe(ctx.services.registry.adb.update(input), ApiResult.fromTaskEither)),
 
   add: publicProcedure
-    .input(decodeOrThrow(AdbEntryCodec))
+    .input(wireInput(AdbEntryCodec))
     .mutation(({ ctx, input }) => pipe(ctx.services.registry.adb.add(input), ApiResult.fromTaskEither)),
 
   remove: publicProcedure

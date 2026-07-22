@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import * as Config from "@supervisor/core/config";
 import * as Errors from "@supervisor/core/errors";
 import * as HTTP from "@supervisor/core/http";
-import type { ValidationError } from "@supervisor/core/validation";
+import type * as Validation from "@supervisor/core/validation";
 import { pipe } from "fp-ts/function";
 import * as TE from "fp-ts/TaskEither";
 import { parse as parseJsonc } from "jsonc-parser";
@@ -42,5 +42,5 @@ export const toFetcher = (source: Args.ConfigSource): ConfigFetcher =>
 // progetto - niente LoadError dedicato per la stessa identica causa.
 // -------------------------------------------------------------------------------------
 
-export const load = (fetcher: ConfigFetcher): TE.TaskEither<ValidationError | FetchError, Config.ServiceConfig> =>
+export const load = (fetcher: ConfigFetcher): TE.TaskEither<Validation.ValidationError | FetchError, Config.Service> =>
   pipe(fetcher(), TE.flatMapEither(Config.decode));

@@ -7,7 +7,7 @@ import { SlackStore } from "./slack/store";
 import { suitestRoutes } from "./suitest/routes";
 import { SuitestStore } from "./suitest/store";
 
-const PORT = Number(import.meta.env.PORT ?? 3008);
+const PORT = Number(import.meta.env.PORT ?? 3002);
 
 const SUITEST_TOKEN_ID = import.meta.env.SUITEST_TOKEN_ID ?? "dev-suitest-token-id";
 const SUITEST_TOKEN_PASSWORD = import.meta.env.SUITEST_TOKEN_PASSWORD ?? "dev-suitest-token-password";
@@ -36,6 +36,13 @@ const logger = pipe(CoreLogger.createConsoleLogger("debug"), CoreLogger.tagged("
 const withISE = (router: (request: Request) => Response | Promise<Response> | null) => (request: BunRequest) =>
   router(request) ?? Response.json({ error: "Internal Server Error" }, { status: 500 });
 
+// Le route "/_admin/*" sono dichiarate dentro suitestRoutes/slackRoutes ma "/_admin/*" non
+// era registrato come prefisso nella routes table di Bun.serve, quindi ogni richiesta admin
+// veniva intercettata dal 404 di default di Bun ancora prima di raggiungere i router
+// (bug preesistente, non collegato ad alcuna route specifica).
+const routeAdmin = (request: Request): Response | Promise<Response> | null =>
+  routeSuitest(request) ?? routeSlack(request);
+
 pipe(
   IO.of(
     Bun.serve({
@@ -43,6 +50,7 @@ pipe(
       //fetch: route,
       routes: {
         "/": () => Response.json(["/v1/suitest/*", "/v1/slack/*"]),
+        "/_admin/*": (request: BunRequest<"/_admin/*">) => withISE(routeAdmin)(request),
         "/v1/suitest/*": (request: BunRequest<"/v1/suitest/*">) => withISE(routeSuitest)(request),
         "/v1/slack/*": (request: BunRequest<"/v1/slack/*">) => withISE(routeSlack)(request),
       },
@@ -51,5 +59,9 @@ pipe(
   IO.flatMap(({ port, hostname, protocol }) => logger.info(`Running on ${protocol}://${hostname}:${port}`)),
   IO.flatMap(() => logger.info(`   Suitest: /suitest/*`)),
   IO.flatMap(() => logger.info(`   Slack:   /slack/*`)),
-  IO.flatMap(() => logger.info(`   Admin:   /_admin/reset | /_admin/devices/:id/status | /_admin/slack/messages`)),
+  IO.flatMap(() =>
+    logger.info(
+      `   Admin:   /_admin/reset | /_admin/state | /_admin/devices/:id | /_admin/video-capture-devices/:id | /_admin/control-units/:id | /_admin/slack/messages`,
+    ),
+  ),
 )();

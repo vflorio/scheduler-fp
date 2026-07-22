@@ -3,6 +3,7 @@ import type * as ConfigModel from "../config";
 import type { LogFeed } from "../log-stream";
 import type * as Logger from "../logger";
 import type * as NetworkTarget from "../network-target";
+import type { PredicateFeed } from "../predicates/feed";
 import type { AdbError } from "./adb";
 import type * as Db from "./db";
 
@@ -11,9 +12,21 @@ export interface AndroidBridgeError {
   readonly message: string;
 }
 
+export interface AndroidDeviceSnapshot {
+  readonly target: string;
+  readonly status: string;
+}
+
 export interface AndroidBridge {
-  readonly devices: () => TE.TaskEither<AdbError, readonly { target: string; status: string }[]>;
+  readonly devices: () => TE.TaskEither<AdbError, readonly AndroidDeviceSnapshot[]>;
   readonly reboot: (target: NetworkTarget.Target) => TE.TaskEither<AdbError, void>;
+  // Feed live alimentato dal tracker ADB centralizzato (apps/service/src/tracking/adb),
+  // usato dalla subscription tRPC `android.devicesTail` invece di ripollare `adb devices`
+  // in autonomia (era una fonte di poll ridondante rispetto al tracker).
+  readonly devicesFeed: {
+    readonly subscribe: (listener: (devices: readonly AndroidDeviceSnapshot[]) => void) => () => void;
+    readonly snapshot: () => readonly AndroidDeviceSnapshot[];
+  };
 }
 
 // biome-ignore lint/suspicious/noEmptyInterface: <wip>
@@ -52,7 +65,7 @@ export interface DeviceRegistry {
 
 export interface Settings {
   // Config già redatta (segreti mascherati) - non esporre mai la ServiceConfig raw fuori dal processo
-  readonly getConfig: () => ConfigModel.ServiceConfig;
+  readonly getConfig: () => ConfigModel.Service;
 }
 
 export interface Services {
@@ -65,4 +78,6 @@ export interface Services {
   readonly logger: Logger.Tagged; // Web -> Service
   // Feed live dei log di servizio (formattati come su console) per la subscription tRPC verso la web-app
   readonly logs: LogFeed; // Service -> Web
+  // Feed live dei predicati di monitoring (packages/core/src/predicates) per la subscription tRPC verso la web-app
+  readonly tracking: PredicateFeed; // Service -> Web
 }

@@ -1,8 +1,10 @@
-import { FiberManualRecord, Link as LinkIcon, Usb, UsbOff, Videocam } from "@mui/icons-material";
-import { Button, Chip } from "@mui/material";
+import { Link as LinkIcon, Videocam } from "@mui/icons-material";
+import { Chip } from "@mui/material";
 import * as NetworkTarget from "@supervisor/core/network-target";
 import { EntryRow } from "@supervisor/ui/EntryRow";
+import * as O from "fp-ts/Option";
 import type { ReactNode } from "react";
+import { PredicateDot } from "../../components/PredicateDot";
 import type { AdbDevice } from "../../hooks/useAdbDevices";
 import type { CameraView, DeviceKind } from "./types";
 
@@ -24,23 +26,23 @@ export function CameraRow({
   onLink: () => void;
 }) {
   const statusChips: ReactNode[] = [];
+  const videoCaptureDeviceId = O.toUndefined(camera.videoCaptureDeviceId);
 
-  if (camera.suitest) {
+  if (!camera.adb) {
     statusChips.push(
       <Chip
-        key="o"
+        key="a"
         size="small"
-        label={camera.suitest.online ? "Suitest: online" : "Suitest: offline"}
-        color={camera.suitest.online ? "success" : "default"}
-        title="Stato di connessione dell'app suitest-camera sul dispositivo"
+        variant="outlined"
+        icon={<LinkIcon fontSize="small" />}
+        label="Assign ADB"
+        onClick={onAssign}
+        sx={{ mr: 4 }}
       />,
     );
-    if (camera.suitest.recordingActive)
-      statusChips.push(
-        <Chip key="r" size="small" color="error" icon={<FiberManualRecord fontSize="small" />} label="REC" />,
-      );
-    if (camera.suitest.streamActive) statusChips.push(<Chip key="l" size="small" color="info" label="LIVE" />);
-  } else {
+  }
+
+  if (!camera.suitest || !videoCaptureDeviceId) {
     statusChips.push(
       <Chip
         key="o"
@@ -49,28 +51,66 @@ export function CameraRow({
         icon={<LinkIcon fontSize="small" />}
         label="Link Suitest"
         onClick={onLink}
+        sx={{ mr: 4 }}
+      />,
+    );
+  } else {
+    statusChips.push(
+      <PredicateDot
+        key="pr"
+        domain="suitest-camera"
+        entityId={videoCaptureDeviceId}
+        name="suitest_camera_recording"
+        label="Recording"
+        colorFor={(value) => (value === undefined ? "disabled" : value ? "error" : "disabled")}
+        detail={(value) => (value ? "recording" : "idle")}
+      />,
+      <PredicateDot
+        key="pl"
+        domain="suitest-camera"
+        entityId={videoCaptureDeviceId}
+        name="suitest_camera_streaming"
+        label="Streaming"
+        colorFor={(value) => (value === undefined ? "disabled" : value ? "info" : "disabled")}
+        detail={(value) => (value ? "streaming" : "not streaming")}
+      />,
+      <PredicateDot
+        key="pc"
+        domain="suitest-camera"
+        entityId={videoCaptureDeviceId}
+        name="suitest_camera_connected"
+        label="Camera connected"
+        colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
+        detail={(value) => (value === undefined ? "unknown" : value ? "online" : "offline")}
       />,
     );
   }
 
-  statusChips.push(
-    camera.adb ? (
+  if (camera.adb) {
+    const address = NetworkTarget.format(camera.adb.target);
+    statusChips.push(
       <Chip
-        key="t"
+        key="ra"
         size="small"
-        variant={adbStatus === "device" ? "filled" : "outlined"}
-        color={adbStatus === "device" ? "success" : "default"}
-        icon={adbStatus === "device" ? <Usb fontSize="small" /> : <UsbOff fontSize="small" />}
-        label={`ADB: ${NetworkTarget.format(camera.adb.target)}${adbStatus === "device" ? "" : ` (${adbStatus ?? "unreachable"})`}`}
-        title="Stato di raggiungibilità ADB dell'host associato - clicca per riassegnare"
+        variant="outlined"
+        icon={<LinkIcon fontSize="small" />}
+        label="Reassign ADB"
         onClick={onAssign}
-      />
-    ) : (
-      <Button key="a" size="small" variant="outlined" onClick={onAssign}>
-        Assign ADB Host
-      </Button>
-    ),
-  );
+        sx={{ mr: 4 }}
+      />,
+      <PredicateDot
+        key="pa"
+        domain="adb"
+        entityId={address}
+        name="adb_device_reachable"
+        label="ADB reachable"
+        colorFor={(value) => (value === undefined ? "disabled" : value ? "success" : "error")}
+        detail={(value) =>
+          `${address}, ${value === undefined ? "unknown" : value ? "reachable" : (adbStatus ?? "unreachable")}`
+        }
+      />,
+    );
+  }
 
   return (
     <EntryRow
